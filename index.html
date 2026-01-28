@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NFL Spread Model</title>
+  <style>
+    body { font-family: Arial; padding: 40px; }
+    input, button { margin: 5px; padding: 6px; }
+    pre { background: #f4f4f4; padding: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>NFL Weekly Spread Predictor</h1>
+
+  <input id="home" placeholder="Home Team (e.g. KC)">
+  <input id="away" placeholder="Away Team (e.g. BUF)">
+  <input id="week" type="number" placeholder="Week">
+
+  <button onclick="getSpread()">Get Spread</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    async function getSpread() {
+      const home = document.getElementById("home").value;
+      const away = document.getElementById("away").value;
+      const week = document.getElementById("week").value;
+
+      const res = await fetch(
+        `http://127.0.0.1:8000/spread?home=${home}&away=${away}&week=${week}`
+      );
+
+      const data = await res.json();
+      document.getElementById("output").innerText =
+        JSON.stringify(data, null, 2);
+    }
+  </script>
+
+</body>
+</html>
