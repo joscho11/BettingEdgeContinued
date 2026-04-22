@@ -62,14 +62,14 @@ now = dt.now()
 season_active = (now.month >= 9) or (now.month <= 2)
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
-st.sidebar.title("🏈 BettingEdge")
+'''st.sidebar.title("🏈 BettingEdge")
 
 seasons = sorted(df['season'].unique(), reverse=True)
 season  = st.sidebar.selectbox("Season", seasons)
 weeks   = sorted(df[df['season'] == season]['week'].unique(), reverse=True)
 week    = st.sidebar.selectbox("Week", weeks)
 
-edge_threshold = st.sidebar.slider("Min Edge (pts)", 0.0, 5.0, 1.0, 0.5)
+edge_threshold = st.sidebar.slider("Min Edge (pts)", 0.0, 5.0, 1.0, 0.5)'''
 
 # ── Offseason banner ──────────────────────────────────────────────────────────
 if not season_active:
