@@ -4,14 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime as dt
 
-# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="BettingEdge | NFL Predictions",
     page_icon="🏈",
     layout="wide"
 )
 
-# ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def load_tracker():
     df = pd.read_csv('predictions_tracker.csv')
@@ -43,7 +41,7 @@ edge_threshold = st.sidebar.slider(
     value=1.0,
     step=0.5,
     key="edge_slider",
-    help="Only show games where model disagrees with spread by this many points"
+    help="Only show games where model disagrees with spread by at least this many points"
 )
 
 # ── Offseason banner ──────────────────────────────────────────────────────────
@@ -58,11 +56,7 @@ if not season_active:
     )
 
 # ── Filter to selected week ───────────────────────────────────────────────────
-week_df = df[
-    (df['season'] == season) &
-    (df['week']   == week)
-].copy()
-
+week_df    = df[(df['season'] == season) & (df['week'] == week)].copy()
 results_in = week_df['actual_margin'].notna().any()
 
 # ── Header ────────────────────────────────────────────────────────────────────
@@ -82,14 +76,12 @@ else:
 if not week_df.empty and 'mode' in week_df.columns:
     mode      = week_df['mode'].iloc[-1]
     logged_at = week_df['logged_at'].iloc[-1]
-
     mode_labels = {
-        'monday':    ('🟡', 'Early Lines',       'Updated Monday with initial lines'),
-        'thursday':  ('🟠', 'Injury Reports In', 'Updated Thursday with injury data'),
-        'sunday':    ('🟢', 'Final Predictions', 'Final update — games starting soon'),
-        'backfill':  ('🔵', 'Backfilled',        'Historical predictions'),
+        'monday':   ('🟡', 'Early Lines',       'Updated Monday with initial lines'),
+        'thursday': ('🟠', 'Injury Reports In', 'Updated Thursday with injury data'),
+        'sunday':   ('🟢', 'Final Predictions', 'Final update — games starting soon'),
+        'backfill': ('🔵', 'Backfilled',        'Historical predictions'),
     }
-
     icon, label, desc = mode_labels.get(mode, ('⚪', 'Manual Run', ''))
     st.caption(f"{icon} **{label}** — {desc} · Last updated: {logged_at}")
 
@@ -97,20 +89,21 @@ if not week_df.empty and 'mode' in week_df.columns:
 st.divider()
 col1, col2, col3, col4 = st.columns(4)
 
-strong = week_df[week_df['model_edge'].abs() >= edge_threshold]
+# Apply edge filter — this is what gets displayed in cards
+filtered_df = week_df[week_df['model_edge'].abs() >= edge_threshold].copy()
+hidden_count = len(week_df) - len(filtered_df)
 
-col1.metric("Total Games",    len(week_df))
-col2.metric("Bets Flagged",   len(strong),
+col1.metric("Total Games",  len(week_df))
+col2.metric("Showing",      len(filtered_df),
             help=f"Games with |edge| ≥ {edge_threshold} pts")
-col3.metric("Avg Edge",       f"{week_df['model_edge'].abs().mean():.1f} pts")
+col3.metric("Avg Edge",     f"{week_df['model_edge'].abs().mean():.1f} pts")
 
-if results_in and len(strong) > 0:
-    sc = int(strong['model_correct'].sum())
-    st.metric if False else None   # just to avoid unused import warning
-    col4.metric("Strong Edge ATS",
-                f"{sc}/{len(strong)} ({sc/len(strong)*100:.0f}%)")
+if results_in and len(filtered_df) > 0:
+    sc = int(filtered_df['model_correct'].sum())
+    col4.metric("ATS Record",
+                f"{sc}/{len(filtered_df)} ({sc/len(filtered_df)*100:.0f}%)")
 else:
-    col4.metric("Strong Edge ATS", "Pending")
+    col4.metric("ATS Record", "Pending")
 
 st.divider()
 
@@ -119,22 +112,24 @@ st.subheader("Game Predictions")
 
 if week_df.empty:
     st.warning("No predictions found for this week.")
+
+elif filtered_df.empty:
+    st.warning(
+        f"No games meet the current edge threshold of ±{edge_threshold} pts. "
+        f"Lower the slider to see all {len(week_df)} games."
+    )
+
 else:
-    week_df = week_df.sort_values('model_edge', key=abs, ascending=False)
+    if hidden_count > 0:
+        st.caption(
+            f"Showing {len(filtered_df)} of {len(week_df)} games "
+            f"— {hidden_count} filtered out (edge < {edge_threshold} pts). "
+            f"Lower the slider to see all games."
+        )
 
-    for _, row in week_df.iterrows():
-        edge_abs   = abs(row['model_edge'])
-        is_flagged = edge_abs >= edge_threshold
+    filtered_df = filtered_df.sort_values('model_edge', key=abs, ascending=False)
 
-        # Status icon
-        if results_in:
-            border = "🟢" if row['model_correct'] == 1 else "🔴"
-        elif is_flagged:
-            border = "⭐"
-        else:
-            border = "⚪"
-
-        # Recommendation
+    for _, row in filtered_df.iterrows():
         if row['model_edge'] > 0:
             rec       = f"BET HOME ({row['home_team']})"
             rec_color = "#00c853"
@@ -144,6 +139,11 @@ else:
         else:
             rec       = "PASS"
             rec_color = "#888888"
+
+        if results_in:
+            border = "🟢" if row['model_correct'] == 1 else "🔴"
+        else:
+            border = "⭐"
 
         with st.container():
             c1, c2, c3, c4, c5 = st.columns([2, 1.5, 1.5, 1.5, 2])
