@@ -14,7 +14,10 @@ st.set_page_config(
 # ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def load_tracker():
-    return pd.read_csv('predictions_tracker.csv')
+    df = pd.read_csv('predictions_tracker.csv')
+    df['season'] = df['season'].astype(int)
+    df['week']   = df['week'].astype(int)
+    return df
 
 df = load_tracker()
 
