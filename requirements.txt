@@ -1,3 +1,10 @@
 streamlit
 pandas
 plotly
+nflreadpy
+xgboost
+scikit-learn
+joblib
+numpy
+polars
+requests
