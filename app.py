@@ -18,17 +18,6 @@ def load_tracker():
 
 df = load_tracker()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg", width=80)
-st.sidebar.title("BettingEdge")
-st.sidebar.caption("XGBoost ATS Predictor")
-
-seasons  = sorted(df['season'].unique(), reverse=True)
-season   = st.sidebar.selectbox("Season", seasons)
-
-weeks    = sorted(df[df['season'] == season]['week'].unique(), reverse=True)
-week     = st.sidebar.selectbox("Week", weeks)
-
 st.sidebar.divider()
 edge_threshold = st.sidebar.slider(
     "Min Edge (pts)",
@@ -61,15 +50,17 @@ latest_week   = int(df[df['season'] == latest_season]['week'].max())
 now = dt.now()
 season_active = (now.month >= 9) or (now.month <= 2)
 
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
-'''st.sidebar.title("🏈 BettingEdge")
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg", width=80)
+st.sidebar.title("BettingEdge")
+st.sidebar.caption("XGBoost ATS Predictor")
 
-seasons = sorted(df['season'].unique(), reverse=True)
-season  = st.sidebar.selectbox("Season", seasons)
-weeks   = sorted(df[df['season'] == season]['week'].unique(), reverse=True)
-week    = st.sidebar.selectbox("Week", weeks)
+seasons  = sorted(df['season'].unique(), reverse=True)
+season   = st.sidebar.selectbox("Season", seasons)
 
-edge_threshold = st.sidebar.slider("Min Edge (pts)", 0.0, 5.0, 1.0, 0.5)'''
+weeks    = sorted(df[df['season'] == season]['week'].unique(), reverse=True)
+week     = st.sidebar.selectbox("Week", weeks)
 
 # ── Offseason banner ──────────────────────────────────────────────────────────
 if not season_active:
