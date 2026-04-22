@@ -1601,6 +1601,8 @@ def season_summary(season):
 
 season_summary(TARGET_SEASON)
 
+"""## adding other weeks in?"""
+
 if __name__ == '__main__':
 
     if MODE == 'monday':
@@ -1631,12 +1633,274 @@ if __name__ == '__main__':
             # results = <your prediction code>
             log_predictions(results, TARGET_SEASON, TARGET_WEEK, mode='sunday')
 
-for week_num in range(1, 23):
-    TARGET_WEEK = week_num
+import os
+import pandas as pd
+import numpy as np
+from datetime import datetime
 
-    # run your full feature pipeline here
-    log_predictions(results, TARGET_SEASON, TARGET_WEEK, mode='backfill')
-    update_results(TARGET_SEASON, TARGET_WEEK)
+TRACKER_PATH = '/content/drive/MyDrive/BettingEdgeContinued/predictions_tracker.csv'
+TARGET_SEASON = 2025
+BACKFILL_WEEKS = range(10, 18)   # weeks 10 through 17
 
-    print(f"Week {week_num} done")
+# Start fresh
+if os.path.exists(TRACKER_PATH):
+    os.remove(TRACKER_PATH)
+    print("Cleared old tracker")
+
+# Pull full season schedule once — reused every iteration
+raw_schedule = nfl.load_schedules([TARGET_SEASON])
+full_schedule = raw_schedule.to_pandas() if hasattr(raw_schedule, 'to_pandas') else pd.DataFrame(raw_schedule)
+full_schedule['season'] = full_schedule['season'].astype(int)
+full_schedule['week']   = full_schedule['week'].astype(int)
+
+print(f"Schedule loaded: {full_schedule.shape}")
+print(f"Weeks to backfill: {list(BACKFILL_WEEKS)}\n")
+
+# Pull PBP once for the full season — reused every iteration
+print("Pulling PBP data (this takes ~60s)...")
+raw_pbp = nfl.load_pbp([TARGET_SEASON, TARGET_SEASON - 1])
+pbp = raw_pbp.to_pandas() if hasattr(raw_pbp, 'to_pandas') else pd.DataFrame(raw_pbp)
+pbp_rp = pbp[
+    pbp['play_type'].isin(['run', 'pass']) &
+    pbp['posteam'].notna() &
+    pbp['defteam'].notna()
+].copy()
+
+print(f"PBP loaded: {pbp_rp.shape}")
+print(f"Seasons in PBP: {pbp_rp['season'].unique()}")
+
+# Load static data once — reused every iteration
+allpro_df = pd.read_csv('/content/drive/MyDrive/BettingEdgeContinued/nfl_allpro_1997_2025.csv')
+allpro_df = allpro_df[allpro_df['Team'] != '2TM'].copy()
+
+team_map = {
+    'STL': 'LA', 'LAR': 'LA', 'OAK': 'LV', 'LVR': 'LV',
+    'SD': 'LAC', 'SDG': 'LAC', 'NWE': 'NE', 'KAN': 'KC',
+    'GNB': 'GB', 'NOR': 'NO', 'TAM': 'TB', 'SFO': 'SF', 'JAX': 'JAC'
+}
+allpro_df['Team'] = allpro_df['Team'].replace(team_map)
+
+# Load model
+from dataclasses import dataclass, field
+from typing import Tuple, Dict, Any
+import joblib
+
+@dataclass(frozen=True)
+class FinalCfg:
+    test_size: float = 0.2
+    random_state: int = 42
+    oof_splits: int = 5
+    weight_win: float = 2.0
+    weight_loss: float = 1.0
+    drop_non_features: Tuple[str, ...] = ('game_id','home_team','away_team','season','week')
+    categorical_cols: Tuple[str, ...] = ('roof','surface')
+    boolean_cols: Tuple[str, ...] = (
+        'is_playoff','is_final_week','home_qb_switch','away_qb_switch',
+        'is_home_qb_new','is_away_qb_new'
+    )
+    base_xgb_params: Dict[str, Any] = field(default_factory=lambda: dict(
+        n_estimators=500, max_depth=3, learning_rate=0.01, min_child_weight=3,
+        subsample=0.6, colsample_bytree=0.6, reg_alpha=1.0, reg_lambda=3.0,
+        objective='reg:squarederror', random_state=42, tree_method='hist', n_jobs=1
+    ))
+
+res      = joblib.load('/content/drive/MyDrive/BettingEdgeContinued/fantasy_model.pkl')
+pipeline = res['pipeline']
+pre      = pipeline.named_steps['preprocessor']
+cat_cols = list(pre.transformers_[0][2])
+num_cols = list(pre.transformers_[1][2])
+model_features = cat_cols + num_cols
+
+print(f"Model loaded — expects {len(model_features)} features")
+
+def build_features_for_week(target_week, target_season, full_schedule, pbp_rp, allpro_df):
+
+    # ── Split schedule ────────────────────────────────────────────────────────
+    history = full_schedule[
+        (full_schedule['week'] < target_week) &
+        (full_schedule['season'] == target_season) &
+        (full_schedule['result'].notna())
+    ].copy()
+
+    upcoming = full_schedule[
+        (full_schedule['week'] == target_week) &
+        (full_schedule['season'] == target_season)
+    ].copy()
+
+    if upcoming.empty:
+        return None
+
+    # ── Group 1 — basic schedule features ────────────────────────────────────
+    upcoming['temp'] = upcoming['temp'].fillna(72)
+    upcoming['wind'] = upcoming['wind'].fillna(0)
+    upcoming['is_playoff'] = upcoming['game_type'] != 'REG'
+
+    final_week_num = history[history['game_type'] == 'REG']['week'].max()
+    upcoming['is_final_week'] = (
+        (upcoming['game_type'] == 'REG') &
+        (upcoming['week'] == final_week_num)
+    )
+
+    # ── Group 2 — rolling PBP stats ───────────────────────────────────────────
+    pbp_season = pbp_rp[pbp_rp['season'] == target_season].copy()
+
+    # ✅ FIX: only keep week to avoid collisions
+    week_lookup = full_schedule[['game_id', 'week']].drop_duplicates()
+
+    # OFFENSE
+    off_stats = (
+        pbp_season.groupby(['game_id', 'posteam'])
+        .agg(avg_epa=('epa', 'mean'),
+             avg_yards=('yards_gained', 'mean'),
+             play_count=('play_id', 'count'))
+        .reset_index()
+        .rename(columns={'posteam': 'team'})
+    )
+
+    off_stats = off_stats.merge(week_lookup, on='game_id', how='left')
+    off_stats = off_stats[off_stats['week'] < target_week]
+    off_stats = off_stats.sort_values(['team', 'week'])
+
+    for feat in ['avg_epa', 'avg_yards', 'play_count']:
+        off_stats[f'rolling_{feat}'] = (
+            off_stats.groupby('team')[feat]
+            .transform(lambda x: x.shift(1).rolling(5, min_periods=1).mean())
+        )
+
+    # DEFENSE
+    def_stats = (
+        pbp_season.groupby(['game_id', 'defteam'])
+        .agg(allowed_avg_epa=('epa', 'mean'),
+             allowed_avg_yards=('yards_gained', 'mean'),
+             allowed_play_count=('play_id', 'count'))
+        .reset_index()
+        .rename(columns={'defteam': 'team'})
+    )
+
+    def_stats = def_stats.merge(week_lookup, on='game_id', how='left')
+    def_stats = def_stats[def_stats['week'] < target_week]
+    def_stats = def_stats.sort_values(['team', 'week'])
+
+    for feat in ['allowed_avg_epa', 'allowed_avg_yards', 'allowed_play_count']:
+        def_stats[f'rolling_{feat}'] = (
+            def_stats.groupby('team')[feat]
+            .transform(lambda x: x.shift(1).rolling(5, min_periods=1).mean())
+        )
+
+    # latest
+    latest_off = off_stats.groupby('team').last().reset_index()
+    latest_def = def_stats.groupby('team').last().reset_index()
+
+    # merge
+    for side, df in [('home_team', latest_off), ('away_team', latest_off)]:
+        prefix = 'home_' if side == 'home_team' else 'away_'
+        cols = [c for c in df.columns if c.startswith('rolling_')]
+        rename_map = {c: f"{prefix}{c}" for c in cols}
+        upcoming = upcoming.merge(
+            df[['team'] + cols].rename(columns={'team': side, **rename_map}),
+            on=side, how='left'
+        )
+
+    for side, df in [('home_team', latest_def), ('away_team', latest_def)]:
+        prefix = 'home_' if side == 'home_team' else 'away_'
+        cols = [c for c in df.columns if c.startswith('rolling_')]
+        rename_map = {c: f"{prefix}{c}" for c in cols}
+        upcoming = upcoming.merge(
+            df[['team'] + cols].rename(columns={'team': side, **rename_map}),
+            on=side, how='left'
+        )
+
+    # ── Diff features ─────────────────────────────────────────────────────────
+    upcoming['epa_home_off_away_def_rolling_diff'] = upcoming['home_rolling_avg_epa'] - upcoming['away_rolling_allowed_avg_epa']
+    upcoming['epa_home_def_away_off_rolling_diff'] = upcoming['home_rolling_allowed_avg_epa'] - upcoming['away_rolling_avg_epa']
+
+    # ── (rest of your function stays EXACTLY the same) ──
+    # 👉 No other changes needed for the bug you hit
+
+    # ── Final feature check ───────────────────────────────────────────────────
+    missing = [f for f in model_features if f not in upcoming.columns]
+    if missing:
+        print(f"  ⚠️  Week {target_week} missing {len(missing)} features: {missing}")
+        for m in missing:
+            upcoming[m] = 0
+
+    upcoming = upcoming.fillna(upcoming.median(numeric_only=True))
+
+    return upcoming
+
+# ── Main backfill loop ────────────────────────────────────────────────────────
+
+all_logs = []
+
+for week_num in BACKFILL_WEEKS:
+    print(f"\n{'='*50}")
+    print(f"Processing week {week_num}...")
+
+    upcoming = build_features_for_week(
+        week_num, TARGET_SEASON, full_schedule, pbp_rp, allpro_df
+    )
+
+    if upcoming is None or upcoming.empty:
+        print(f"  No games found for week {week_num} — skipping")
+        continue
+
+    # Run model
+    X    = upcoming[model_features].copy()
+    preds = pipeline.predict(X)
+
+    # Build results
+    results = upcoming[['game_id','home_team','away_team',
+                         'gameday','spread_line']].copy()
+    results['predicted_margin'] = preds.round(1)
+    results['model_edge']       = (results['predicted_margin'] - results['spread_line']).round(1)
+    results['recommendation']   = results.apply(
+        lambda r: f"BET HOME ({r['home_team']})" if r['model_edge'] > 0
+                  else f"BET AWAY ({r['away_team']})" if r['model_edge'] < 0
+                  else "PASS", axis=1
+    )
+
+    # Get actual results
+    actuals = full_schedule[
+        (full_schedule['season'] == TARGET_SEASON) &
+        (full_schedule['week']   == week_num)
+    ][['game_id','result']].rename(columns={'result':'actual_margin'})
+
+    results = results.merge(actuals, on='game_id', how='left')
+
+    # Score
+    results['home_covered']  = (results['actual_margin'] > results['spread_line']).astype('Int64')
+    results['model_correct'] = (
+        ((results['model_edge'] > 0) == (results['actual_margin'] > results['spread_line']))
+        .astype('Int64')
+    )
+
+    # Add tracker columns
+    results['season']    = TARGET_SEASON
+    results['week']      = week_num
+    results['mode']      = 'backfill'
+    results['logged_at'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    all_logs.append(results)
+
+    correct = results['model_correct'].sum()
+    total   = len(results)
+    print(f"  ✅ Week {week_num} done — ATS: {correct}/{total} ({correct/total*100:.1f}%)")
+
+# ── Save everything ───────────────────────────────────────────────────────────
+tracker = pd.concat(all_logs, ignore_index=True)
+tracker = tracker[[
+    'game_id','home_team','away_team','gameday','spread_line',
+    'predicted_margin','model_edge','recommendation',
+    'season','week','logged_at','actual_margin',
+    'home_covered','model_correct','mode'
+]]
+
+tracker.to_csv(TRACKER_PATH, index=False)
+print(f"\n{'='*50}")
+print(f"✅ Backfill complete — {len(tracker)} total games saved")
+print(f"   Weeks: {tracker['week'].unique().tolist()}")
+
+correct = tracker['model_correct'].sum()
+total   = len(tracker)
+print(f"   Overall ATS: {correct}/{total} ({correct/total*100:.1f}%)")
 
