@@ -11,6 +11,134 @@ import joblib
 from dataclasses import dataclass, field
 from typing import Tuple, Dict, Any
 
+import os
+import sys
+import pandas as pd
+import numpy as np
+import joblib
+import nflreadpy as nfl
+from datetime import datetime
+
+# ── Config ────────────────────────────────────────────────────────────────────
+TARGET_SEASON   = 2025
+EDGE_THRESHOLD  = 1.0
+TRACKER_PATH    = 'predictions_tracker.csv'
+ALLPRO_CSV_PATH = 'nfl_allpro_1997_2025.csv'
+MODEL_PATH      = 'fantasy_model.pkl'
+
+# Mode is passed as a command line argument
+# python predict.py monday
+# python predict.py thursday
+# python predict.py sunday
+MODE = sys.argv[1] if len(sys.argv) > 1 else 'thursday'
+print(f"Running in {MODE.upper()} mode — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+def get_week_info(season):
+    raw = nfl.load_schedules([season])
+    schedule = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
+
+    today = pd.Timestamp.now().normalize()
+
+    reg = schedule[
+        (schedule['season'] == season) &
+        (schedule['game_type'] == 'REG')
+    ].copy()
+
+    # Future games = no result yet
+    future = reg[reg['result'].isna()]
+    # Completed games = result exists
+    completed = reg[reg['result'].notna()]
+
+    if future.empty:
+        # Season over
+        return None, int(completed['week'].max())
+
+    upcoming_week  = int(future['week'].min())
+    previous_week  = upcoming_week - 1 if upcoming_week > 1 else None
+
+    return upcoming_week, previous_week
+
+TARGET_WEEK, PREV_WEEK = get_week_info(TARGET_SEASON)
+print(f"Upcoming week: {TARGET_WEEK} | Previous week: {PREV_WEEK}")
+
+def update_results(season, week):
+    if not os.path.exists(TRACKER_PATH):
+        print("No tracker found — skipping results update")
+        return
+
+    print(f"Updating results for season {season} week {week}...")
+
+    tracker = pd.read_csv(TRACKER_PATH)
+
+    raw = nfl.load_schedules([season])
+    sched = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
+
+    actual = sched[
+        (sched['season'] == season) &
+        (sched['week']   == week)
+    ][['game_id', 'result']].rename(columns={'result': 'actual_margin'})
+
+    if actual['actual_margin'].isna().all():
+        print(f"Results not yet available for week {week} — skipping")
+        return
+
+    mask    = (tracker['season'] == season) & (tracker['week'] == week)
+    indices = tracker[mask].index
+
+    if len(indices) == 0:
+        print(f"No predictions found for week {week} — skipping")
+        return
+
+    rows = tracker.loc[indices].copy()
+    rows = rows.merge(actual, on='game_id', how='left', suffixes=('_old', '_new'))
+    rows['actual_margin'] = rows['actual_margin_new']
+    rows = rows.drop(columns=['actual_margin_old', 'actual_margin_new'], errors='ignore')
+    rows['home_covered']  = (rows['actual_margin'] > rows['spread_line']).astype(int)
+    rows['model_correct'] = ((rows['model_edge'] > 0) == (rows['home_covered'] == 1)).astype(int)
+
+    tracker.loc[indices, 'actual_margin'] = rows['actual_margin'].values
+    tracker.loc[indices, 'home_covered']  = rows['home_covered'].values
+    tracker.loc[indices, 'model_correct'] = rows['model_correct'].values
+    tracker.to_csv(TRACKER_PATH, index=False)
+
+    correct = int(rows['model_correct'].sum())
+    total   = len(rows)
+    print(f"✅ Week {week} results updated — ATS: {correct}/{total} ({correct/total*100:.1f}%)")
+
+def log_predictions(results_df, season, week, mode):
+    log = results_df[['game_id', 'home_team', 'away_team', 'gameday',
+                       'spread_line', 'predicted_margin',
+                       'model_edge', 'recommendation']].copy()
+    log['season']        = season
+    log['week']          = week
+    log['mode']          = mode          # tracks which run produced this
+    log['logged_at']     = datetime.now().strftime('%Y-%m-%d %H:%M')
+    log['actual_margin'] = None
+    log['home_covered']  = None
+    log['model_correct'] = None
+
+    if os.path.exists(TRACKER_PATH):
+        tracker = pd.read_csv(TRACKER_PATH)
+
+        # Check if this week already has predictions
+        existing_mask = (
+            (tracker['season'] == season) &
+            (tracker['week']   == week)
+        )
+
+        if existing_mask.any():
+            # UPDATE existing predictions — spreads and edges may have shifted
+            print(f"Updating existing week {week} predictions ({mode} refresh)...")
+            tracker = tracker[~existing_mask]   # drop old rows for this week
+
+        updated = pd.concat([tracker, log], ignore_index=True)
+        updated.to_csv(TRACKER_PATH, index=False)
+        print(f"✅ Week {week} predictions saved ({mode} run — {len(log)} games)")
+
+    else:
+        log.to_csv(TRACKER_PATH, index=False)
+        print(f"✅ Tracker created with week {week} predictions ({len(log)} games)")
+
 """## load model"""
 
 @dataclass(frozen=True)
@@ -1180,6 +1308,8 @@ predictions = pipeline.predict(X)
 
 print(predictions)
 
+"""## mini eval"""
+
 results = upcoming[['game_id', 'home_team', 'away_team',
                      'gameday', 'spread_line']].copy()
 
@@ -1327,4 +1457,186 @@ ax2.set_title('Model Edge vs Actual Edge\n(Q1 & Q3 = correct side, Q2 & Q4 = wro
 
 plt.tight_layout()
 plt.show()
+
+"""## logging"""
+
+import os
+from datetime import datetime
+
+TRACKER_PATH = '/content/drive/MyDrive/BettingEdgeContinued/predictions_tracker.csv'
+
+# Build the predictions log for this week
+log = results[['game_id', 'home_team', 'away_team', 'gameday',
+               'spread_line', 'predicted_margin',
+               'model_edge', 'recommendation']].copy()
+
+log['season']        = TARGET_SEASON
+log['week']          = TARGET_WEEK
+log['logged_at']     = datetime.now().strftime('%Y-%m-%d %H:%M')
+log['actual_margin'] = None   # filled in after games are played
+log['home_covered']  = None
+log['model_correct'] = None
+
+# Append to tracker — create it if it doesn't exist yet
+if os.path.exists(TRACKER_PATH):
+    existing = pd.read_csv(TRACKER_PATH)
+
+    # Don't double-log the same week
+    already_logged = (
+        (existing['season'] == TARGET_SEASON) &
+        (existing['week']   == TARGET_WEEK)
+    ).any()
+
+    if already_logged:
+        print(f"⚠️  Week {TARGET_WEEK} already logged. Skipping.")
+    else:
+        tracker = pd.concat([existing, log], ignore_index=True)
+        tracker.to_csv(TRACKER_PATH, index=False)
+        print(f"✅ Logged {len(log)} games for week {TARGET_WEEK}")
+else:
+    log.to_csv(TRACKER_PATH, index=False)
+    print(f"✅ Created tracker and logged {len(log)} games for week {TARGET_WEEK}")
+
+def update_results(season, week):
+    if not os.path.exists(TRACKER_PATH):
+        print("No tracker found. Run predictions first.")
+        return
+
+    tracker = pd.read_csv(TRACKER_PATH)
+
+    # Pull actual results — already a pandas DataFrame
+    raw = nfl.load_schedules([season])
+    actual_schedule = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
+
+    actual = actual_schedule[
+        (actual_schedule['season'] == season) &
+        (actual_schedule['week']   == week)
+    ][['game_id', 'result']].rename(columns={'result': 'actual_margin'})
+
+    # Get the rows to update
+    mask = (tracker['season'] == season) & (tracker['week'] == week)
+    indices = tracker[mask].index
+
+    # Merge actual results in
+    rows = tracker.loc[indices].copy()
+    rows = rows.merge(actual, on='game_id', how='left', suffixes=('_old', '_new'))
+
+    # Fill in the new columns
+    rows['actual_margin'] = rows['actual_margin_new']
+    rows['home_covered']  = rows['actual_margin'] > rows['spread_line']
+    rows['model_correct'] = (rows['model_edge'] > 0) == rows['home_covered']
+    rows = rows.drop(columns=['actual_margin_old', 'actual_margin_new'], errors='ignore')
+
+    # Write back to tracker
+    tracker.loc[indices, 'actual_margin'] = rows['actual_margin'].values
+    tracker.loc[indices, 'home_covered']  = rows['home_covered'].astype(int).values
+    tracker.loc[indices, 'model_correct'] = rows['model_correct'].astype(int).values
+    tracker.to_csv(TRACKER_PATH, index=False)
+
+    # Summary
+    correct = rows['model_correct'].sum()
+    total   = len(rows)
+    print(f"✅ Week {week} results updated")
+    print(f"   ATS record: {correct}/{total} ({correct/total*100:.1f}%)")
+    print()
+    print(rows[['home_team', 'away_team', 'spread_line',
+                'predicted_margin', 'actual_margin',
+                'model_edge', 'model_correct']].to_string(index=False))
+
+update_results(TARGET_SEASON, TARGET_WEEK)
+
+def season_summary(season):
+    if not os.path.exists(TRACKER_PATH):
+        print("No tracker found.")
+        return
+
+    tracker = pd.read_csv(TRACKER_PATH)
+    df = tracker[
+        (tracker['season'] == season) &
+        (tracker['actual_margin'].notna())
+    ].copy()
+
+    if df.empty:
+        print("No completed games in tracker yet.")
+        return
+
+    total    = len(df)
+    correct  = df['model_correct'].sum()
+    avg_edge = df['model_edge'].abs().mean()
+    avg_err  = (df['predicted_margin'] - df['actual_margin']).abs().mean()
+
+    print("=" * 45)
+    print(f"  SEASON {season} SUMMARY")
+    print("=" * 45)
+    print(f"  Weeks tracked:       {df['week'].nunique()}")
+    print(f"  Total games:         {total}")
+    print(f"  ATS record:          {int(correct)}-{total - int(correct)}")
+    print(f"  ATS win rate:        {correct/total*100:.1f}%")
+    print(f"  Avg model edge:      {avg_edge:.1f} pts")
+    print(f"  Avg margin error:    {avg_err:.1f} pts")
+    print()
+
+    # Breakdown by edge threshold
+    print("  Win rate by edge threshold:")
+    for threshold in [0.5, 1.0, 1.5, 2.0, 3.0]:
+        subset = df[df['model_edge'].abs() >= threshold]
+        if len(subset) == 0:
+            continue
+        w = subset['model_correct'].sum()
+        t = len(subset)
+        print(f"    Edge >= {threshold}: {int(w)}/{t} ({w/t*100:.1f}%)")
+
+    print()
+
+    # Week by week record
+    print("  Week by week:")
+    weekly = df.groupby('week').agg(
+        games     = ('model_correct', 'count'),
+        correct   = ('model_correct', 'sum')
+    )
+    weekly['win_pct'] = (weekly['correct'] / weekly['games'] * 100).round(1)
+    for week, row in weekly.iterrows():
+        bar = "█" * int(row['correct']) + "░" * int(row['games'] - row['correct'])
+        print(f"    Week {week:>2}: {bar}  {int(row['correct'])}/{int(row['games'])} ({row['win_pct']}%)")
+
+season_summary(TARGET_SEASON)
+
+if __name__ == '__main__':
+
+    if MODE == 'monday':
+        # 1. Fill in last week's results
+        if PREV_WEEK:
+            update_results(TARGET_SEASON, PREV_WEEK)
+
+        # 2. Generate early predictions for upcoming week
+        if TARGET_WEEK:
+            print(f"\nGenerating early predictions for week {TARGET_WEEK}...")
+            # --- your full feature pipeline runs here ---
+            # results = <your prediction code>
+            log_predictions(results, TARGET_SEASON, TARGET_WEEK, mode='monday')
+
+    elif MODE == 'thursday':
+        # Refresh predictions with updated injury reports
+        if TARGET_WEEK:
+            print(f"\nRefreshing week {TARGET_WEEK} predictions with Thursday injury data...")
+            # --- your full feature pipeline runs here ---
+            # results = <your prediction code>
+            log_predictions(results, TARGET_SEASON, TARGET_WEEK, mode='thursday')
+
+    elif MODE == 'sunday':
+        # Final predictions before kickoff
+        if TARGET_WEEK:
+            print(f"\nFinal predictions for week {TARGET_WEEK}...")
+            # --- your full feature pipeline runs here ---
+            # results = <your prediction code>
+            log_predictions(results, TARGET_SEASON, TARGET_WEEK, mode='sunday')
+
+for week_num in range(1, 23):
+    TARGET_WEEK = week_num
+
+    # run your full feature pipeline here
+    log_predictions(results, TARGET_SEASON, TARGET_WEEK, mode='backfill')
+    update_results(TARGET_SEASON, TARGET_WEEK)
+
+    print(f"Week {week_num} done")
 

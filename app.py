@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import datetime as dt
 import plotly.graph_objects as go
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -48,33 +49,35 @@ week_df = df[
 results_in = week_df['actual_margin'].notna().any()
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.title(f"🏈 Week {week} Predictions — {season} Season")
+# ── Determine what to show ────────────────────────────────────────────────────
+df = load_tracker()
 
-if results_in:
-    correct = int(week_df['model_correct'].sum())
-    total   = len(week_df)
-    st.success(f"Results are in — Week {week} ATS record: **{correct}-{total - correct}** ({correct/total*100:.0f}%)")
-else:
-    st.info("Games not yet played. Check back after the week's results are in.")
+# Most recent week that has any data
+latest_season = int(df['season'].max())
+latest_week   = int(df[df['season'] == latest_season]['week'].max())
 
-# ── Summary metrics ───────────────────────────────────────────────────────────
-col1, col2, col3, col4 = st.columns(4)
+# Is the season currently active?
+# NFL regular season runs Sept - Jan
+now = dt.now()
+season_active = (now.month >= 9) or (now.month <= 2)
 
-strong = week_df[week_df['model_edge'].abs() >= edge_threshold]
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+st.sidebar.title("🏈 BettingEdge")
 
-col1.metric("Total Games",     len(week_df))
-col2.metric("Bets Flagged",    len(strong),
-            help=f"Games with edge ≥ {edge_threshold} pts")
-col3.metric("Avg Edge (all)",  f"{week_df['model_edge'].abs().mean():.1f} pts")
+seasons = sorted(df['season'].unique(), reverse=True)
+season  = st.sidebar.selectbox("Season", seasons)
+weeks   = sorted(df[df['season'] == season]['week'].unique(), reverse=True)
+week    = st.sidebar.selectbox("Week", weeks)
 
-if results_in and len(strong) > 0:
-    strong_correct = int(strong['model_correct'].sum())
-    col4.metric("Strong Edge ATS",
-                f"{strong_correct}/{len(strong)} ({strong_correct/len(strong)*100:.0f}%)")
-else:
-    col4.metric("Strong Edge ATS", "Pending")
+edge_threshold = st.sidebar.slider("Min Edge (pts)", 0.0, 5.0, 1.0, 0.5)
 
-st.divider()
+# ── Offseason banner ──────────────────────────────────────────────────────────
+if not season_active:
+    st.info(
+        "🏈 **NFL Offseason** — The 2025 season has concluded. "
+        "Predictions will return when the 2026 season kicks off in September. "
+        "Browse past predictions using the sidebar."
+    )
 
 # ── Game cards ────────────────────────────────────────────────────────────────
 st.subheader("Game Predictions")
