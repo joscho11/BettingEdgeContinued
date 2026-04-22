@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import datetime as dt
+from datetime import datetime as dt
 import plotly.graph_objects as go
 
 # ── Page config ───────────────────────────────────────────────────────────────
