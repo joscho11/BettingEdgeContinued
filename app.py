@@ -134,3 +134,19 @@ for _, row in week_df.iterrows():
             )
 
         st.divider()
+
+        # Show freshness indicator
+if not week_df.empty and 'mode' in week_df.columns:
+    mode      = week_df['mode'].iloc[-1]
+    logged_at = week_df['logged_at'].iloc[-1]
+
+    mode_labels = {
+        'monday':   ('🟡', 'Early Lines',          'Updated Monday with initial lines'),
+        'thursday': ('🟠', 'Injury Reports In',    'Updated Thursday with injury data'),
+        'sunday':   ('🟢', 'Final Predictions',    'Final update — games starting soon'),
+    }
+
+    icon, label, desc = mode_labels.get(mode, ('⚪', 'Unknown', ''))
+
+    st.info(f"{icon} **{label}** — {desc}  \n"
+            f"Last updated: {logged_at}")

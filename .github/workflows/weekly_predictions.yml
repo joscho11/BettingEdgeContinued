@@ -1,0 +1,67 @@
+name: Weekly NFL Predictions
+
+on:
+  schedule:
+    # Monday 9am ET = 14:00 UTC
+    - cron: '0 14 * * 1'
+    # Thursday 9pm ET = 02:00 UTC Friday
+    - cron: '0 2 * * 5'
+    # Sunday 7am ET = 12:00 UTC
+    - cron: '0 14 * * 0'
+
+  # Manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: true
+        default: 'thursday'
+        type: choice
+        options:
+          - monday
+          - thursday
+          - sunday
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Determine mode based on what triggered the run
+      - name: Set mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MODE=${{ github.event.inputs.mode }}" >> $GITHUB_ENV
+          else
+            DAY=$(date +%u)   # 1=Mon, 4=Thu, 7=Sun
+            if [ "$DAY" = "1" ]; then
+              echo "MODE=monday" >> $GITHUB_ENV
+            elif [ "$DAY" = "4" ]; then
+              echo "MODE=thursday" >> $GITHUB_ENV
+            else
+              echo "MODE=sunday" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: Run predictions
+        run: python predict.py ${{ env.MODE }}
+
+      - name: Commit updated tracker
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add predictions_tracker.csv
+          git diff --staged --quiet || git commit -m "Auto (${{ env.MODE }}): week update $(date +'%Y-%m-%d')"
+          git push
