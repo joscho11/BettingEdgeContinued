@@ -132,62 +132,37 @@ else:
     for _, row in filtered_df.iterrows():
         home      = row['home_team']
         away      = row['away_team']
-        spread    = row['spread_line']   # negative = home favored, positive = away favored
+        spread    = row['spread_line']
         predicted = row['predicted_margin']
         edge      = row['model_edge']
 
-        # spread_line is home-team-relative in your data.
-        # For display: favored team is negative, underdog is positive.
-        # If spread < 0, home is favored → home gets the negative number as-is,
-        #                                   away gets the positive (flipped)
-        # If spread > 0, away is favored → away gets the positive as-is,
-        #                                   home gets the negative (flipped)
-        # Either way: home_spread = spread, away_spread = -spread
-        # But we want FAVORED shown first (negative on top), so we sort the rows.
+        # Home-relative values
         home_spread    = spread
         away_spread    = -spread
-
-        # Same logic for predicted and edge — keep home-relative,
-        # display will handle positive/negative correctly per team
         home_predicted = predicted
         away_predicted = -predicted
-        home_edge_val  = edge
-        away_edge_val  = -edge
 
-        # Format for display
         def fmt(val):
             return f"{val:+.1f}"
 
-        # Who is favored? (negative spread = favored)
+        # Display order: favored (negative spread) on top
         home_is_favored = spread < 0
-        favored_team    = home if home_is_favored else away
-        underdog_team   = away if home_is_favored else home
-
-        # Display order: favored on top, underdog on bottom
         if home_is_favored:
-            top_team       = home
-            bot_team       = away
-            top_spread     = fmt(home_spread)
-            bot_spread     = fmt(away_spread)
-            top_predicted  = fmt(home_predicted)
-            bot_predicted  = fmt(away_predicted)
-            top_edge_val   = home_edge_val
-            bot_edge_val   = away_edge_val
+            top_team      = home
+            bot_team      = away
+            top_spread    = fmt(home_spread)
+            bot_spread    = fmt(away_spread)
+            top_predicted = fmt(home_predicted)
+            bot_predicted = fmt(away_predicted)
         else:
-            top_team       = away
-            bot_team       = home
-            top_spread     = fmt(away_spread)
-            bot_spread     = fmt(home_spread)
-            top_predicted  = fmt(away_predicted)
-            bot_predicted  = fmt(home_predicted)
-            top_edge_val   = away_edge_val
-            bot_edge_val   = home_edge_val
-
-        top_edge  = fmt(top_edge_val)
-        bot_edge  = fmt(bot_edge_val)
+            top_team      = away
+            bot_team      = home
+            top_spread    = fmt(away_spread)
+            bot_spread    = fmt(home_spread)
+            top_predicted = fmt(away_predicted)
+            bot_predicted = fmt(home_predicted)
 
         # Who does the model recommend?
-        # Positive home_edge = model thinks home covers = home is the bet
         if edge > 0:
             rec_team  = home
             rec_color = "#00c853"
@@ -198,114 +173,125 @@ else:
             rec_team  = None
             rec_color = "#888888"
 
+        top_is_rec = rec_team == top_team
+        bot_is_rec = rec_team == bot_team
+
         # Results
         results_available = results_in and pd.notna(row['actual_margin'])
         correct           = (row['model_correct'] == 1) if results_in else False
         actual            = row['actual_margin'] if results_available else None
 
         if results_available:
-            # actual_margin is home-relative (positive = home won by that amount)
-            home_actual_val = actual
-            away_actual_val = -actual
-            if home_is_favored:
-                top_actual = f"{home_actual_val:+.1f}"
-                bot_actual = f"{away_actual_val:+.1f}"
+            home_score = row.get('home_score', None)
+            away_score = row.get('away_score', None)
+            # If individual scores not stored, derive from actual_margin + total
+            # Fall back to showing margin only
+            has_scores = pd.notna(home_score) and pd.notna(away_score)
+            if has_scores:
+                if home_is_favored:
+                    top_score = f"{int(home_score)}"
+                    bot_score = f"{int(away_score)}"
+                else:
+                    top_score = f"{int(away_score)}"
+                    bot_score = f"{int(home_score)}"
             else:
-                top_actual = f"{away_actual_val:+.1f}"
-                bot_actual = f"{home_actual_val:+.1f}"
-        else:
-            top_actual = "—"
-            bot_actual = "—"
+                # Show margin from each team's perspective
+                top_score = fmt(actual if home_is_favored else -actual)
+                bot_score = fmt(-actual if home_is_favored else actual)
 
-        # Status
         status_icon  = "🟢" if results_in and correct else ("🔴" if results_in else "⭐")
-        result_label = ("✅ Correct" if correct else "❌ Wrong") if results_in else ""
+        result_label = ("✅ WIN" if correct else "❌ LOSS") if results_in else ""
 
-        def stat_box(val, highlight=False):
-            bg    = "#1e3a2a" if highlight and rec_color == "#00c853" else ("#1e2a3a4a" if highlight else "#1e2a3a")
-            color = rec_color if highlight else "white"
+        # Styling helpers
+        def name_style(is_rec):
+            weight = "700" if is_rec else "400"
+            color  = "white" if is_rec else "#aaa"
+            return weight, color
+
+        def stat_box(val, is_rec=False, is_result=False):
+            if is_result and results_available:
+                bg    = "#1a2a1a" if correct else "#2a1a1a"
+                color = "#00c853" if correct else "#ff5252"
+            elif is_rec:
+                bg    = "#1e3a2a" if rec_color == "#00c853" else "#1a2040"
+                color = rec_color
+            else:
+                bg    = "#1e2a3a"
+                color = "white"
             return (
                 f"<div style='text-align:center;background:{bg};border-radius:6px;"
-                f"padding:5px 0;font-size:14px;font-weight:600;color:{color}'>{val}</div>"
+                f"padding:6px 0;font-size:14px;font-weight:600;color:{color};"
+                f"height:32px;line-height:20px'>{val}</div>"
             )
 
-        top_highlight = rec_team == top_team
-        bot_highlight = rec_team == bot_team
-        top_weight    = "700" if top_highlight else "400"
-        bot_weight    = "700" if bot_highlight else "400"
-        top_color     = "white" if top_highlight else "#ccc"
-        bot_color     = "white" if bot_highlight else "#ccc"
+        def bet_box(label, team):
+            return (
+                f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
+                f"border-radius:4px;padding:0 8px;font-size:12px;font-weight:700;"
+                f"color:{rec_color};text-align:center;height:32px;line-height:32px'>"
+                f"BET {team}</div>"
+            )
+
+        def empty_box():
+            return "<div style='height:32px'></div>"
 
         with st.container():
-
             # ── Header ───────────────────────────────────────────────────
             st.markdown(
                 f"<div style='font-size:13px;color:#888;margin-bottom:6px'>"
                 f"{status_icon}&nbsp;&nbsp;"
                 f"<b style='color:#ccc'>{away} @ {home}</b>"
                 f"&nbsp;&nbsp;·&nbsp;&nbsp;{row['gameday']}"
-                f"{'&nbsp;&nbsp;·&nbsp;&nbsp;' + result_label if result_label else ''}"
+                f"{'&nbsp;&nbsp;·&nbsp;&nbsp;<b>' + result_label + '</b>' if result_label else ''}"
                 f"</div>",
                 unsafe_allow_html=True
             )
 
             # ── Column headers ────────────────────────────────────────────
             if results_available:
-                h0, h1, h2, h3, h4, h5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.2, 1.5])
-                h4.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>ACTUAL</div>", unsafe_allow_html=True)
+                h0, h1, h2, h3, h4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
+                h3.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SCORE</div>", unsafe_allow_html=True)
+                h4.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'></div>", unsafe_allow_html=True)
             else:
-                h0, h1, h2, h3, h5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.5])
+                h0, h1, h2, h4 = st.columns([2.2, 1.2, 1.2, 1.8])
 
             h1.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SPREAD</div>",    unsafe_allow_html=True)
             h2.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>PREDICTED</div>", unsafe_allow_html=True)
-            h3.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>EDGE</div>",      unsafe_allow_html=True)
 
-            # ── Top row (favored team) ────────────────────────────────────
+            # ── Top row (favored) ─────────────────────────────────────────
             if results_available:
-                a0, a1, a2, a3, a4, a5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.2, 1.5])
-                a4.markdown(stat_box(top_actual), unsafe_allow_html=True)
+                a0, a1, a2, a3, a4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
+                a3.markdown(stat_box(top_score, is_result=True), unsafe_allow_html=True)
             else:
-                a0, a1, a2, a3, a5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.5])
+                a0, a1, a2, a4 = st.columns([2.2, 1.2, 1.2, 1.8])
 
+            top_w, top_c = name_style(top_is_rec)
             a0.markdown(
-                f"<div style='font-weight:{top_weight};font-size:15px;color:{top_color};padding-top:4px'>{top_team}</div>",
+                f"<div style='font-weight:{top_w};font-size:15px;color:{top_c};"
+                f"padding-top:6px;height:32px'>{top_team}</div>",
                 unsafe_allow_html=True
             )
-            a1.markdown(stat_box(top_spread),              unsafe_allow_html=True)
-            a2.markdown(stat_box(top_predicted),           unsafe_allow_html=True)
-            a3.markdown(stat_box(top_edge, top_highlight), unsafe_allow_html=True)
+            a1.markdown(stat_box(top_spread),                   unsafe_allow_html=True)
+            a2.markdown(stat_box(top_predicted, is_rec=top_is_rec), unsafe_allow_html=True)
+            a4.markdown(bet_box("", top_team) if top_is_rec else empty_box(), unsafe_allow_html=True)
 
-            if top_highlight:
-                a5.markdown(
-                    f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
-                    f"padding:5px 8px;border-radius:4px;font-size:12px;font-weight:700;"
-                    f"color:{rec_color};text-align:center'>BET<br>{top_team}</div>",
-                    unsafe_allow_html=True
-                )
-
-            st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
             # ── Bottom row (underdog) ─────────────────────────────────────
             if results_available:
-                b0, b1, b2, b3, b4, b5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.2, 1.5])
-                b4.markdown(stat_box(bot_actual), unsafe_allow_html=True)
+                b0, b1, b2, b3, b4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
+                b3.markdown(stat_box(bot_score, is_result=True), unsafe_allow_html=True)
             else:
-                b0, b1, b2, b3, b5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.5])
+                b0, b1, b2, b4 = st.columns([2.2, 1.2, 1.2, 1.8])
 
+            bot_w, bot_c = name_style(bot_is_rec)
             b0.markdown(
-                f"<div style='font-weight:{bot_weight};font-size:15px;color:{bot_color};padding-top:4px'>{bot_team}</div>",
+                f"<div style='font-weight:{bot_w};font-size:15px;color:{bot_c};"
+                f"padding-top:6px;height:32px'>{bot_team}</div>",
                 unsafe_allow_html=True
             )
-            b1.markdown(stat_box(bot_spread),              unsafe_allow_html=True)
-            b2.markdown(stat_box(bot_predicted),           unsafe_allow_html=True)
-            b3.markdown(stat_box(bot_edge, bot_highlight), unsafe_allow_html=True)
-
-            if bot_highlight:
-                b5.markdown(
-                    f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
-                    f"padding:5px 8px;border-radius:4px;font-size:12px;font-weight:700;"
-                    f"color:{rec_color};text-align:center'>BET<br>{bot_team}</div>",
-                    unsafe_allow_html=True
-                )
+            b1.markdown(stat_box(bot_spread),                   unsafe_allow_html=True)
+            b2.markdown(stat_box(bot_predicted, is_rec=bot_is_rec), unsafe_allow_html=True)
+            b4.markdown(bet_box("", bot_team) if bot_is_rec else empty_box(), unsafe_allow_html=True)
 
             st.divider()
