@@ -545,3 +545,24 @@ if __name__ == '__main__':
 
     else:
         print(f"Unknown mode: {MODE}. Use monday, thursday, or sunday.")
+
+#add game scores
+import pandas as pd
+import nflreadpy as nfl
+
+TRACKER_PATH = '/content/drive/MyDrive/BettingEdgeContinued/predictions_tracker.csv'
+
+tracker = pd.read_csv(TRACKER_PATH)
+
+# Pull schedule with actual scores
+raw   = nfl.load_schedules([2025])
+sched = raw.to_pandas()
+
+# Merge home_score and away_score onto tracker
+scores = sched[['game_id', 'home_score', 'away_score']].dropna()
+tracker = tracker.merge(scores, on='game_id', how='left')
+
+print(tracker[['home_team', 'away_team', 'week', 'home_score', 'away_score', 'actual_margin']].head(20))
+
+tracker.to_csv(TRACKER_PATH, index=False)
+print("✅ Scores added")
