@@ -130,45 +130,127 @@ else:
     filtered_df = filtered_df.sort_values('model_edge', key=abs, ascending=False)
 
     for _, row in filtered_df.iterrows():
-        if row['model_edge'] > 0:
-            rec       = f"BET HOME ({row['home_team']})"
+        home      = row['home_team']
+        away      = row['away_team']
+        spread    = row['spread_line']
+        predicted = row['predicted_margin']
+        edge      = row['model_edge']
+
+        # Flip to per-team perspective
+        home_spread    = f"{spread:+.1f}"
+        away_spread    = f"{-spread:+.1f}"
+        home_predicted = f"{predicted:+.1f}"
+        away_predicted = f"{-predicted:+.1f}"
+        home_edge      = f"{edge:+.1f}"
+        away_edge      = f"{-edge:+.1f}"
+
+        # Who does the model recommend?
+        if edge > 0:
+            rec_team  = home
             rec_color = "#00c853"
-        elif row['model_edge'] < 0:
-            rec       = f"BET AWAY ({row['away_team']})"
+        elif edge < 0:
+            rec_team  = away
             rec_color = "#2979ff"
         else:
-            rec       = "PASS"
+            rec_team  = None
             rec_color = "#888888"
 
-        if results_in:
-            border = "🟢" if row['model_correct'] == 1 else "🔴"
-        else:
-            border = "⭐"
+        # Results (safe — always defined)
+        results_available = results_in and pd.notna(row['actual_margin'])
+        correct           = (row['model_correct'] == 1) if results_in else False
+        actual            = row['actual_margin'] if results_available else None
+        home_actual       = f"{actual:+.1f}"  if results_available else "—"
+        away_actual       = f"{-actual:+.1f}" if results_available else "—"
+
+        # Status icon and label
+        status_icon  = "🟢" if results_in and correct else ("🔴" if results_in else ("⭐" if abs(edge) >= edge_threshold else "⚪"))
+        result_label = ("✅ Correct" if correct else "❌ Wrong") if results_in else ""
+
+        # Highlight vars
+        away_highlight = rec_team == away
+        home_highlight = rec_team == home
+        away_weight    = "700" if away_highlight else "400"
+        home_weight    = "700" if home_highlight else "400"
+        away_color     = "white" if away_highlight else "#ccc"
+        home_color     = "white" if home_highlight else "#ccc"
 
         with st.container():
-            c1, c2, c3, c4, c5 = st.columns([2, 1.5, 1.5, 1.5, 2])
 
-            c1.markdown(f"**{border} {row['away_team']} @ {row['home_team']}**")
-            c1.caption(str(row['gameday']))
+            # ── Game date / status header ─────────────────────────────────
+            st.markdown(
+                f"<div style='font-size:13px;color:#888;margin-bottom:6px'>"
+                f"{status_icon}&nbsp;&nbsp;<b style='color:#ccc'>{away} @ {home}</b>"
+                f"&nbsp;&nbsp;·&nbsp;&nbsp;{row['gameday']}"
+                f"{'&nbsp;&nbsp;·&nbsp;&nbsp;' + result_label if result_label else ''}"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
-            spread_str = f"{row['spread_line']:+.1f}" if pd.notna(row['spread_line']) else "N/A"
-            c2.metric("Spread",     spread_str)
-            c3.metric("Predicted",  f"{row['predicted_margin']:+.1f}")
-            c4.metric("Model Edge", f"{row['model_edge']:+.1f}")
-
-            if results_in and pd.notna(row['actual_margin']):
-                c5.metric(
-                    "Actual",
-                    f"{row['actual_margin']:+.1f}",
-                    delta="✅ Correct" if row['model_correct'] == 1 else "❌ Wrong",
-                    delta_color="normal" if row['model_correct'] == 1 else "inverse"
-                )
+            # ── Column headers ────────────────────────────────────────────
+            num_cols = 5 if results_available else 4
+            if results_available:
+                h0, h1, h2, h3, h4, h5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.2, 1.5])
+                h4.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>ACTUAL</div>", unsafe_allow_html=True)
             else:
-                c5.markdown(
-                    f"<div style='background-color:{rec_color}22;"
-                    f"border-left:4px solid {rec_color};"
-                    f"padding:8px;border-radius:4px;margin-top:8px;'>"
-                    f"<b style='color:{rec_color}'>{rec}</b></div>",
+                h0, h1, h2, h3, h5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.5])
+
+            h1.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SPREAD</div>",    unsafe_allow_html=True)
+            h2.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>PREDICTED</div>", unsafe_allow_html=True)
+            h3.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>EDGE</div>",      unsafe_allow_html=True)
+
+            def stat_box(val, highlight=False):
+                bg    = "#1e3a2a" if highlight else "#1e2a3a"
+                color = "#00c853" if highlight and rec_color == "#00c853" else ("#2979ff" if highlight else "white")
+                return (
+                    f"<div style='text-align:center;background:{bg};border-radius:6px;"
+                    f"padding:5px 0;font-size:14px;font-weight:600;color:{color}'>{val}</div>"
+                )
+
+            # ── Away team row ─────────────────────────────────────────────
+            if results_available:
+                a0, a1, a2, a3, a4, a5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.2, 1.5])
+                a4.markdown(stat_box(away_actual), unsafe_allow_html=True)
+            else:
+                a0, a1, a2, a3, a5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.5])
+
+            a0.markdown(
+                f"<div style='font-weight:{away_weight};font-size:15px;color:{away_color};padding-top:4px'>{away}</div>",
+                unsafe_allow_html=True
+            )
+            a1.markdown(stat_box(away_spread),    unsafe_allow_html=True)
+            a2.markdown(stat_box(away_predicted), unsafe_allow_html=True)
+            a3.markdown(stat_box(away_edge, highlight=away_highlight), unsafe_allow_html=True)
+
+            if away_highlight:
+                a5.markdown(
+                    f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
+                    f"padding:5px 8px;border-radius:4px;font-size:12px;font-weight:700;"
+                    f"color:{rec_color};text-align:center'>BET<br>{away}</div>",
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+
+            # ── Home team row ─────────────────────────────────────────────
+            if results_available:
+                b0, b1, b2, b3, b4, b5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.2, 1.5])
+                b4.markdown(stat_box(home_actual), unsafe_allow_html=True)
+            else:
+                b0, b1, b2, b3, b5 = st.columns([2.5, 1.2, 1.2, 1.2, 1.5])
+
+            b0.markdown(
+                f"<div style='font-weight:{home_weight};font-size:15px;color:{home_color};padding-top:4px'>{home}</div>",
+                unsafe_allow_html=True
+            )
+            b1.markdown(stat_box(home_spread),    unsafe_allow_html=True)
+            b2.markdown(stat_box(home_predicted), unsafe_allow_html=True)
+            b3.markdown(stat_box(home_edge, highlight=home_highlight), unsafe_allow_html=True)
+
+            if home_highlight:
+                b5.markdown(
+                    f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
+                    f"padding:5px 8px;border-radius:4px;font-size:12px;font-weight:700;"
+                    f"color:{rec_color};text-align:center'>BET<br>{home}</div>",
                     unsafe_allow_html=True
                 )
 
