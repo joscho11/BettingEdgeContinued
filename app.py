@@ -140,7 +140,7 @@ else:
             return f"{val:+.1f}"
 
         # spread_line is home-relative: negative = home favored, positive = away favored
-        home_is_favored = spread < 0
+        home_is_favored = spread > 0
 
         # Always show favored team on top with negative spread, underdog on bottom with positive
         if home_is_favored:
