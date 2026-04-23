@@ -136,33 +136,30 @@ else:
         predicted = row['predicted_margin']
         edge      = row['model_edge']
 
-        # Home-relative values
-        home_spread    = spread
-        away_spread    = -spread
-        home_predicted = predicted
-        away_predicted = -predicted
-
         def fmt(val):
             return f"{val:+.1f}"
 
-        # Display order: favored (negative spread) on top
+        # spread_line is home-relative: negative = home favored, positive = away favored
         home_is_favored = spread < 0
+
+        # Always show favored team on top with negative spread, underdog on bottom with positive
         if home_is_favored:
             top_team      = home
             bot_team      = away
-            top_spread    = fmt(home_spread)
-            bot_spread    = fmt(away_spread)
-            top_predicted = fmt(home_predicted)
-            bot_predicted = fmt(away_predicted)
+            top_spread    = fmt(spread)       # negative
+            bot_spread    = fmt(-spread)      # positive
+            top_predicted = fmt(predicted)    # home-relative, negative if home wins big
+            bot_predicted = fmt(-predicted)
         else:
             top_team      = away
             bot_team      = home
-            top_spread    = fmt(away_spread)
-            bot_spread    = fmt(home_spread)
-            top_predicted = fmt(away_predicted)
-            bot_predicted = fmt(home_predicted)
+            top_spread    = fmt(-spread)      # away spread is negative (away favored)
+            bot_spread    = fmt(spread)       # home spread is positive
+            top_predicted = fmt(-predicted)   # flip to away perspective
+            bot_predicted = fmt(predicted)
 
         # Who does the model recommend?
+        # edge > 0 means model thinks home covers
         if edge > 0:
             rec_team  = home
             rec_color = "#00c853"
@@ -184,20 +181,17 @@ else:
         if results_available:
             home_score = row.get('home_score', None)
             away_score = row.get('away_score', None)
-            # If individual scores not stored, derive from actual_margin + total
-            # Fall back to showing margin only
             has_scores = pd.notna(home_score) and pd.notna(away_score)
             if has_scores:
-                if home_is_favored:
-                    top_score = f"{int(home_score)}"
-                    bot_score = f"{int(away_score)}"
-                else:
-                    top_score = f"{int(away_score)}"
-                    bot_score = f"{int(home_score)}"
+                top_score = f"{int(home_score)}" if home_is_favored else f"{int(away_score)}"
+                bot_score = f"{int(away_score)}" if home_is_favored else f"{int(home_score)}"
             else:
-                # Show margin from each team's perspective
+                # Fall back to margin from each team's perspective
                 top_score = fmt(actual if home_is_favored else -actual)
                 bot_score = fmt(-actual if home_is_favored else actual)
+        else:
+            top_score = "—"
+            bot_score = "—"
 
         status_icon  = "🟢" if results_in and correct else ("🔴" if results_in else "⭐")
         result_label = ("✅ WIN" if correct else "❌ LOSS") if results_in else ""
@@ -224,7 +218,7 @@ else:
                 f"height:32px;line-height:20px'>{val}</div>"
             )
 
-        def bet_box(label, team):
+        def bet_box(team):
             return (
                 f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
                 f"border-radius:4px;padding:0 8px;font-size:12px;font-weight:700;"
@@ -236,6 +230,7 @@ else:
             return "<div style='height:32px'></div>"
 
         with st.container():
+
             # ── Header ───────────────────────────────────────────────────
             st.markdown(
                 f"<div style='font-size:13px;color:#888;margin-bottom:6px'>"
@@ -251,7 +246,6 @@ else:
             if results_available:
                 h0, h1, h2, h3, h4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
                 h3.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SCORE</div>", unsafe_allow_html=True)
-                h4.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'></div>", unsafe_allow_html=True)
             else:
                 h0, h1, h2, h4 = st.columns([2.2, 1.2, 1.2, 1.8])
 
@@ -271,9 +265,9 @@ else:
                 f"padding-top:6px;height:32px'>{top_team}</div>",
                 unsafe_allow_html=True
             )
-            a1.markdown(stat_box(top_spread),                   unsafe_allow_html=True)
+            a1.markdown(stat_box(top_spread),                      unsafe_allow_html=True)
             a2.markdown(stat_box(top_predicted, is_rec=top_is_rec), unsafe_allow_html=True)
-            a4.markdown(bet_box("", top_team) if top_is_rec else empty_box(), unsafe_allow_html=True)
+            a4.markdown(bet_box(top_team) if top_is_rec else empty_box(), unsafe_allow_html=True)
 
             st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
@@ -290,8 +284,8 @@ else:
                 f"padding-top:6px;height:32px'>{bot_team}</div>",
                 unsafe_allow_html=True
             )
-            b1.markdown(stat_box(bot_spread),                   unsafe_allow_html=True)
+            b1.markdown(stat_box(bot_spread),                      unsafe_allow_html=True)
             b2.markdown(stat_box(bot_predicted, is_rec=bot_is_rec), unsafe_allow_html=True)
-            b4.markdown(bet_box("", bot_team) if bot_is_rec else empty_box(), unsafe_allow_html=True)
+            b4.markdown(bet_box(bot_team) if bot_is_rec else empty_box(), unsafe_allow_html=True)
 
             st.divider()
