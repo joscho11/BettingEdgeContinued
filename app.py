@@ -146,16 +146,16 @@ else:
         if home_is_favored:
             top_team      = home
             bot_team      = away
-            top_spread    = fmt(spread)       # negative
-            bot_spread    = fmt(-spread)      # positive
-            top_predicted = fmt(predicted)    # home-relative, negative if home wins big
+            top_spread    = fmt(-spread)   # home favored = positive spread in your data, flip to negative
+            bot_spread    = fmt(spread)    # away gets positive
+            top_predicted = fmt(predicted)
             bot_predicted = fmt(-predicted)
         else:
             top_team      = away
             bot_team      = home
-            top_spread    = fmt(-spread)      # away spread is negative (away favored)
-            bot_spread    = fmt(spread)       # home spread is positive
-            top_predicted = fmt(-predicted)   # flip to away perspective
+            top_spread    = fmt(spread)    # -13.5 → DEN gets negative ✅
+            bot_spread    = fmt(-spread)   # +13.5 → KC gets positive ✅
+            top_predicted = fmt(-predicted)
             bot_predicted = fmt(predicted)
 
         # Who does the model recommend?
