@@ -454,7 +454,12 @@ def update_results(season, week):
     tracker = pd.read_csv(TRACKER_PATH)
     raw     = nfl.load_schedules([season])
     sched   = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
-    actual  = sched[(sched['season'] == season) & (sched['week'] == week)][['game_id','result']].rename(columns={'result':'actual_margin'})
+
+    # Pull result AND individual scores
+    actual  = sched[(sched['season'] == season) & (sched['week'] == week)][
+        ['game_id', 'result', 'home_score', 'away_score']
+    ].rename(columns={'result': 'actual_margin'})
+
     if actual['actual_margin'].isna().all():
         print(f"Results not yet available for week {week} — skipping")
         return
@@ -464,15 +469,19 @@ def update_results(season, week):
         print(f"No predictions found for week {week} — skipping")
         return
     rows = tracker.loc[indices].copy()
-    rows = rows.merge(actual, on='game_id', how='left', suffixes=('_old','_new'))
+    rows = rows.merge(actual, on='game_id', how='left', suffixes=('_old', '_new'))
     rows['actual_margin'] = rows['actual_margin_new']
-    rows = rows.drop(columns=['actual_margin_old','actual_margin_new'], errors='ignore')
+    rows = rows.drop(columns=['actual_margin_old', 'actual_margin_new'], errors='ignore')
     rows['home_covered']  = (rows['actual_margin'] > rows['spread_line']).astype(int)
     rows['model_correct'] = ((rows['model_edge'] > 0) == (rows['home_covered'] == 1)).astype(int)
+
     tracker.loc[indices, 'actual_margin'] = rows['actual_margin'].values
     tracker.loc[indices, 'home_covered']  = rows['home_covered'].values
     tracker.loc[indices, 'model_correct'] = rows['model_correct'].values
+    tracker.loc[indices, 'home_score']    = rows['home_score'].values
+    tracker.loc[indices, 'away_score']    = rows['away_score'].values
     tracker.to_csv(TRACKER_PATH, index=False)
+
     correct = int(rows['model_correct'].sum())
     total   = len(rows)
     print(f"✅ Week {week} ATS: {correct}/{total} ({correct/total*100:.1f}%)")
@@ -488,6 +497,8 @@ def log_predictions(results_df, season, week, mode):
     log['actual_margin'] = None
     log['home_covered']  = None
     log['model_correct'] = None
+    log['home_score']    = None
+    log['away_score']    = None
     if os.path.exists(TRACKER_PATH):
         tracker = pd.read_csv(TRACKER_PATH)
         mask    = (tracker['season'] == season) & (tracker['week'] == week)
