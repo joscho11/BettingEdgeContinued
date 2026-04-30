@@ -50,7 +50,7 @@ season_active = (now.month >= 9) or (now.month <= 2)
 
 if not season_active:
     st.info(
-        "🏈 **NFL Offseason** — The 2025 season has concluded. "
+        "🏈 **NFL Offseason**: The 2025 season has concluded. "
         "Predictions will return when the 2026 season kicks off in September. "
         "Browse past predictions using the sidebar."
     )
@@ -60,13 +60,13 @@ week_df    = df[(df['season'] == season) & (df['week'] == week)].copy()
 results_in = week_df['actual_margin'].notna().any()
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.title(f"🏈 Week {week} Predictions — {season} Season")
+st.title(f"🏈 Week {week} Predictions: {season} Season")
 
 if results_in:
     correct = int(week_df['model_correct'].sum())
     total   = len(week_df)
     st.success(
-        f"Results are in — Week {week} ATS record: "
+        f"Results are in! Week {week} ATS record: "
         f"**{correct}-{total - correct}** ({correct/total*100:.0f}%)"
     )
 else:
