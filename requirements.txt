@@ -9,6 +9,7 @@ joblib
 numpy
 polars
 requests
+pyarrow
 
 # LlamaIndex - compatible versions
 llama-index==0.11.0
