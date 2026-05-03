@@ -21,15 +21,12 @@ df = load_tracker()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 st.sidebar.markdown("""
-    <div style='text-align: center; padding: 10px;'>
+    <div style='text-align: left; padding: 10px;'>
         <div style='display: inline-block; background: #013369; color: white; 
                     border-radius: 50%; width: 60px; height: 60px; 
                     line-height: 60px; font-size: 24px; font-weight: bold;'>
             JS
         </div>
-        <span style='font-size: 32px;'>🏈</span>
-        <h2 style='color: #013369; margin: 5px 0 0 0;'>Betting Edge</h2>
-        <p style='color: #D50A0A; font-size: 12px; margin: 0;'>NFL Analytics</p>
     </div>
 """, unsafe_allow_html=True)
 
