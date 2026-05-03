@@ -20,10 +20,13 @@ def load_tracker():
 df = load_tracker()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
-st.sidebar.image(
-    "https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg",
-    width=80
-)
+st.sidebar.markdown("""
+    <div style='text-align: center; padding: 10px;'>
+        <span style='font-size: 48px;'>🏈</span>
+        <h2 style='color: #013369; margin: 0;'>Betting Edge</h2>
+        <p style='color: #D50A0A; font-size: 12px; margin: 0;'>NFL Analytics</p>
+    </div>
+""", unsafe_allow_html=True)
 st.sidebar.title("BettingEdge")
 st.sidebar.caption("XGBoost ATS Predictor")
 st.sidebar.divider()
