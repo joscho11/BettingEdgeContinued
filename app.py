@@ -292,13 +292,20 @@ else:
 
 # ── Agent Analysis Section ────────────────────────────────────────────────────
 st.divider()
-st.subheader(f"🤖 Week {week} Agent Analysis")
+st.subheader(f"Week {week} Analysis")
 
 cached = load_agent_analysis(week, season)
 
 if cached:
     # Use st.markdown directly instead of wrapping in HTML div
-    st.markdown(cached['analysis'])
+    # Clean trailing empty bullets before displaying
+    lines = cached['analysis'].split('\n')
+    cleaned = '\n'.join(
+        line for line in lines 
+        if line.strip() not in ['•', '-', '*', '·', '']
+        or line != lines[-1]
+    )
+    st.markdown(cleaned)
     st.caption(f"Analysis generated · {cached['generated_at'][:16].replace('T', ' ')}")
 else:
     st.markdown("""
