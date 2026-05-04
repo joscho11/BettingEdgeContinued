@@ -297,16 +297,8 @@ st.subheader(f"🤖 Week {week} Agent Analysis")
 cached = load_agent_analysis(week, season)
 
 if cached:
-    st.markdown(
-        f"""
-        <div style='background:#0d1117;border:1px solid #30363d;
-                    border-radius:10px;padding:24px;margin-top:10px;
-                    line-height:1.7;'>
-            {cached['analysis']}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # Use st.markdown directly instead of wrapping in HTML div
+    st.markdown(cached['analysis'])
     st.caption(f"Analysis generated · {cached['generated_at'][:16].replace('T', ' ')}")
 else:
     st.markdown("""
