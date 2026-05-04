@@ -10,6 +10,53 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+    <style>
+    /* Remove the horizontal lines from expander */
+    details {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    details summary {
+        font-size: 11px !important;
+        color: #aaa !important;
+        background-color: #2d3748 !important;
+        border-radius: 6px !important;
+        padding: 4px 10px !important;
+        border: 1px solid #4a5568 !important;
+        width: fit-content !important;
+    }
+    details summary:hover {
+        color: white !important;
+        background-color: #3d4f66 !important;
+        border-color: #6b8aad !important;
+        cursor: pointer !important;
+    }
+    details[open] summary {
+        border-radius: 6px 6px 0 0 !important;
+    }
+    details > div {
+        background-color: #1a2332 !important;
+        border: 1px solid #4a5568 !important;
+        border-top: none !important;
+        border-radius: 0 0 6px 6px !important;
+        padding: 10px !important;
+    }
+    /* Remove top and bottom border lines on expander */
+    .st-expander {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stExpander"] {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stExpanderDetails"] {
+        border: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 @st.cache_data(ttl=3600)
 def load_tracker():
     df = pd.read_csv('predictions_tracker.csv')
@@ -121,6 +168,24 @@ else:
 
 st.divider()
 
+# ── Load agent analysis cache ─────────────────────────────────────────────────
+cached = load_agent_analysis(week, season)
+game_analysis = cached.get('game_analysis', {}) if cached else {}
+
+# ── Agent Analysis Legend ─────────────────────────────────────────────────────
+
+st.markdown("""
+    <div style='display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap;'>
+        <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Agent Confidence:</span>
+        <span style='font-size:12px;background:#1a3a1a;border:1px solid #00c853;
+                    border-radius:4px;padding:2px 8px;color:#00c853;'>🟢 High</span>
+        <span style='font-size:12px;background:#3a3a1a;border:1px solid #ffd600;
+                    border-radius:4px;padding:2px 8px;color:#ffd600;'>🟡 Medium</span>
+        <span style='font-size:12px;background:#3a1a1a;border:1px solid #ff5252;
+                    border-radius:4px;padding:2px 8px;color:#ff5252;'>🔴 Skip</span>
+    </div>
+""", unsafe_allow_html=True)
+
 # ── Game cards ────────────────────────────────────────────────────────────────
 st.subheader("Game Predictions")
 
@@ -203,7 +268,7 @@ else:
             top_score = "—"
             bot_score = "—"
 
-        status_icon  = "🟢" if results_in and correct else ("🔴" if results_in else "⭐")
+        #status_icon  = "🟢" if results_in and correct else ("🔴" if results_in else "⭐")
         result_label = ("✅ WIN" if correct else "❌ LOSS") if results_in else ""
 
         def name_style(is_rec):
@@ -212,15 +277,8 @@ else:
             return weight, color
 
         def stat_box(val, is_rec=False, is_result=False):
-            if is_result and results_available:
-                bg    = "#1a2a1a" if correct else "#2a1a1a"
-                color = "#00c853" if correct else "#ff5252"
-            elif is_rec:
-                bg    = "#1e3a2a" if rec_color == "#00c853" else "#1a2040"
-                color = rec_color
-            else:
-                bg    = "#1e2a3a"
-                color = "white"
+            bg    = "#1e2a3a"
+            color = "white"
             return (
                 f"<div style='text-align:center;background:{bg};border-radius:6px;"
                 f"padding:6px 0;font-size:14px;font-weight:600;color:{color};"
@@ -229,9 +287,9 @@ else:
 
         def bet_box(team):
             return (
-                f"<div style='background:{rec_color}22;border-left:3px solid {rec_color};"
+                f"<div style='background:#1e2a3a;border-left:3px solid #4a6080;"
                 f"border-radius:4px;padding:0 8px;font-size:12px;font-weight:700;"
-                f"color:{rec_color};text-align:center;height:32px;line-height:32px'>"
+                f"color:white;text-align:center;height:32px;line-height:32px'>"
                 f"BET {team}</div>"
             )
 
@@ -241,7 +299,7 @@ else:
         with st.container():
             st.markdown(
                 f"<div style='font-size:13px;color:#888;margin-bottom:6px'>"
-                f"{status_icon}&nbsp;&nbsp;"
+                #f"{status_icon}&nbsp;&nbsp;"
                 f"<b style='color:#ccc'>{away} @ {home}</b>"
                 f"&nbsp;&nbsp;·&nbsp;&nbsp;{row['gameday']}"
                 f"{'&nbsp;&nbsp;·&nbsp;&nbsp;<b>' + result_label + '</b>' if result_label else ''}"
@@ -292,15 +350,16 @@ else:
             b2.markdown(stat_box(bot_predicted, is_rec=bot_is_rec), unsafe_allow_html=True)
             b4.markdown(bet_box(bot_team) if bot_is_rec else empty_box(), unsafe_allow_html=True)
 
-            st.divider()
-
             # ── Agent Analysis Expander ───────────────────────────────
             game_key  = f"{home}_{away}"
             game_text = game_analysis.get(game_key, None)
 
-            if game_text:
-                with st.expander(f"🤖 Agent Analysis: {away} @ {home}"):
+            # Small aligned expander using columns
+            col_btn, _ = st.columns([1, 3])
+            with st.expander(f"Matchup Analysis"):
+                if game_text:
                     st.markdown(game_text)
-            elif cached:
-                with st.expander(f"🤖 Agent Analysis: {away} @ {home}"):
-                    st.caption("No specific analysis found for this game.")
+                else:
+                    st.caption("No matchup analysis available for this game.")
+            
+            st.divider()    
