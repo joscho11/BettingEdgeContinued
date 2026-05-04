@@ -141,6 +141,10 @@ else:
 
     filtered_df = filtered_df.sort_values('model_edge', key=abs, ascending=False)
 
+    # Load agent analysis cache
+    cached = load_agent_analysis(week, season)
+    game_analysis = cached.get('game_analysis', {}) if cached else {}
+
     for _, row in filtered_df.iterrows():
         home      = row['home_team']
         away      = row['away_team']
@@ -290,30 +294,13 @@ else:
 
             st.divider()
 
-# ── Agent Analysis Section ────────────────────────────────────────────────────
-st.divider()
-st.subheader(f"Week {week} Analysis")
+            # ── Agent Analysis Expander ───────────────────────────────
+            game_key  = f"{home}_{away}"
+            game_text = game_analysis.get(game_key, None)
 
-cached = load_agent_analysis(week, season)
-
-if cached:
-    # Use st.markdown directly instead of wrapping in HTML div
-    # Clean trailing empty bullets before displaying
-    lines = cached['analysis'].split('\n')
-    cleaned = '\n'.join(
-        line for line in lines 
-        if line.strip() not in ['•', '-', '*', '·', '']
-        or line != lines[-1]
-    )
-    st.markdown(cleaned)
-    st.caption(f"Analysis generated · {cached['generated_at'][:16].replace('T', ' ')}")
-else:
-    st.markdown("""
-        <div style='background:#0d1117;border:1px dashed #30363d;
-                    border-radius:10px;padding:30px;text-align:center;'>
-            <p style='color:#888;font-size:16px;margin:0;'>
-                No agent analysis found for this week.<br>
-                <b style='color:white;'>Run the notebook to generate analysis.</b>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+            if game_text:
+                with st.expander(f"🤖 Agent Analysis: {away} @ {home}"):
+                    st.markdown(game_text)
+            elif cached:
+                with st.expander(f"🤖 Agent Analysis: {away} @ {home}"):
+                    st.caption("No specific analysis found for this game.")
