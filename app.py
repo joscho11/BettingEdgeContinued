@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
+import json
+import os
 from datetime import datetime as dt
 
 st.set_page_config(
@@ -19,11 +19,21 @@ def load_tracker():
 
 df = load_tracker()
 
+def load_agent_analysis(week: int, season: int) -> dict:
+    """Load agent analysis from JSON cache if it exists."""
+    cache_file = f"agent_analysis_{season}_week{week}.json"
+    
+    if os.path.exists(cache_file):
+        with open(cache_file, 'r') as f:
+            return json.load(f)
+    
+    return None
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 st.sidebar.markdown("""
     <div style='text-align: center; padding: 10px;'>
-        <div style='display: inline-block; background: #013369; color: white; 
-                    border-radius: 50%; width: 60px; height: 60px; 
+        <div style='display: inline-block; background: #013369; color: white;
+                    border-radius: 50%; width: 60px; height: 60px;
                     line-height: 60px; font-size: 24px; font-weight: bold;'>
             JS
         </div>
@@ -51,7 +61,7 @@ edge_threshold = st.sidebar.slider(
 )
 
 # ── Offseason banner ──────────────────────────────────────────────────────────
-now = dt.now()
+now           = dt.now()
 season_active = (now.month >= 9) or (now.month <= 2)
 
 if not season_active:
@@ -95,19 +105,17 @@ if not week_df.empty and 'mode' in week_df.columns:
 st.divider()
 col1, col2, col3, col4 = st.columns(4)
 
-# Apply edge filter — this is what gets displayed in cards
-filtered_df = week_df[week_df['model_edge'].abs() >= edge_threshold].copy()
+filtered_df  = week_df[week_df['model_edge'].abs() >= edge_threshold].copy()
 hidden_count = len(week_df) - len(filtered_df)
 
-col1.metric("Total Games",  len(week_df))
-col2.metric("Showing",      len(filtered_df),
+col1.metric("Total Games", len(week_df))
+col2.metric("Showing",     len(filtered_df),
             help=f"Games with |edge| ≥ {edge_threshold} pts")
-col3.metric("Avg Edge",     f"{week_df['model_edge'].abs().mean():.1f} pts")
+col3.metric("Avg Edge",    f"{week_df['model_edge'].abs().mean():.1f} pts")
 
 if results_in and len(filtered_df) > 0:
     sc = int(filtered_df['model_correct'].sum())
-    col4.metric("ATS Record",
-                f"{sc}/{len(filtered_df)} ({sc/len(filtered_df)*100:.0f}%)")
+    col4.metric("ATS Record", f"{sc}/{len(filtered_df)} ({sc/len(filtered_df)*100:.0f}%)")
 else:
     col4.metric("ATS Record", "Pending")
 
@@ -118,13 +126,11 @@ st.subheader("Game Predictions")
 
 if week_df.empty:
     st.warning("No predictions found for this week.")
-
 elif filtered_df.empty:
     st.warning(
         f"No games meet the current edge threshold of ±{edge_threshold} pts. "
         f"Lower the slider to see all {len(week_df)} games."
     )
-
 else:
     if hidden_count > 0:
         st.caption(
@@ -145,27 +151,23 @@ else:
         def fmt(val):
             return f"{val:+.1f}"
 
-        # spread_line is home-relative: negative = home favored, positive = away favored
         home_is_favored = spread > 0
 
-        # Always show favored team on top with negative spread, underdog on bottom with positive
         if home_is_favored:
             top_team      = home
             bot_team      = away
-            top_spread    = fmt(-spread)   # home favored = positive spread in your data, flip to negative
-            bot_spread    = fmt(spread)    # away gets positive
+            top_spread    = fmt(-spread)
+            bot_spread    = fmt(spread)
             top_predicted = fmt(predicted)
             bot_predicted = fmt(-predicted)
         else:
             top_team      = away
             bot_team      = home
-            top_spread    = fmt(spread)    # -13.5 → DEN gets negative ✅
-            bot_spread    = fmt(-spread)   # +13.5 → KC gets positive ✅
+            top_spread    = fmt(spread)
+            bot_spread    = fmt(-spread)
             top_predicted = fmt(-predicted)
             bot_predicted = fmt(predicted)
 
-        # Who does the model recommend?
-        # edge > 0 means model thinks home covers
         if edge > 0:
             rec_team  = home
             rec_color = "#00c853"
@@ -179,7 +181,6 @@ else:
         top_is_rec = rec_team == top_team
         bot_is_rec = rec_team == bot_team
 
-        # Results
         results_available = results_in and pd.notna(row['actual_margin'])
         correct           = (row['model_correct'] == 1) if results_in else False
         actual            = row['actual_margin'] if results_available else None
@@ -192,7 +193,6 @@ else:
                 top_score = f"{int(home_score)}" if home_is_favored else f"{int(away_score)}"
                 bot_score = f"{int(away_score)}" if home_is_favored else f"{int(home_score)}"
             else:
-                # Fall back to margin from each team's perspective
                 top_score = fmt(actual if home_is_favored else -actual)
                 bot_score = fmt(-actual if home_is_favored else actual)
         else:
@@ -202,7 +202,6 @@ else:
         status_icon  = "🟢" if results_in and correct else ("🔴" if results_in else "⭐")
         result_label = ("✅ WIN" if correct else "❌ LOSS") if results_in else ""
 
-        # Styling helpers
         def name_style(is_rec):
             weight = "700" if is_rec else "400"
             color  = "white" if is_rec else "#aaa"
@@ -236,8 +235,6 @@ else:
             return "<div style='height:32px'></div>"
 
         with st.container():
-
-            # ── Header ───────────────────────────────────────────────────
             st.markdown(
                 f"<div style='font-size:13px;color:#888;margin-bottom:6px'>"
                 f"{status_icon}&nbsp;&nbsp;"
@@ -248,7 +245,6 @@ else:
                 unsafe_allow_html=True
             )
 
-            # ── Column headers ────────────────────────────────────────────
             if results_available:
                 h0, h1, h2, h3, h4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
                 h3.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SCORE</div>", unsafe_allow_html=True)
@@ -258,7 +254,6 @@ else:
             h1.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SPREAD</div>",    unsafe_allow_html=True)
             h2.markdown("<div style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>PREDICTED</div>", unsafe_allow_html=True)
 
-            # ── Top row (favored) ─────────────────────────────────────────
             if results_available:
                 a0, a1, a2, a3, a4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
                 a3.markdown(stat_box(top_score, is_result=True), unsafe_allow_html=True)
@@ -271,13 +266,12 @@ else:
                 f"padding-top:6px;height:32px'>{top_team}</div>",
                 unsafe_allow_html=True
             )
-            a1.markdown(stat_box(top_spread),                      unsafe_allow_html=True)
+            a1.markdown(stat_box(top_spread),                       unsafe_allow_html=True)
             a2.markdown(stat_box(top_predicted, is_rec=top_is_rec), unsafe_allow_html=True)
             a4.markdown(bet_box(top_team) if top_is_rec else empty_box(), unsafe_allow_html=True)
 
             st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-            # ── Bottom row (underdog) ─────────────────────────────────────
             if results_available:
                 b0, b1, b2, b3, b4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])
                 b3.markdown(stat_box(bot_score, is_result=True), unsafe_allow_html=True)
@@ -290,8 +284,37 @@ else:
                 f"padding-top:6px;height:32px'>{bot_team}</div>",
                 unsafe_allow_html=True
             )
-            b1.markdown(stat_box(bot_spread),                      unsafe_allow_html=True)
+            b1.markdown(stat_box(bot_spread),                       unsafe_allow_html=True)
             b2.markdown(stat_box(bot_predicted, is_rec=bot_is_rec), unsafe_allow_html=True)
             b4.markdown(bet_box(bot_team) if bot_is_rec else empty_box(), unsafe_allow_html=True)
 
             st.divider()
+
+# ── Agent Analysis Section ────────────────────────────────────────────────────
+st.divider()
+st.subheader(f"🤖 Week {week} Agent Analysis")
+
+cached = load_agent_analysis(week, season)
+
+if cached:
+    st.markdown(
+        f"""
+        <div style='background:#0d1117;border:1px solid #30363d;
+                    border-radius:10px;padding:24px;margin-top:10px;
+                    line-height:1.7;'>
+            {cached['analysis']}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.caption(f"Analysis generated · {cached['generated_at'][:16].replace('T', ' ')}")
+else:
+    st.markdown("""
+        <div style='background:#0d1117;border:1px dashed #30363d;
+                    border-radius:10px;padding:30px;text-align:center;'>
+            <p style='color:#888;font-size:16px;margin:0;'>
+                No agent analysis found for this week.<br>
+                <b style='color:white;'>Run the notebook to generate analysis.</b>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
