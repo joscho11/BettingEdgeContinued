@@ -13,4 +13,4 @@ Monday 9am    → Results from Sunday's games filled in automatically
                New week's predictions generated
                Cycle continues all season
                
-The only manual thing you need to do each season is update the All-Pro CSV in January and make sure the automation still runs cleanly before week 1. Everything else is handled by GitHub Actions.
+The only manual thing to do each season is update the All-Pro CSV in January and make sure the automation still runs cleanly before week 1. Everything else is handled by GitHub Actions.
