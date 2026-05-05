@@ -1,9 +1,6 @@
 # BettingEdgeContinued
 Deployment of model
 
-Week Before Kickoff 
-Check Your GitHub Actions
-
 Monday 9am    → GitHub Actions runs automatically
                Logs week 1 predictions (early lines)
                Updates week 0 results (preseason: nothing to update)
