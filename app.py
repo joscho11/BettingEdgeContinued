@@ -129,7 +129,7 @@ if not season_active:
     )
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2 = st.tabs(["🏈 Weekly Predictions", "📈 Season Performance"])
+tab1, tab2, tab3 = st.tabs(["🏈 Weekly Predictions", "📈 Season Performance", "❓ Help & Guide"])
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1: WEEKLY PREDICTIONS
@@ -648,3 +648,201 @@ with tab2:
             table = weekly[['week_lbl', 'record', 'pct', 'cum_pct']].copy()
             table.columns = ['Week', 'Record', 'Win %', 'Cumulative %']
             st.dataframe(table, hide_index=True, use_container_width=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 3: HELP & GUIDE
+# ══════════════════════════════════════════════════════════════════════════════
+with tab3:
+
+    st.title("❓ Help & Guide")
+    st.caption("New to sports betting or just not sure how this site works? This page covers everything.")
+
+    st.divider()
+
+    # ── Section 1: Betting Basics ─────────────────────────────────────────────
+    st.subheader("🏈 Betting Basics")
+
+    with st.expander("What is ATS (Against The Spread)?"):
+        st.markdown("""
+ATS stands for **Against The Spread**. It's the most common way to bet on NFL games and it's what this whole site is built around.
+
+Instead of just picking who wins, you're betting on whether a team wins by more or less than a set number of points. That number is called the spread.
+
+**Here's a simple example:**
+
+The Chiefs are favored by 7.5 points. If you bet the Chiefs, they need to win by 8 or more for you to win. If you bet the Raiders, they just need to lose by 7 or fewer or win outright. That's it.
+
+Vegas sets the spread to try and split betting money evenly. They don't care who wins the game. They care about getting 50% of bets on each side so they profit from the juice no matter what.
+        """)
+
+    with st.expander("What is the spread and how does Vegas set it?"):
+        st.markdown("""
+The spread is set by oddsmakers at sportsbooks like DraftKings or FanDuel. They factor in team strength, injuries, home field, recent form, and a bunch of other stuff.
+
+The key thing to understand is the spread is not meant to predict the actual final margin. It's meant to generate equal action on both sides. That distinction matters.
+
+If the public loves the Chiefs and piles money on them, Vegas moves the line to make betting the Raiders more attractive. The line is always adjusting based on where money is flowing.
+
+This is actually where edge comes from. If Vegas has to shade a line one way to balance public money, it can create value on the other side.
+        """)
+
+    with st.expander("What is edge and why does it matter?"):
+        st.markdown("""
+Edge is the gap between what the model predicts and what Vegas set as the spread.
+
+If the model thinks the Chiefs will win by 10 but the spread is only 7.5, that's a 2.5 point edge on the Chiefs. The model is saying Vegas underpriced the Chiefs.
+
+The bigger the edge, the more the model disagrees with the market. Games with a small edge (under 1 point) are basically coin flips in the model's eyes. That's why the default filter on this site hides those games.
+
+You want to be betting games where the model has conviction, not games where it's a coin flip.
+        """)
+
+    with st.expander("What does it mean to cover?"):
+        st.markdown("""
+Covering just means beating the spread.
+
+If the Chiefs are 7.5 point favorites and win 28 to 17, they won by 11. They covered. If they win 24 to 20, they won by 4. They didn't cover.
+
+It works the other way too. If you bet the Raiders plus 7.5 and they lose by 4, the Raiders covered even though they lost the game.
+
+The model is trying to predict the margin of victory and figure out which side of the spread is more likely to cover.
+        """)
+
+    with st.expander("How do you actually make money betting?"):
+        st.markdown("""
+Honestly it's really hard and most people lose money. I want to be upfront about that.
+
+Standard sportsbook odds are around 110 to win 100. That means you need to win about 52.4% of your bets just to break even. Most casual bettors don't hit that number.
+
+To be profitable over time you need to consistently win more than 52.4%, bet games where there's real edge instead of gut feeling, and manage your bankroll properly. A common rule is never betting more than 2 to 5% of your total bankroll on a single game.
+
+The model is currently at 53.85% ATS overall and 55.71% on high confidence picks. Both are above break even, which is encouraging. But I want to be clear that past performance doesn't guarantee anything going forward. There will be bad weeks.
+
+Never bet more than you can afford to lose.
+        """)
+
+    with st.expander("What is sharp money vs public money?"):
+        st.markdown("""
+Public money is casual bettors going with their gut. They tend to bet popular teams, primetime games, and whoever is on a hot streak. They're not doing deep analysis.
+
+Sharp money is professional bettors who are placing large, calculated bets based on models and data. When sharps bet big, the line moves.
+
+Watching line movement can tell you a lot. If the Chiefs open at 7 and move to 7.5, someone is betting the Chiefs heavily. If it's sharp money driving that, it's a signal worth paying attention to.
+
+When the model and sharp money agree on the same side, that's a strong signal. When they disagree, the agent will flag it in the matchup analysis and it's worth being cautious.
+        """)
+
+    st.divider()
+
+    # ── Section 2: How to Use the Website ────────────────────────────────────
+    st.subheader("🖥️ How to Use This Website")
+
+    with st.expander("How do I read the game cards?"):
+        st.markdown("""
+Each card shows one matchup for the week. Here's what the columns mean:
+
+**SPREAD** is the Vegas line. A negative number means that team is favored.
+
+**PREDICTED** is what the model thinks the margin will be. Compare this to the spread to understand the edge.
+
+**SCORE** shows the final score after the game is played. It's blank until results come in.
+
+**BET X** shows which side the model recommends. The bold team name is who the model likes.
+
+After results are in, each card will show either WIN or LOSS based on whether the model's pick covered.
+        """)
+
+    with st.expander("What do the agent confidence colors mean?"):
+        st.markdown("""
+The colored button on each game card tells you how confident the AI agent is after analyzing that matchup.
+
+🟢 **High** means the model edge is strong and outside signals like injuries, line movement, and historical data all point the same direction. These are the games worth prioritizing.
+
+🟡 **Medium** means there's edge but something is giving mixed signals. Maybe sharp money is split or there's an injury that could swing things. Worth considering but not a lock.
+
+🔴 **Skip** means the agent is recommending you pass on this game. The edge is too small, signals are conflicting, or there's too much uncertainty. Not every game is worth betting.
+
+Click the Matchup Analysis button on any card to read the full reasoning.
+        """)
+
+    with st.expander("What is the edge filter in the sidebar?"):
+        st.markdown("""
+The Min Edge slider controls which games show up on the page.
+
+At 0.0 you see every game. At 1.0 (the default) you only see games where the model disagrees with Vegas by at least 1 point. At 3.0 you're only seeing the high conviction plays.
+
+I'd recommend keeping it at 1.0 as a starting point. Games under 1 point edge are basically too close to call and not worth the risk.
+        """)
+
+    with st.expander("How often does the site update?"):
+        st.markdown("""
+During the season the site runs on an automated schedule through GitHub Actions.
+
+Monday morning it posts early predictions for the upcoming week using the initial Vegas lines. Thursday night it refreshes those predictions after injury reports come out. Sunday morning it locks in final predictions before kickoff. The following Monday it fills in the results from the previous week and the cycle starts over.
+
+During the offseason the site just shows historical data from past seasons. Everything spins back up when the season kicks off in September.
+        """)
+
+    with st.expander("What is the Season Performance tab?"):
+        st.markdown("""
+The Season Performance tab is where you can see how the model has done across the whole season, not just one week.
+
+It shows a week by week bar chart of ATS win percentage, a cumulative trend line showing how accuracy has moved over time, and a breakdown of how high edge games performed compared to low edge games.
+
+There's also a best and worst weeks section and a full season table if you want to dig into the numbers.
+        """)
+
+    st.divider()
+
+    # ── Section 3: Behind the Scenes ─────────────────────────────────────────
+    st.subheader("🔧 Behind the Scenes")
+
+    with st.expander("How does the prediction model work?"):
+        st.markdown("""
+The model is an XGBoost pipeline trained on over 4,300 NFL games going back 15+ seasons.
+
+I engineered 79 features for each game. The main ones are rolling EPA (Expected Points Added) which measures offensive and defensive efficiency, strength of schedule, All-Pro roster quality as a proxy for talent, injury impact, QB changes, coaching history, and home field advantage.
+
+The model predicts the margin of victory for the home team. That predicted margin gets compared to the Vegas spread to calculate edge. If the model says home team wins by 10 and the spread is 7.5, the edge is 2.5 points in favor of betting the home team.
+
+The model is retrained periodically as new data comes in and the All-Pro data gets updated manually each January.
+        """)
+
+    with st.expander("What is the LLM agent and what does it do?"):
+        st.markdown("""
+The agent is built on top of the XGBoost model using LlamaIndex and Anthropic's Claude API.
+
+It has 5 tools it can call: model predictions, injury reports, line movement data, historical head to head matchups going back to 2015, and a model confidence analyzer.
+
+Each week it goes through every game, calls those tools, and reasons about whether the model's prediction is backed up by real world signals. It's not overriding the model. It's asking whether everything else lines up with what the model is saying.
+
+If the model likes a team, sharp money likes that team, they're healthy, and they dominate this matchup historically, the agent marks it high confidence. If the model likes a team but their star QB is out and sharp money is going the other way, the agent will tell you to skip it.
+
+The idea is that raw model predictions are a starting point. The agent adds a layer of reasoning to help filter out plays where the edge might just be noise.
+        """)
+
+    with st.expander("How accurate is the model?"):
+        st.markdown("""
+On random test data the model hit 53.85% ATS overall and 55.71% on high confidence picks. The 2025 season weeks 10-17 were also essentially real-world data for the model, so the results are promising. The break even threshold at standard sportsbook odds is 52.4%, so both numbers are above that.
+
+Week 10 was the strongest week so far at 11 out of 14 correct.
+
+I want to be honest though. One season of data is a small sample. The model has shown real edge but I wouldn't read too much into any single week or even a single season. The goal is to track this over multiple seasons and see if the edge holds up.
+        """)
+
+    with st.expander("What data does it use?"):
+        st.markdown("""
+The model pulls play by play and schedule data from nflreadpy going back to 1999. The All-Pro data is a custom CSV I built covering selections from 1997 to 2025, which gets used as a proxy for roster talent.
+
+The agent currently uses mock injury and line movement data for demonstration purposes. Integrating real time APIs for those two data sources is on the roadmap for the 2026 season, which would make the agent's analysis much more accurate.
+        """)
+
+    with st.expander("Is this financial advice?"):
+        st.markdown("""
+No. This is a personal data science project. I built it to explore whether a machine learning model can find a consistent edge against the spread.
+
+Nothing on this site should be taken as betting or financial advice. Sports betting involves real financial risk. Always bet responsibly.
+        """)
+
+    st.divider()
+    st.caption("Built by Joseph Schoenbaum · [GitHub](https://github.com/joscho11/BettingEdgeContinued) · [Dashboard](https://joschobetting.streamlit.app)")
