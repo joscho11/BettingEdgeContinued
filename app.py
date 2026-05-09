@@ -12,18 +12,18 @@ st.set_page_config(
     layout="wide"
 )
 
-def inject_ga(g_id):
-    components.html(
+def inject_ga(measurement_id):
+    st.markdown(
         f"""
-        <script async src="https://www.googletagmanager.com/gtag/js?id={g_id}"></script>
+        <script async src="https://www.googletagmanager.com/gtag/js?id={measurement_id}"></script>
         <script>
             window.dataLayer = window.dataLayer || [];
             function gtag(){{dataLayer.push(arguments);}}
             gtag('js', new Date());
-            gtag('config', '{g_id}');
+            gtag('config', '{measurement_id}');
         </script>
         """,
-        height=0
+        unsafe_allow_html=True
     )
 
 GOOGLE_ANALYTICS_ID = st.secrets.get('GOOGLE_ANALYTICS_ID', '')
