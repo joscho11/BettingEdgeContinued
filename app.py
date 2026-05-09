@@ -4,7 +4,7 @@ import json
 import os
 from datetime import datetime as dt
 import plotly.graph_objects as go
-import streamlit.components.v1 as components
+import dataLayer
 
 st.set_page_config(
     page_title="BettingEdge | NFL Predictions",
@@ -12,15 +12,16 @@ st.set_page_config(
     layout="wide"
 )
 
-def inject_ga(measurement_id):
+def inject_ga(g_id):
     st.markdown(
         f"""
-        <script async src="https://www.googletagmanager.com/gtag/js?id={measurement_id}"></script>
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id={g_id}"></script>
         <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){{dataLayer.push(arguments);}}
-            gtag('js', new Date());
-            gtag('config', '{measurement_id}');
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){{dataLayer.push(arguments);}}
+        gtag('js', new Date());
+        gtag('config', '{g_id}');
         </script>
         """,
         unsafe_allow_html=True
