@@ -26,7 +26,7 @@ def inject_ga(measurement_id):
         height=0
     )
 
-GOOGLE_ANALYTICS_ID = os.getenv('GOOGLE_ANALYTICS_ID', '')
+GOOGLE_ANALYTICS_ID = st.secrets.get('GOOGLE_ANALYTICS_ID', '')
 
 if GOOGLE_ANALYTICS_ID:
     inject_ga(GOOGLE_ANALYTICS_ID)
