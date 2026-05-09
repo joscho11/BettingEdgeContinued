@@ -3,15 +3,33 @@ import pandas as pd
 import json
 import os
 from datetime import datetime as dt
-import glob
-import plotly.express as px
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="BettingEdge | NFL Predictions",
     page_icon="🏈",
     layout="wide"
 )
+
+def inject_ga(measurement_id):
+    components.html(
+        f"""
+        <script async src="https://www.googletagmanager.com/gtag/js?id={measurement_id}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){{dataLayer.push(arguments);}}
+            gtag('js', new Date());
+            gtag('config', '{measurement_id}');
+        </script>
+        """,
+        height=0
+    )
+
+GOOGLE_ANALYTICS_ID = os.getenv('GOOGLE_ANALYTICS_ID', '')
+
+if GOOGLE_ANALYTICS_ID:
+    inject_ga(GOOGLE_ANALYTICS_ID)
 
 st.markdown("""
     <style>
@@ -554,7 +572,7 @@ with tab2:
             height=350,
             margin=dict(t=20, b=20)
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width='stretch')
 
         st.divider()
 
@@ -584,7 +602,7 @@ with tab2:
             height=350,
             margin=dict(t=20, b=20)
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width='stretch')
 
         st.divider()
 
@@ -620,7 +638,7 @@ with tab2:
             height=350,
             margin=dict(t=20, b=20)
         )
-        st.plotly_chart(fig_edge, use_container_width=True)
+        st.plotly_chart(fig_edge, width='stretch')
 
         st.divider()
 
@@ -633,13 +651,13 @@ with tab2:
             st.markdown("**🏆 Best Weeks**")
             best = weekly.nlargest(3, 'pct')[['week_lbl', 'record', 'pct']]
             best.columns = ['Week', 'Record', 'Win %']
-            st.dataframe(best, hide_index=True, use_container_width=True)
+            st.dataframe(best, hide_index=True, width='stretch')
 
         with col_worst:
             st.markdown("**📉 Worst Weeks**")
             worst = weekly.nsmallest(3, 'pct')[['week_lbl', 'record', 'pct']]
             worst.columns = ['Week', 'Record', 'Win %']
-            st.dataframe(worst, hide_index=True, use_container_width=True)
+            st.dataframe(worst, hide_index=True, width='stretch')
 
         st.divider()
 
@@ -647,7 +665,7 @@ with tab2:
         with st.expander("📋 Full season week by week"):
             table = weekly[['week_lbl', 'record', 'pct', 'cum_pct']].copy()
             table.columns = ['Week', 'Record', 'Win %', 'Cumulative %']
-            st.dataframe(table, hide_index=True, use_container_width=True)
+            st.dataframe(table, hide_index=True, width='stretch')
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 3: HELP & GUIDE
