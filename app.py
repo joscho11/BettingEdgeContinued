@@ -4,7 +4,6 @@ import json
 import os
 from datetime import datetime as dt
 import plotly.graph_objects as go
-import dataLayer
 
 st.set_page_config(
     page_title="BettingEdge | NFL Predictions",
