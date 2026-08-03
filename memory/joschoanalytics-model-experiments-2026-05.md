@@ -1,11 +1,11 @@
 ---
-name: bettingedge-model-experiments-2026-05
+name: joschoanalytics-model-experiments-2026-05
 description: Rejected model-improvement experiments (weather, ensemble re-weighting, consensus filter removal, ULTRA tier, time-decay weighting, extended training range) — all proven not worth shipping
 metadata:
   type: project
 ---
 
-In late May 2026 we ran a series of model-improvement experiments on BettingEdge.
+In late May 2026 we ran a series of model-improvement experiments on JoSchoAnalytics.
 **All of them were rejected** after empirical testing. Future contributors (including future-me) should not re-run these without strong reason — the negative findings are documented in CLAUDE.md's Completed Work entries dated 2026-05-24 / 25 / 26.
 
 ## What did NOT work
