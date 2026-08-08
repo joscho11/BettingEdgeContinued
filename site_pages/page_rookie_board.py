@@ -119,7 +119,7 @@ _COLLEGE_TE = _HERE / "fantasy" / "talent" / "college_te_score_2026.csv"
 
 @st.cache_data(ttl=3600)
 def _load_college_qb() -> pd.DataFrame:
-    """College QB talent score (SPEC R35) — the PFF-college passing build.
+    """College QB talent score (SPEC R35) — the college passing charting build.
 
     Covers every FBS QB with a qualifying college career, not just this year's rookies, so it
     also carries QBs still in college. `rookie_score_2026.csv` has no QB rows at all, which is
@@ -132,7 +132,7 @@ def _load_college_qb() -> pd.DataFrame:
 
 @st.cache_data(ttl=3600)
 def _load_college_rb() -> pd.DataFrame:
-    """College RB talent score (SPEC R36) — 8-facet PFF index, DESCRIPTIVE ONLY.
+    """College RB talent score (SPEC R36) — 8-facet charting index, DESCRIPTIVE ONLY.
 
     Fired rc +0.329 (DEAD, below the .35 band) against the shipped PBP instrument at +0.501,
     and carries no strength-of-schedule adjustment. REPLACES the box-score value on every RB
@@ -173,7 +173,7 @@ def _college_scores(art: pd.DataFrame, rows: pd.DataFrame, cls: int) -> pd.Serie
 
     Two different keys, because the two cases genuinely differ:
       * cls == 2026 — brand-new players. The rookie board carries its OWN placeholder ids
-        (GRE361852) which do not always equal the season dataset's (00-0041092), and PFF college
+        (GRE361852) which do not always equal the season dataset's (00-0041092), and the college charting data
         shares no id namespace with either, so the only usable key is a GUARDED normalized name
         against the artifact's `is_2026_rookie` rows. Names ambiguous on either side are refused
         rather than guessed.

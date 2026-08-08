@@ -60,10 +60,10 @@ TALENT_DIR = _HERE / "fantasy" / "talent"
 TALENT_CSV = TALENT_DIR / "talent_score_2026.csv"
 ROOKIE_CSV = TALENT_DIR / "rookie_score_2026.csv"
 # College QB talent (SPEC R35). rookie_score_2026.csv carries NO QB rows, so rookie QBs had a
-# blank College Talent cell; this fills them from the PFF-college QB build. Disjoint from
+# blank College Talent cell; this fills them from the college QB build. Disjoint from
 # ROOKIE_CSV by position, so the two sources cannot collide.
 COLLEGE_QB_CSV = TALENT_DIR / "college_qb_score_2026.csv"
-# College RB talent (SPEC R36). DESCRIPTIVE ONLY — the 8-facet PFF index fired rc +0.329 (DEAD,
+# College RB talent (SPEC R36). DESCRIPTIVE ONLY — the 8-facet charting index fired rc +0.329 (DEAD,
 # < .35 band) against the shipped PBP instrument at +0.501, and carries no strength-of-schedule
 # adjustment. Joseph directed it to REPLACE the box-score value on every RB row it covers.
 COLLEGE_RB_CSV = TALENT_DIR / "college_rb_score_2026.csv"
@@ -281,7 +281,7 @@ def _load_board_2026_cached(source_fingerprint):
     if COLLEGE_RB_CSV.exists():
         # RB college talent REPLACES the box-score rookie value wherever R36 has one
         # (Joseph's direction 2026-07-27, against the recommendation to fill blanks only —
-        # the PFF index fired rc +0.329 DEAD vs the PBP instrument's +0.501 CLEAN).
+        # the charting index fired rc +0.329 DEAD vs the PBP instrument's +0.501 CLEAN).
         cr = pd.read_csv(COLLEGE_RB_CSV, usecols=["nfl_player_id", "score", "is_2026_rookie"])
         cr = cr[cr["is_2026_rookie"].astype(bool) & cr["nfl_player_id"].notna()]
         rb_score = df["player_id"].map(cr.set_index("nfl_player_id")["score"])

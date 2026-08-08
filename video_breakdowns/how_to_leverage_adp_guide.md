@@ -61,7 +61,7 @@ Feature importance is **held-out permutation importance**, grouped into readable
 | Rookies (3 models) | Share | In that model's top 3 |
 |---|---:|---:|
 | Draft capital | 65.7% | 3/3 |
-| PFF college grades | 13.0% | 3/3 |
+| College charting grades | 13.0% | 3/3 |
 | Size / athletic testing | 8.8% | 1/3 |
 
 **A disclosure that belongs with those percentages.** The importance run was never written to a persisted artifact, and neither was the map from raw features to the family names above. Re-deriving it later turned out to be only partly possible: the quarterback veteran feature matrix no longer exists on disk, so the four-position veteran average cannot be recomputed at all. On the three rookie models, which do survive, a fresh permutation run reproduces the **ordering of the top two families and all three top-three counts**, but not the exact shares, and it puts college production third where the video puts athletic testing third.

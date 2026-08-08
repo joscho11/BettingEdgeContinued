@@ -92,29 +92,10 @@ jobs:
           tests/test_responsive_layout.py
           fantasy/projections/test_fold_guards.py
 
-      # Talent build suites (2026-08-03). These were previously in the list above and
-      # ran as "12 passed, 14 skipped" on every CI run: their checkpoint helper read
-      # config.WORK, hardcoded to C:/tmp/talent_build, which exists on no runner -- so
-      # the reproduction-vs-accepted-table regression, model/board determinism, three
-      # golden regressions, the shares-sum-to-1 invariant, per-position k derivation and
-      # the Travis Hunter override were all silently not tested. The checkpoints are now
-      # committed fixtures (fantasy/talent/tests/fixtures/work/) and a missing REQUIRED
-      # input FAILS. This step is separate so the counts can be asserted: any skip, or
-      # anything other than 26 passing, fails the job.
-      - name: Run talent suites and REQUIRE 26 passed / 0 skipped
-        run: |
-          set -o pipefail
-          pytest -v -rs \
-            fantasy/talent/tests/test_talent_build.py \
-            fantasy/talent/tests/test_phase2.py | tee /tmp/talent.log
-          if grep -qE "^SKIPPED|[0-9]+ skipped" /tmp/talent.log; then
-            echo "::error::talent cases skipped -- the checkpoint fixtures are not being read"
-            exit 1
-          fi
-          if ! grep -qE "(^|[^0-9])26 passed" /tmp/talent.log; then
-            echo "::error::expected exactly 26 talent tests to pass"
-            exit 1
-          fi
+      # Talent build suites REMOVED FROM CI 2026-08-08: the build code, specs and tests
+      # were untracked from this public repo (PFF-derived talent scaffolding is local-only
+      # now; the score CSVs the site reads remain tracked). The 26-test suite still runs
+      # locally from the working tree before any talent artifact change ships.
 
       # Betting execution layer (review 2026-07-17 L-17/R36a): hermetic, sibling
       # imports require running from betting/. Explicit list, never discovery.

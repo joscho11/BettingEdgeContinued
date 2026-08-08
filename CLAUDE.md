@@ -490,7 +490,7 @@ the overlay; the committed overlay now carries all 245 rows. Tests: `tests/test_
 `tests/test_app_draft_board.py`, `tests/test_app_talent_columns.py`, `tests/test_board_refresh.py`. The full 891-row projection
 set still lives only in the results CSVs — no dedicated all-players page.
 
-**QB (2026-07-21) — VETERAN-ONLY:** `build_qb_projection.py` uses the PFF **passing** block (there is NO
+**QB (2026-07-21) — VETERAN-ONLY:** `build_qb_projection.py` uses the licensed **passing** block (there is NO
 college passing box-score in the frozen matrix — the `cfb_*` block is scrimmage-only — and no QB talent
 instrument). Veteran ρ +0.697 ships. The **rookie arm was HELD** (`QB_SHIP_ROOKIE=0` default): its ρ +0.627
 is near-meaningless (50 rows / 7–13 per fold), and a draft-order diagnostic showed it just re-ranks by draft
@@ -507,7 +507,7 @@ toggle honors a rookie ship/hold decision. GUIDE broadened to "RB, WR & TE".
 
 **WR (2026-07-21):** `build_wr_projection.py` **imports the RB engine** (`season_total_target`,
 `nested_select`, `walk_forward`, `fit_final_model`, `_prep`, `_grid`, metrics) + a ~15-line WR
-frozen-matrix twin (`position=='WR'` + `pff_receiving`) — **`build_rb_projection.py` is NOT modified**.
+frozen-matrix twin (`position=='WR'` + the receiving block) — **`build_rb_projection.py` is NOT modified**.
 Governing prereg `PREREG_wr_projection_2026-07-21.md`; **`depth_rank` excluded from the start** (the RB
 lesson) with an explicit deploy-gap check confirming no other feature is train-present/2026-absent.
 Walk-forward (n=1242) pooled Spearman **+0.736** (stronger than RB); vs Sleeper ρ +0.738 vs +0.799 — does
@@ -524,7 +524,7 @@ projection/Sleeper/Diff columns. GUIDE broadened to "RB & WR".
 - **Pipeline:** `build_rb_projection.py` — `--assemble` (feature matrices + pre-registered asserts),
   `--walk-forward` (registered nested-CV walk-forward 2021–2025 + gates-nothing Sleeper reference),
   `--ship` (fit final models, write derived artifacts). Interpreter = the AI_hedge_fund venv (repo .venv
-  broken). PFF-derived rookie matrix regenerated in a TEMP scratch dir — **no parquet / no raw-PFF season
+  broken). Charting-derived rookie matrix regenerated in a TEMP scratch dir — **no parquet / no raw licensed season
   tables in the repo**; only derived projections land in `results/`. Synthetic proof: `rb_projection_harness.py --build`.
 - **Models:** `models/rb_veteran_model.pkl`, `models/rb_rookie_model.pkl` (both LightGBM, inner-CV-chosen).
   **Results:** `results/rb_projection_2026.csv` (full veteran+rookie surface), `rb_rookie_board_projection.csv`
@@ -575,9 +575,9 @@ only as the College Talent fallback where a college build has no coverage.
 - **College joins are guarded NAME joins, by necessity.** Brand-new rookies carry placeholder ids
   (`MEN516487`, `pfr_BeckCa01`) and the rookie board carries its own placeholders that differ from the season
   dataset's (Taylen Green is `GRE361852` there vs `00-0041092` in the dataset), so no id namespace is shared
-  with PFF college. Names ambiguous on **either** side are refused, never guessed. NFL joins are exact on
+  with the licensed college data. Names ambiguous on **either** side are refused, never guessed. NFL joins are exact on
   `gsis_id`.
-- **No strength-of-schedule adjustment** anywhere on the college side, and PFF college is **FBS only** — FCS
+- **No strength-of-schedule adjustment** anywhere on the college side, and the licensed college data is **FBS only** — FCS
   prospects can never be scored and render blank by construction.
 - The college instruments all fired **DEAD** as predictors (RB rc +0.329, WR/TE similar) — they ship
   descriptively at Joseph's direction and **must never be cited as validated**.

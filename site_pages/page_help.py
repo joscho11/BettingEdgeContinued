@@ -389,7 +389,7 @@ Recent seasons count more, on a decay I chose and wrote down rather than fitted.
 
 These columns are context only: a pre-registered test found that efficiency measures like these do not predict where the draft market misprices players, so they never combine with the projections, the ranks, or the gap columns anywhere on the board. The college instruments in particular were each measured against NFL outcomes and each came back **dead** — they ship as description of college production, and nothing more.
 
-The full write-up — every design choice, the admission gates, and where it fails — lives in `fantasy/talent/GUIDE.md` in the repo.
+The full write-up covering every design choice, the admission gates, and where it fails lives in my research notes.
         """)
 
     st.divider()
