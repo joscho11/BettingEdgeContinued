@@ -102,4 +102,13 @@ VIDEOS = [
         "video_id": "7671059325892349214",
         "breakdown_file": "how_to_leverage_adp_te.md",
     },
+    {
+        "slug": "how-to-leverage-adp-rb",
+        "title": "How to Leverage ADP: RB Edition",
+        "subtitle": "2026 · one backfield, six rounds apart",
+        "date": "2026-08-08",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7671785941031324958",
+        "video_id": "7671785941031324958",
+        "breakdown_file": "how_to_leverage_adp_rb.md",
+    },
 ]
