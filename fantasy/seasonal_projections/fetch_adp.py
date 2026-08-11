@@ -6,9 +6,33 @@ Each player record carries draft-position fields (adp_half_ppr, adp_ppr,
 adp_std, adp_2qb) and Sleeper's own full-season point/stat projections
 (pts_half_ppr, rush_yd, rec_yd, ...).
 
-ADP is a LIVE rolling aggregate of real Sleeper drafts. For a completed
-season it is frozen at its final draft-season state, i.e. the late-August
-"draft-time market" consensus. There is no timestamp in the data.
+ADP is an aggregate of real Sleeper drafts, and THERE IS NO TIMESTAMP IN THE
+DATA. For a completed season it is frozen at its final draft-season state.
+
+CORRECTED 2026-08-09. This docstring used to call it a "LIVE rolling
+aggregate". That was unsourced and the evidence contradicts it:
+
+  - Sleeper publishes NO ADP methodology. This endpoint is undocumented, and
+    the payload carries 70 fields of which NONE is a draft count, timestamp,
+    date range, sample size or last_updated. The HTTP response sends no
+    Last-Modified header either.
+  - Sleeper's only public statement describes ADP as "averaged over the number
+    of times they have been drafted", which is a CUMULATIVE pool with no
+    window, not a rolling one.
+  - Measured on the 2026 market snapshots: across ten captures over six days,
+    ZERO of 311 ADP values moved. The live board's history shows 23 of 28 days
+    with no movement at all, then occasional bulk jumps. That is a periodically
+    recomputed batch or a cumulative mean, not a rolling window.
+
+What IS safe to say: ADP reflects drafts accumulating over the offseason and
+moves over WEEKS, not days (114 of 180 players repriced between 2026-07-13 and
+2026-08-05). The distinction matters, because a cumulative mean gets STICKIER
+as its pool grows, so late-summer news may barely move it.
+
+DOWNSTREAM CONVENTION (Joseph ruled 2026-08-09): ADP for season t is ASSUMED to
+be a snapshot as of the day before that season's week-1 kickoff. That is an
+assumption chosen knowingly, not a measurement, and it cannot be recovered from
+the data. See the `adp-asof-assumption` vault node.
 
 Coverage notes (verified empirically):
   - Sleeper uses 999.0 as a sentinel for "no ADP / undrafted". We drop those.
