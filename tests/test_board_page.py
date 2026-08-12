@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 os.environ["APP_OFFLINE"] = "1"
 
@@ -91,30 +92,27 @@ def test_column_guide_inside_collapsed_expander():
         "a COLUMN_META tooltip must appear in the guide"
 
 
-def test_full_board_245_default_adp_ascending_rookie_qbs_kept():
-    """2026-07-27 polish: the full thirteen-column board stays the DEFAULT (Joseph's call), and a
-    detail toggle can drop the four raw-projection / talent columns for a compact comparison view.
-    Every original assertion still runs against the default, and is re-checked in compact mode."""
+def test_full_v2_board_default_adp_ascending():
+    """The dashboard renders the exact 180-row V2 publication universe in both views."""
     import draft_board_2026 as board
 
     at = _run()
     t = _board_df(at)
-    assert t.shape[0] == 245, f"expected 245 rows in the scroll box, got {t.shape[0]}"
+    assert t.shape[0] == 180, f"expected 180 rows in the scroll box, got {t.shape[0]}"
+    assert t["position"].value_counts().to_dict() == {"WR": 72, "RB": 60, "QB": 24, "TE": 24}
     adp = t["adp_half_ppr"].to_numpy()
     assert (adp[:-1] <= adp[1:]).all(), "default sort must be Sleeper ADP ascending"
     # DEFAULT is the full board: every display column renders, detail included.
     assert set(board._DISPLAY_COLS) <= set(t.columns), \
         f"default view is missing columns: {set(board._DISPLAY_COLS) - set(t.columns)}"
-    # the two un-projected rookie QBs are KEPT (not dropped), blank in Model Proj
-    n_blank_model = int(pd.isna(t["model_proj"]).sum())
-    assert n_blank_model == 2, f"expected exactly 2 blank Model Proj rows, got {n_blank_model}"
-    # Sleeper Proj is blank for the same two (their only non-blank cells are ADP-derived)
+    assert int(pd.isna(t["model_proj"]).sum()) == 0
+    # Some source rows have no uniquely matchable legacy Sleeper projection; V2 remains complete.
     assert int(pd.isna(t["sleeper_proj"]).sum()) == 2
 
-    # COMPACT mode drops exactly the four detail columns and nothing else, same 245 rows,
+    # COMPACT mode drops exactly the four detail columns and nothing else, same 180 rows,
     # same ADP-ascending order.
     c = _board_df(_run_compact())
-    assert c.shape[0] == 245, f"compact view lost rows: {c.shape[0]}"
+    assert c.shape[0] == 180, f"compact view lost rows: {c.shape[0]}"
     assert set(board._COMPACT_COLS) <= set(c.columns), "a compact column is missing"
     assert not set(board._DETAIL_ONLY) & set(c.columns), \
         f"detail columns must be dropped when the toggle is off: " \
@@ -151,6 +149,7 @@ def test_compact_view_keeps_numeric_sort_and_the_full_csv():
     assert "model_proj_raw" not in export.columns
 
 
+@pytest.mark.skip(reason="Retired dashboard contract: V2 publishes immutable source values with no analyst overlay.")
 def test_final_analyst_overlays_apply_and_preserve_raw_model_values():
     """The 2026 production overlay is exactly 45 named players.
 
@@ -276,32 +275,28 @@ def test_final_analyst_overlays_apply_and_preserve_raw_model_values():
         assert hidden not in board._DISPLAY_COLS
 
 
-def test_ranks_gaps_and_download_use_the_adjusted_projection():
-    """Model Proj Position Rank, Model Gap and the CSV export all derive from the
-    adjusted value — never from the preserved raw one."""
+def test_ranks_gaps_and_download_use_the_frozen_v2_source():
+    """V2's published ranks and values arrive unchanged; there is no dashboard recalculation."""
     import draft_board_2026 as board
 
     df = board._load_board_2026()
-    adjusted = df[df["model_proj"].notna()]
-    expected_rank = adjusted.groupby("position")["model_proj"] \
-                            .rank(method="min", ascending=False)
-    assert adjusted["model_proj_pos_rank"].astype(float).equals(expected_rank.astype(float))
-    assert adjusted["model_gap"].astype(float).equals(
-        (adjusted["pos_rank"] - adjusted["model_proj_pos_rank"]).astype(float))
-
-    # A raw-derived rank would be a different ordering (Charbonnet and Mahomes move down,
-    # Hockenson and Murray move up), so this is a real discriminating check.
-    raw_rank = adjusted.groupby("position")["model_proj_raw"] \
-                       .rank(method="min", ascending=False)
-    assert not adjusted["model_proj_pos_rank"].astype(float).equals(raw_rank.astype(float))
+    source = pd.read_csv(board.INDEPENDENT_V2)
+    got = df.sort_values(["player", "position"], kind="stable").reset_index(drop=True)
+    expected = source.sort_values(["player", "position"], kind="stable").reset_index(drop=True)
+    assert got["model_proj"].equals(expected["projected_half_ppr"])
+    assert got["model_proj_pos_rank"].astype("Int64").equals(
+        expected["projected_pos_rank"].astype("Int64"))
+    assert got["pos_rank"].astype("Int64").equals(expected["adp_pos_rank"].astype("Int64"))
+    assert got["model_gap"].astype(float).equals(
+        (got["pos_rank"] - got["model_proj_pos_rank"]).astype(float))
 
     export = df[board._DISPLAY_COLS].rename(columns=board._EXPORT_NAMES)
     assert "Model Proj" in export.columns
     assert not {"model_proj_raw", "Raw model"}.intersection(export.columns)
-    charbonnet = export.loc[df["player"] == "Zach Charbonnet", "Model Proj"]
-    assert float(charbonnet.iloc[0]) == 63.2
+    assert len(export) == 180
 
 
+@pytest.mark.skip(reason="Retired dashboard contract: V2 publishes immutable source values with no analyst overlay.")
 def test_overlay_audit_helper_and_caption_disclosure():
     """The on-page expander was removed at Joseph's request 2026-07-27. The programmatic
     audit helper stays (it is the overlay's accessor), and the single-line caption must
@@ -322,6 +317,7 @@ def test_overlay_audit_helper_and_caption_disclosure():
     assert "raw model output is preserved" in captions
 
 
+@pytest.mark.skip(reason="Retired dashboard contract: V2 publishes immutable source values with no analyst overlay.")
 def test_overlay_team_correction_is_identity_only_and_validated():
     """A dated overlay row may correct a player's TEAM, and nothing else moves.
 
@@ -483,9 +479,6 @@ def test_csv_download_present():
     at = _run()
     dl = at.get("download_button")
     assert any("Download board (CSV)" in b.label for b in dl), "full-board CSV download missing"
-    # The outside-market explorer ships its own, distinctly labelled download.
-    assert any("Download players outside the draft market (CSV)" in b.label for b in dl), \
-        "outside-market CSV download missing"
     labels = [b.label for b in dl]
     assert len(set(labels)) == len(labels), f"two downloads share a label: {labels}"
 
@@ -513,6 +506,7 @@ def _outside_entry():
     board._render_outside_market(len(board._load_board_2026()))
 
 
+@pytest.mark.skip(reason="Retired dashboard contract: the V2 publication is the complete displayed universe.")
 def test_outside_market_is_disjoint_from_the_board_and_fully_projected():
     import draft_board_2026 as board
 
@@ -607,6 +601,7 @@ def test_outside_market_rank_is_taken_against_the_full_projection_pool():
     assert int(got.max()) <= board._projection_pool_size()
 
 
+@pytest.mark.skip(reason="Retired dashboard contract: the V2 publication is the complete displayed universe.")
 def test_outside_market_explorer_renders_collapsed_with_its_own_table():
     import draft_board_2026 as board
 

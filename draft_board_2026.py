@@ -1,10 +1,10 @@
 """2026 Draft Board page — season-projection comparison table (2026-07-22 rebuild).
 
-This page retires the licensed Phase-4 band as its spine. It lists every player with a 2026
-Sleeper ADP (245) and shows, side by side, the market's draft price and positional rank next
-to Sleeper's season-total projection and a model-based estimate I built — plus the
-positional-rank gap for each and two descriptive talent scores. Selected named 2026 players
-use a disclosed analyst overlay on that model-based estimate. A detail toggle (ON by default)
+This page retires the licensed Phase-4 band as its spine. It lists the 180-player capped
+preseason universe published by the independent V2 pipeline (24 QB / 60 RB / 72 WR / 24 TE)
+and shows, side by side, the snapshot's draft price and positional rank next to Sleeper's
+season-total projection when available and the V2 model estimate — plus the
+positional-rank gap for each and two descriptive talent scores. A detail toggle (ON by default)
 can drop the four raw-estimate/talent columns for a compact 9-column comparison view.
 
 The frozen artifacts (phase4_band_2026.csv, talent_index_2026.csv) stay on disk, read-only,
@@ -13,11 +13,9 @@ the daily ADP refresh, whose one frozen input is the season dataset.
 
 Compliance — DESCRIPTIVE ONLY.
   • Sleeper ADP + Sleeper Proj are Sleeper's data (attributed).
-  • Model Proj + Model Gap use a separate, from-scratch model, BACKTESTED (2021–2025)
-    and NOT live-validated. A frozen, disclosed 2026 analyst overlay replaces the displayed
-    point estimate for selected players while preserving every raw model output. The same
-    dated overlay rows may also correct a player's TEAM when he signs after the projection
-    artifacts were built — identity metadata only, feeding no projection, rank or gap.
+  • Model Proj + Model Gap use the separate independent V2 hurdle blend, BACKTESTED
+    (2021–2025) and NOT live-validated. The displayed values are the immutable pipeline
+    output; no analyst overlay is applied.
   • The gap columns are neutral positional-rank differences, not recommendations.
   • Talent Scores are descriptive context on their own scales, and feed no other column.
   • No buy/sell/fade/steal/reach/target/tier/valued/hit-rate/accuracy language anywhere.
@@ -35,16 +33,15 @@ _MONTHS = ("January", "February", "March", "April", "May", "June", "July",
 
 _HERE = Path(__file__).resolve().parent
 SEAS = _HERE / "fantasy" / "seasonal_projections"
-# Draft-price universe: every player with a 2026 Sleeper ADP (245), from the frozen
-# season dataset. This defines the table's rows.
+# Retained only for legacy metadata helpers below; it no longer defines the displayed board.
 DATASET = SEAS / "season_dataset_2014_2026.csv"
-# LIVE ADP overlay written by refresh_board_adp.py (regenerable, market data only). It now
-# covers all 245 board rows (it was ~180 before the refresh was widened); any row it misses
-# keeps the frozen dataset snapshot, so a fresh clone and the hermetic AppTest still render.
+# Retained only for legacy metadata helpers below. The displayed board uses the V2 source's
+# frozen ADP snapshot and intentionally does not merge this live overlay.
 LIVE_OVERLAY = SEAS / "board_adp_live_2026.csv"
-# The two independent season-total projections + the raw Sleeper projection they are
-# compared against live here (from-scratch model, read-only).
+# Legacy per-position files supply only optional Sleeper projection and team metadata.
+# The independent model projection is read solely from INDEPENDENT_V2.
 PROJ_RESULTS = _HERE / "fantasy" / "projections" / "results"
+INDEPENDENT_V2 = PROJ_RESULTS / "independent_half_ppr_points_2026.csv"
 ANALYST_PROJECTION_ADJUSTMENTS = (
     PROJ_RESULTS / "analyst_projection_adjustments_2026.csv"
 )
@@ -91,6 +88,14 @@ NFL_WR_CSV = TALENT_DIR / "nfl_wr_score_2026.csv"
 # which completes the migration: talent_score_2026.csv now feeds NO board column.
 NFL_TE_CSV = TALENT_DIR / "nfl_te_score_2026.csv"
 BOARD_SEASON = 2026
+
+
+def _name_position_key(frame: pd.DataFrame) -> pd.Series:
+    """Conservative fallback identity key for metadata-only legacy joins."""
+    name = (frame["player"].astype("string").str.normalize("NFKD")
+            .str.encode("ascii", "ignore").str.decode("ascii")
+            .str.lower().str.replace(r"[^a-z0-9]", "", regex=True))
+    return name + "|" + frame["position"].astype("string")
 
 
 def _load_projections():
@@ -206,36 +211,51 @@ def _load_projections():
 
 @st.cache_data
 def _load_board_2026_cached(source_fingerprint):
-    ds = pd.read_csv(DATASET, usecols=["player_id", "season", "player", "position",
-                                       "team", "adp_half_ppr"])
-    df = ds[(ds.season == BOARD_SEASON) & ds.adp_half_ppr.notna()].copy()
-    df = df.drop_duplicates("player_id").reset_index(drop=True)
+    if not INDEPENDENT_V2.exists():
+        raise FileNotFoundError(f"Independent V2 board source is missing: {INDEPENDENT_V2}")
+    df = pd.read_csv(INDEPENDENT_V2).copy()
+    expected = {"season", "player_id", "player", "position", "adp_half_ppr",
+                "adp_pos_rank", "projected_half_ppr", "projected_pos_rank"}
+    missing = expected.difference(df.columns)
+    if missing:
+        raise ValueError(f"Independent V2 source is missing columns: {sorted(missing)}")
+    if len(df) != 180 or set(df["position"]) != {"QB", "RB", "WR", "TE"}:
+        raise ValueError("Independent V2 board must be the exact 180-player four-position universe")
+    if df[["player", "position"]].duplicated().any() or df["projected_half_ppr"].isna().any():
+        raise ValueError("Independent V2 board has duplicate player-position rows or blank projections")
 
-    # LIVE ADP overlay: prefer the freshly-refreshed price where present (all 245 rows once
-    # the refresh has run), else keep the frozen-dataset snapshot (so a fresh clone and the
-    # hermetic AppTest still render).
-    if LIVE_OVERLAY.exists():
-        ov = pd.read_csv(LIVE_OVERLAY).set_index("player_id")
-        if "adp_half_ppr" in ov.columns:
-            fresh = df["player_id"].map(ov["adp_half_ppr"])
-            df["adp_half_ppr"] = fresh.where(fresh.notna(), df["adp_half_ppr"])
+    # The independent source is the board spine: its snapshot ADP and ranks define the exact
+    # evaluated universe. Legacy projection files provide only ancillary Sleeper projection and
+    # team metadata; they never supply a fallback model projection.
+    df["team"] = pd.NA
+    df["model_proj"] = pd.to_numeric(df["projected_half_ppr"], errors="raise")
+    df["model_proj_raw"] = df["model_proj"]
+    df["projection_adjustment"] = pd.NA
+    df["projection_adjustment_as_of"] = pd.NA
+    df["pos_rank"] = pd.to_numeric(df["adp_pos_rank"], errors="raise").astype("Int64")
+    df["model_proj_pos_rank"] = pd.to_numeric(
+        df["projected_pos_rank"], errors="raise").astype("Int64")
+    df["model_gap"] = (df["pos_rank"] - df["model_proj_pos_rank"]).astype("Int64")
+    df["sleeper_proj"] = pd.NA
 
-    # The two projections + the raw Sleeper projection, joined read-only by player_id.
-    proj = _load_projections()
-    df["model_proj"] = df["player_id"].map(proj["projection"]) if len(proj) else pd.NA
-    df["model_proj_raw"] = (
-        df["player_id"].map(proj["model_projection_raw"])
-        if len(proj) else pd.NA
-    )
-    df["projection_adjustment"] = (
-        df["player_id"].map(proj["projection_adjustment"])
-        if len(proj) else pd.NA
-    )
-    df["sleeper_proj"] = df["player_id"].map(proj["sleeper"]) if len(proj) else pd.NA
-    # Team from the projection roster where present (current 2026 team), else the dataset.
-    if len(proj) and "team" in proj.columns:
-        pteam = df["player_id"].map(proj["team"])
-        df["team"] = pteam.where(pteam.notna(), df["team"])
+    legacy = _load_projections().reset_index() if any(
+        (PROJ_RESULTS / f"{p}_projection_2026.csv").exists() for p in ("rb", "wr", "te", "qb")
+    ) else pd.DataFrame(columns=["player_id", "player", "position", "team", "sleeper"])
+    if not legacy.empty:
+        legacy = legacy.drop_duplicates("player_id", keep=False).copy()
+        by_id = legacy.set_index("player_id")
+        resolved = df["player_id"].notna()
+        df.loc[resolved, "team"] = df.loc[resolved, "player_id"].map(by_id["team"])
+        df.loc[resolved, "sleeper_proj"] = df.loc[resolved, "player_id"].map(by_id["sleeper"])
+        legacy["_name_position"] = _name_position_key(legacy)
+        legacy = legacy[~legacy["_name_position"].duplicated(keep=False)].set_index("_name_position")
+        df["_name_position"] = _name_position_key(df)
+        unresolved = df["team"].isna() & df["_name_position"].isin(legacy.index)
+        df.loc[unresolved, "team"] = df.loc[unresolved, "_name_position"].map(legacy["team"])
+        missing_sleeper = df["sleeper_proj"].isna() & df["_name_position"].isin(legacy.index)
+        df.loc[missing_sleeper, "sleeper_proj"] = df.loc[
+            missing_sleeper, "_name_position"].map(legacy["sleeper"])
+        df = df.drop(columns="_name_position")
 
     # Talent scores — populated ONLY from artifact membership (disjoint by construction).
     df["nfl_talent"] = pd.NA
@@ -309,27 +329,18 @@ def _load_board_2026_cached(source_fingerprint):
     ):
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    # Positional ranks. ADP ascending (1 = earliest pick at the position); projection ranks
-    # descending (1 = highest projected points). NaN keys (rookie QBs with no projection)
-    # stay <NA> and sink last on any sort.
-    df["pos_rank"] = df.groupby("position")["adp_half_ppr"] \
-                       .rank(method="min", ascending=True).astype("Int64")
+    # Sleeper ranks are ancillary and computed only across this exact V2 universe. The ADP and
+    # independent-model ranks above come directly from the frozen source and are not recomputed.
     df["sleeper_proj_pos_rank"] = df.groupby("position")["sleeper_proj"] \
                        .rank(method="min", ascending=False).astype("Int64")
-    df["model_proj_pos_rank"] = df.groupby("position")["model_proj"] \
-                       .rank(method="min", ascending=False).astype("Int64")
-    # Gap = draft-price rank minus projection rank. Positive = the projection ranks him
-    # higher than his draft cost; negative = lower. Descriptive difference, not advice.
     df["sleeper_gap"] = (df["pos_rank"] - df["sleeper_proj_pos_rank"]).astype("Int64")
-    df["model_gap"] = (df["pos_rank"] - df["model_proj_pos_rank"]).astype("Int64")
     return df
 
 
 def _board_source_fingerprint():
     """Cache key for every local artifact that contributes to the board."""
     paths = [
-        DATASET,
-        LIVE_OVERLAY,
+        INDEPENDENT_V2,
         *(PROJ_RESULTS / f"{position}_projection_2026.csv"
           for position in ("rb", "wr", "te", "qb")),
         ANALYST_PROJECTION_ADJUSTMENTS,
@@ -528,20 +539,8 @@ def _refresh_date():
 
 
 def _adp_caption():
-    """Auto-stamped, first-person ADP caption. Flags a snapshot older than 7 days."""
-    iso = _refresh_date()
-    if not iso:
-        return ("I refresh these draft prices from Sleeper ADP; prices move as real "
-                "drafts happen.")
-    try:
-        stamp = date.fromisoformat(str(iso)[:10])
-        pretty = f"{_MONTHS[stamp.month - 1]} {stamp.day}, {stamp.year}"
-        stale = (date.today() - stamp).days > 7
-    except (ValueError, TypeError):
-        pretty, stale = str(iso), False
-    note = (" These prices are more than a week old, so they may be behind the market."
-            if stale else " Prices move as real drafts happen.")
-    return f"I refresh these draft prices from Sleeper ADP — latest pull {pretty}.{note}"
+    return ("This is the frozen ADP snapshot used by the independent V2 pipeline. "
+            "It is not a live ADP feed and will be refreshed with the planned early-September snapshot.")
 
 
 # Sortable display column -> the underlying NUMERIC field it sorts on. Every sentinel
@@ -656,23 +655,20 @@ COLUMN_META = [
      "him higher than his draft cost; negative = lower. A descriptive difference, not advice. "
      "Blank = no Sleeper projection.", {"format": "%d", "width": "small"}),
     ("model_proj_pos_rank", _NUM, "Model Proj Position Rank",
-     "His rank at his position by my from-scratch model's season projection "
+     "His published rank at his position in the independent V2 projection universe "
      "(1 = highest projected).", {"format": "%d", "width": "small"}),
     ("model_gap", _NUM, "Model Gap",
      "Position Rank minus Model Proj Position Rank. Positive = my model ranks him higher "
-     "than his draft cost; negative = lower. From a model backtested on 2021–2025, NOT "
-     "live-validated — a descriptive difference, not advice. Blank = not in the projection "
-     "set (e.g. rookie QBs are not projected).", {"format": "%d", "width": "small"}),
+     "than his draft cost; negative = lower. From the published independent V2 model, "
+     "backtested on 2021–2025 and not live-validated — a descriptive difference, not advice.",
+     {"format": "%d", "width": "small"}),
     ("sleeper_proj", _NUM, "Sleeper Proj",
      "Sleeper's projected season-total half-PPR points (raw).",
      {"format": "%d", "width": "small"}),
     ("model_proj", _NUM, "Model Proj",
-     "Season-total half-PPR points based on a separate, from-scratch model I built (RB/WR/TE "
-     "plus non-rookie QBs; rookie QBs are not projected). For selected 2026 players this shows "
-     "my own named-player scenario in place of the model's point estimate — a judgment call "
-     "about availability and role, not a measured improvement to the model; every raw model "
-     "output is preserved unchanged. The model was built independently of the market, "
-     "backtested on 2021–2025, and is NOT live-validated. Blank = not in the projection set.",
+     "Published season-total half-PPR points from the independent V2 pipeline: an equal raw "
+     "LightGBM/ExtraTrees participation-hurdle blend with rolling affine calibration. ADP is "
+     "not a model input. The model was backtested on 2021–2025 and is not live-validated.",
      {"format": "%d", "width": "small"}),
     ("nfl_talent", _NUM, "NFL Talent Score",
      "My model-based per-opportunity talent estimate for players with NFL history, net of "
@@ -931,17 +927,18 @@ def render():
 
     with st.expander("How to read this board", expanded=False):
         st.markdown(
-            "This board lists every player with a 2026 Sleeper ADP. For each, it shows "
-            "where the market is drafting him and **two independent season-total "
-            "projections** — Sleeper's and a from-scratch model I built — plus, for each "
+            "This board lists the independent model's exact 180-player 2026 universe: "
+            "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the frozen snapshot's "
+            "draft price and **the independent V2 season-total projection**, plus Sleeper's "
+            "projection when its record matches — and, for each available projection, "
             "projection, the gap between his draft-price rank and his projected rank at "
             "his position.\n\n"
             "- **Sleeper ADP** is his average draft position; **Position Rank** turns that "
             "into his rank at his position (1 = first off the board there).\n"
             "- **Sleeper Proj** and **Model Proj** are two separate estimates of his "
-            "season-total half-PPR points. Sleeper's is the market's; the **Model Proj** is "
-            "mine, built independently of the market — backtested on 2021–2025, not yet "
-            "live-validated, and not presented as a better number than the market.\n"
+            "season-total half-PPR points. Sleeper's is shown only when its record can be "
+            "matched; **Model Proj** is the immutable independent V2 output, built without "
+            "ADP as a model input, backtested on 2021–2025 and not yet live-validated.\n"
             "- **Sleeper Gap** and **Model Gap** are each Position Rank minus that "
             "projection's position rank: positive means the projection ranks him higher than "
             "his draft cost, negative means lower. They are descriptive differences, not "
@@ -1015,13 +1012,11 @@ def render():
                       "applied but its values are off-screen; turn the detail toggle back on to "
                       "see them.")
     st.caption(sort_note)
-    st.caption("Model Proj and Model Gap use a separate, from-scratch model, backtested "
-               "on 2021–2025 and not yet live-validated. Selected 2026 players carry my own "
-               "named-player scenario in place of the model's point estimate — judgment "
-               "calls about availability and role, not a measured improvement to the model "
-               "and not backtested. Sleeper's projections, ranks and draft prices determined "
-               "neither the direction nor the magnitude of any of them. Every raw model "
-               "output is preserved unchanged.")
+    st.caption("Model Proj and Model Gap are the immutable independent V2 pipeline output: "
+               "an equal raw blend of LightGBM and ExtraTrees participation-hurdle forecasts, "
+               "using 132 cutoff-valid non-outcome features and rolling affine calibration. "
+               "It was backtested on 2021–2025 and is not live-validated; it is not presented "
+               "as better than ADP. No analyst scenario overlay is applied.")
     st.caption("NFL Talent Score ranks NFL players against NFL players; College Talent Score "
                "ranks 2026 rookies against past drafted prospects — different instruments on "
                "different scales, and neither feeds any other column.")
@@ -1045,15 +1040,10 @@ def render():
     st.caption("The download carries every column, including any the compact view hides, for the "
                "rows currently filtered and in the current sort order.")
 
-    # Everyone the model projects who has no 2026 Sleeper ADP — collapsed, price-free, and
-    # deliberately below the board so the priced universe above stays exactly what it was.
-    _render_outside_market(len(df))
-
     st.markdown("---")
     st.caption(
-        "**About these numbers.** Sleeper ADP and Sleeper Proj are Sleeper's; the Model Proj "
-        "is based on my own independently built model, with my named 2026 scenarios applied "
-        "to selected players. The model was backtested on 2021–2025 and is not live-validated "
-        "(the first live test is the 2026 season). The gap columns are simple positional-rank "
-        "differences shown for context. All of this is descriptive information for your own "
-        "judgment — not a recommendation about any player.")
+        "**About these numbers.** Sleeper ADP and Sleeper Proj are Sleeper's. Model Proj is "
+        "the immutable independent V2 pipeline output, evaluated historically on 2021–2025 "
+        "and not live-validated (the first live test is 2026). The gap columns are simple "
+        "positional-rank differences shown for context. All of this is descriptive information "
+        "for your own judgment — not a recommendation about any player.")

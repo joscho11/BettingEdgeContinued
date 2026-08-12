@@ -41,9 +41,9 @@ def test_board_sort_is_numeric_and_sentinels_sink():
                     assert (real[:-1] >= real[1:]).all(), \
                         f"{label} descending is not numerically ordered (string sort?)"
 
-    # rookie QBs (no Model Proj) sink last on Model Gap / Model Proj, both ways
+    # Sleeper metadata can be blank; the V2 model projection is complete by contract.
     for asc in (True, False):
-        for label in ("Model Gap", "Model Proj", "Sleeper Gap", "Sleeper Proj"):
+        for label in ("Sleeper Gap", "Sleeper Proj"):
             g = board._sort_board(df, label, ascending=asc)
             assert pd.isna(pd.to_numeric(g[board.SORT_KEYS[label]], errors="coerce").iloc[-1]), \
                 f"a no-data row must be last on {label} sort (asc={asc})"

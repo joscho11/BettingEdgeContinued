@@ -1,11 +1,9 @@
 """Draft Board page for the multipage site (site revamp Batch 2).
 
-The flagship page: site orientation + page-purpose (ratified 4d copy), the pre-season
-banner (4d.ii), then the board itself rendered via draft_board_2026.render() — the
-season-projection comparison table (2026-07-22 rebuild): every player with a 2026 Sleeper
-ADP, the market's draft price and positional rank beside Sleeper's and my model's
-projections with the rank gap for each, sorted via the control. All board copy/logic lives
-in draft_board_2026; this module adds only the ratified flagship strings.
+The flagship page: site orientation + page-purpose, the pre-season banner, then the board
+itself rendered via draft_board_2026.render(). The board is the exact 180-player independent
+V2 publication universe, with its frozen ADP snapshot, model projection, and positional ranks.
+All board copy/logic lives in draft_board_2026; this module adds only the flagship strings.
 """
 import os
 from datetime import date
@@ -20,9 +18,10 @@ from seasonal_config import board_refresh_season_start
 ORIENTATION = ("I build machine-learning models for NFL betting and fantasy, run them "
                "live, and show my work — the numbers, the honest track record, and the "
                "code on my GitHub.")
-PURPOSE = ("My pre-season draft board: the market's draft price and positional rank for each "
-           "player, beside two independent season-total projections — Sleeper's and my own "
-           "model's — with the rank gap for each. Refreshed daily from live draft data.")
+PURPOSE = ("My pre-season draft board: the independent model's exact 180-player 2026 "
+           "projection universe, with its snapshot draft price and positional rank beside "
+           "Sleeper's projection when available. The published model side is frozen until "
+           "the planned early-September snapshot.")
 
 
 def render():

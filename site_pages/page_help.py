@@ -181,7 +181,9 @@ During the season the site runs on an automated schedule through GitHub Actions.
 
 Tuesday morning it fills in the previous week's results and posts initial predictions for the upcoming week using the opening Vegas lines. Thursday night it refreshes those predictions after injury reports drop. Sunday morning it locks in final predictions before kickoff. Then the cycle repeats on Tuesday.
 
-During the offseason the weekly predictions pause, but the pre-season **Draft Board** stays live and refreshes daily from the latest draft data. Weekly predictions spin back up when the season kicks off in September.
+During the offseason the weekly predictions pause. The pre-season **Draft Board** currently shows
+one frozen 2026 independent-model snapshot; it will be refreshed from a dated public-information
+snapshot in early September before kickoff. Weekly predictions spin back up when the season kicks off in September.
         """)
 
     with st.expander("What is the Track Record page?"):
@@ -228,13 +230,13 @@ Upload your DraftKings salary CSV and the optimizer generates the highest-projec
 
     with st.expander("What is the Draft Board page?"):
         st.markdown("""
-The Draft Board is a **pre-season comparison table** for the 2026 season, separate from the Weekly Fantasy page. It lists every player with a 2026 Sleeper ADP — 245 of them. For each player it puts the market's draft price and his positional rank next to **two independent season-total projections**: Sleeper's, and a from-scratch model I built. Alongside each projection is the gap between the player's draft-price rank and his projected rank at his position.
+The Draft Board is a **pre-season comparison table** for the 2026 season, separate from the Weekly Fantasy page. It lists the exact 180-player universe published by my independent model: 24 QBs, 60 RBs, 72 WRs and 24 TEs. For each player it puts the snapshot's Sleeper draft price and positional rank next to the independent model's season-total half-PPR projection. Sleeper's season projection is shown when its player record can be matched. Alongside each available projection is the gap between draft-price rank and projected rank at that position.
 
 **What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is a plain arithmetic difference between two ranks shown on the same row — descriptive context, never a recommendation about any player.
 
-**How good is my model?** It was backtested on 2021–2025 and is **not live-validated** — the first live test is the 2026 season. On that backtest it does not rank players better than Sleeper does. I show both side by side rather than claiming mine is the better number.
+**How good is my model?** The independent V2 model was backtested on 2021–2025 and is **not live-validated** — the first live test is the 2026 season. It does not beat ADP on that backtest: V2 scored .6796 pairwise accuracy versus ADP's .6966, with 53.77 versus 51.75 MAE. It is shown as an independently produced estimate, not as a claim that it is better than the market.
 
-For selected named 2026 players, the Model Proj cell shows **my own scenario** in place of the model's point estimate — a judgment call about availability and role, not a measured improvement and not backtested. Sleeper's projections, ranks and draft prices determined neither the direction nor the magnitude of any of them, and every raw model output is preserved unchanged underneath.
+The Model Proj values are the immutable V2 pipeline output: an equal raw blend of LightGBM and ExtraTrees participation-hurdle forecasts, using 132 cutoff-valid non-outcome features and rolling affine calibration. No analyst scenario overlay is applied. The current board is frozen until the planned dated early-September public-information snapshot.
 
 The two talent columns are described in their own section further down this page. They are descriptive context on their own scales and feed no other column.
 
