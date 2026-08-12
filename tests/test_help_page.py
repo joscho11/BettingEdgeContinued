@@ -30,9 +30,14 @@ def test_help_renders_offline_clean(tmp_path):
     assert any("Help & Guide" in str(t.value) for t in at.title), "Help title missing"
     assert len(list(at.markdown)) > 10, "Help body (expanders/markdown) did not render"
     assert any("What Drives the Models" in str(s.value) for s in at.subheader)
-    assert any("Spread · XGBoost component" in str(m.value) for m in at.markdown)
-    assert any("Review historical bias of legacy season-projection models" in str(e.label) for e in at.expander)
-    assert any("2,589 legacy non-rookie season" in str(m.value) for m in at.markdown)
+    assert any(
+        "What inputs drive the 2026 Draft Board projections" in str(e.label)
+        for e in at.expander
+    )
+    assert not any(
+        "legacy season-projection models" in str(e.label)
+        for e in at.expander
+    )
 
 
 def test_help_interpolates_shared_stats_byte_identical(tmp_path):
