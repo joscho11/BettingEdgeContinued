@@ -456,20 +456,50 @@ You can filter by season or view all-time records across every year your league 
     # ── Section 6: Model explanations ────────────────────────────────────────
     st.subheader("🧠 What Drives the Models")
     st.caption(
-        "Top-five global feature influence for every production model currently surfaced by the site."
+        "The 2026 Draft Board uses the independent V2 point model described below. "
+        "Feature charts cover separate legacy season, weekly fantasy, and betting models."
     )
 
-    with st.expander("Explore model feature influence"):
+    with st.expander("How the 2026 Draft Board model produces projections"):
+        st.markdown("""
+The Draft Board's **Model Proj** is produced by the separate independent V2 pipeline. It is a
+season-total half-PPR forecast, not a ranking copied from ADP, Sleeper, or the talent scores.
+
+For each QB, RB, WR, and TE, two different tree-model systems estimate three pieces:
+
+1. the probability of playing at least five games;
+2. expected games played if he clears that threshold; and
+3. expected half-PPR points per game if he clears it.
+
+Each system multiplies those pieces into a season-point estimate. One system is deterministic
+LightGBM; the other is fixed-seed ExtraTrees. Their raw estimates are blended 50/50, then a
+position-specific affine calibration is fit using only predictions and results from earlier
+out-of-fold seasons. That last step maps the raw blend back to the historical point scale
+without using the season being scored.
+
+The model uses 132 cutoff-valid, non-outcome inputs drawn from prior production and usage,
+play-by-play and PFF-derived performance, injury history, age and draft context, and available
+preseason role, roster, coach, and vacated-usage context. **ADP, Sleeper projections, and the
+two Talent Scores are not model inputs.**
+
+The model currently publishes exactly 180 players: 24 QB, 60 RB, 72 WR, and 24 TE. Its points
+and model positional ranks are frozen for the current V2 snapshot. Separately, the Draft Board
+refreshes Sleeper ADP and Sleeper projection points daily; those live values recalculate the
+market ranks and both displayed gap columns, but do not change the V2 model forecast.
+        """)
+
+    with st.expander("Explore feature influence for other site models"):
         st.markdown("""
 These charts summarize how strongly each model uses a feature **across many predictions**. They do
 not say that a feature caused an outcome, and they are not an accuracy ranking. Percentages are
 normalized within each model; the five displayed bars will not usually add to 100% because the
 remaining features are omitted.
 
-Season-projection and spread charts use mean absolute Tree SHAP. Weekly fantasy and the totals
-XGBoost model use the model's gain importance. The totals Ridge chart uses absolute standardized
-coefficients. The production spread prediction is a fixed 75% XGBoost / 25% Ridge blend; its SHAP
-chart covers the tree component that supplies 75% of the prediction.
+These charts do **not** describe the independent V2 Draft Board model above. Season-projection
+and spread charts use mean absolute Tree SHAP. Weekly fantasy and the totals XGBoost model use
+the model's gain importance. The totals Ridge chart uses absolute standardized coefficients. The
+production spread prediction is a fixed 75% XGBoost / 25% Ridge blend; its SHAP chart covers the
+tree component that supplies 75% of the prediction.
         """)
         st.markdown(model_explanations.CHART_CSS, unsafe_allow_html=True)
         _shap_models, _stale_models = model_explanations.shap_models()
@@ -505,9 +535,10 @@ chart covers the tree component that supplies 75% of the prediction.
                 + ", ".join(_stale_models)
             )
 
-    with st.expander("Review historical season-projection bias"):
+    with st.expander("Review historical bias of legacy season-projection models"):
         st.markdown("""
-This is a **2021–2025 walk-forward out-of-sample audit** of 2,589 non-rookie season projections.
+This is a **2021–2025 walk-forward out-of-sample audit** of 2,589 legacy non-rookie season
+projections. It is not an audit of the independent V2 Draft Board model.
 Bias is model projection minus actual half-PPR points: a negative number means the model
 underprojected the player, while a positive number means it overprojected him. The top 20%
 is selected by the model's prediction within each position and season—not by the eventual
@@ -518,7 +549,7 @@ result—so the comparison does not manufacture underprojection by selecting act
             unsafe_allow_html=True,
         )
         st.markdown("""
-**What it says:** there is no global top-end compression. Non-rookie WR and TE projections are
+**What it says about those legacy models:** there is no global top-end compression. Non-rookie WR and TE projections are
 approximately neutral at the top, and QB is slightly high. RB is the exception: its top
 predicted group finished 21.3 points above its projection on average. That RB result was
 found during a multi-position diagnostic scan, so it is an exploratory lead for a future
