@@ -301,6 +301,13 @@ def test_ranks_gaps_and_download_use_frozen_v2_and_live_market_overlay():
     assert len(export) == 180
 
 
+def test_fernando_mendoza_team_override_is_identity_only():
+    import draft_board_2026 as board
+
+    row = board._load_board_2026().set_index("player_id").loc["MEN516487"]
+    assert row["team"] == "LV"
+
+
 @pytest.mark.skip(reason="Retired dashboard contract: V2 publishes immutable source values with no analyst overlay.")
 def test_overlay_audit_helper_and_caption_disclosure():
     """The on-page expander was removed at Joseph's request 2026-07-27. The programmatic

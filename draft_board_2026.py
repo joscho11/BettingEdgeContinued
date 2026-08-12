@@ -45,6 +45,9 @@ INDEPENDENT_V2 = PROJ_RESULTS / "independent_half_ppr_points_2026.csv"
 ANALYST_PROJECTION_ADJUSTMENTS = (
     PROJ_RESULTS / "analyst_projection_adjustments_2026.csv"
 )
+# Dated roster corrections for board identity metadata only. These never alter a projection,
+# rank, gap, or model input.
+TEAM_OVERRIDES_2026 = {"MEN516487": "LV"}  # Fernando Mendoza — Raiders, 2026-08-12
 # Descriptive talent artifacts (fantasy/talent/, provenance-stamped). NFL Talent scores players
 # with NFL history against NFL players at their own position; College Talent scores 2026 rookies
 # (all four positions) against past prospects who reached the NFL. Disjoint by construction
@@ -277,6 +280,11 @@ def _load_board_2026_cached(source_fingerprint):
             df.loc[missing_sleeper, "sleeper_proj"] = df.loc[
                 missing_sleeper, "_name_position"].map(legacy["sleeper"])
         df = df.drop(columns="_name_position")
+
+    # Explicit current-team metadata corrections, retained outside model artifacts.
+    df.loc[df["player_id"].isin(TEAM_OVERRIDES_2026), "team"] = df["player_id"].map(
+        TEAM_OVERRIDES_2026
+    )
 
     # Talent scores — populated ONLY from artifact membership (disjoint by construction).
     df["nfl_talent"] = pd.NA
