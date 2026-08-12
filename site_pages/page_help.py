@@ -232,7 +232,7 @@ Upload your DraftKings salary CSV and the optimizer generates the highest-projec
 
     with st.expander("What is the Draft Board page?"):
         st.markdown("""
-The Draft Board is a **pre-season comparison table** for the 2026 season, separate from the Weekly Fantasy page. It lists the exact 180-player universe published by my independent model: 24 QBs, 60 RBs, 72 WRs and 24 TEs. For each player it puts the snapshot's Sleeper draft price and positional rank next to the independent model's season-total half-PPR projection. Sleeper's season projection is shown when its player record can be matched. Alongside each available projection is the gap between draft-price rank and projected rank at that position.
+The Draft Board is a **pre-season comparison table** for the 2026 season, separate from the Weekly Fantasy page. It lists the exact 180-player universe published by my independent model: 24 QBs, 60 RBs, 72 WRs and 24 TEs. For each player it puts the current Sleeper draft price and positional rank next to the independent model's season-total half-PPR projection. Sleeper's current season projection is shown when its player record can be matched. Alongside each available projection is the gap between draft-price rank and projected rank at that position.
 
 **What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is a plain arithmetic difference between two ranks shown on the same row — descriptive context, never a recommendation about any player.
 

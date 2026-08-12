@@ -8,8 +8,8 @@ positional-rank gap for each and two descriptive talent scores. A detail toggle 
 can drop the four raw-estimate/talent columns for a compact 9-column comparison view.
 
 The frozen artifacts (phase4_band_2026.csv, talent_index_2026.csv) stay on disk, read-only,
-for the closed H-campaign. This module reads neither — and, verified 2026-07-27, neither does
-the daily ADP refresh, whose one frozen input is the season dataset.
+for the closed H-campaign. This module reads neither, and neither does the daily Sleeper
+market refresh; its frozen source is the independent V2 180-player publication.
 
 Compliance — DESCRIPTIVE ONLY.
   • Sleeper ADP + Sleeper Proj are Sleeper's data (attributed).
@@ -224,8 +224,8 @@ def _load_board_2026_cached(source_fingerprint):
     if df[["player", "position"]].duplicated().any() or df["projected_half_ppr"].isna().any():
         raise ValueError("Independent V2 board has duplicate player-position rows or blank projections")
 
-    # The independent source is the board spine: its snapshot ADP and ranks define the exact
-    # evaluated universe. Legacy projection files provide only ancillary Sleeper projection and
+    # The independent source is the board spine: its published player set and V2 ranks define the
+    # exact evaluated universe. Legacy projection files provide only ancillary Sleeper projection and
     # team metadata; they never supply a fallback model projection.
     df["team"] = pd.NA
     df["model_proj"] = pd.to_numeric(df["projected_half_ppr"], errors="raise")
@@ -350,8 +350,8 @@ def _load_board_2026_cached(source_fingerprint):
     ):
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    # Sleeper ranks are ancillary and computed only across this exact V2 universe. The ADP and
-    # independent-model ranks above come directly from the frozen source and are not recomputed.
+    # Sleeper ranks are ancillary and computed only across this exact V2 universe. V2 model ranks
+    # come directly from the frozen source and are not recomputed.
     df["sleeper_proj_pos_rank"] = df.groupby("position")["sleeper_proj"] \
                        .rank(method="min", ascending=False).astype("Int64")
     df["sleeper_gap"] = (df["pos_rank"] - df["sleeper_proj_pos_rank"]).astype("Int64")
@@ -965,7 +965,7 @@ def render():
     with st.expander("How to read this board", expanded=False):
         st.markdown(
             "This board lists the independent model's exact 180-player 2026 universe: "
-            "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the frozen snapshot's "
+            "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the current Sleeper "
             "draft price and **the independent V2 season-total projection**, plus Sleeper's "
             "projection when its record matches. Sleeper ADP, Sleeper Proj, and both gap "
             "columns refresh daily; V2 points and V2 projection ranks stay frozen. For each "

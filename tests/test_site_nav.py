@@ -60,7 +60,7 @@ def test_preseason_demo_banner_shows_then_hides():
     at = _run()
     infos = " ".join(str(i.value) for i in at.info)
     assert "demo until the 2026 season" in infos, "pre-season demo banner missing"
-    assert "Draft Board is live with its current independent model snapshot" in infos, \
+    assert "Draft Board has frozen V2 model projections and daily Sleeper market data" in infos, \
         "banner must point visitors to the current Draft Board snapshot"
     # in-season: the banner is gone
     os.environ["BOARD_REFRESH_SEASON_START"] = "2000-01-01"

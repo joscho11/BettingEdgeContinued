@@ -162,12 +162,12 @@ def inject_css():
 
 def render_preseason_banner(board_page=None, season_year=2026):
     """Pre-season banner variant (design 4d.ii, verbatim-ratified). Points to the live
-    frozen independent-model board. `board_page` is the Draft Board st.Page for the page_link
+    frozen independent-model projections and live Sleeper market board. `board_page` is the Draft Board st.Page for the page_link
     (skipped gracefully if not registered, e.g. in a test harness)."""
     st.info(
         f"🏈 The {season_year} season hasn't kicked off yet. My **2026 Draft Board** is "
-        "live with its current frozen independent-model snapshot; the next update is the "
-        "planned early-September pre-kickoff model snapshot; Sleeper market values refresh daily. Weekly "
+        "live with frozen V2 model projections and daily Sleeper market data; the next model update is the "
+        "planned early-September pre-kickoff snapshot. Weekly "
         "predictions return at Week 1.")
     if board_page is not None:
         st.page_link(board_page, label="Open the Draft Board", icon="📋")

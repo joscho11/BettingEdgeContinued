@@ -2,7 +2,7 @@
 
 The flagship page: site orientation + page-purpose, the pre-season banner, then the board
 itself rendered via draft_board_2026.render(). The board is the exact 180-player independent
-V2 publication universe, with its frozen ADP snapshot, model projection, and positional ranks.
+V2 publication universe, with live Sleeper market data and frozen V2 model projections/ranks.
 All board copy/logic lives in draft_board_2026; this module adds only the flagship strings.
 """
 import os

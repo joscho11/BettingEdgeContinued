@@ -251,7 +251,7 @@ A LlamaIndex ReActAgent with 5 tools (predictions, live injuries, line movement,
 
 A Streamlit multipage site with a top nav in three groups — **Betting**: Weekly Predictions, Track Record · **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, DFS Optimizer · **More**: Film Room, League History, Help & Guide.
 
-- **Draft Board**: my pre-season board for QB, RB, WR, and TE — every player with a 2026 Sleeper ADP, 245 of them. For each it puts the market's draft price and positional rank next to two independent season-total half-PPR projections — Sleeper's and a from-scratch model I built — with the positional-rank gap for each, plus two descriptive talent columns (NFL Talent Score, College Talent Score). Thirteen columns; a "Show projection and talent detail" toggle (on by default) drops the four raw-estimate and talent columns for a compact nine-column comparison, and the CSV download always contains all thirteen. My model is backtested on 2021–2025 and **not** live-validated — the first live test is the 2026 season — and it does not beat Sleeper on ranking. Selected named 2026 players carry a disclosed analyst scenario in place of the model's point estimate; the raw model output is preserved unchanged underneath. The gaps are neutral rank differences shown for context, not calls about any player. (This replaced the Phase-4 band spine on 2026-07-22, which had itself replaced the retired Draft Value Finder tab on 2026-07-12; see `fantasy/projections/GUIDE.md` for the projection engine and `fantasy/seasonal_projections/GUIDE.md` for the closed band campaign.)
+- **Draft Board**: my pre-season board for the independent V2 model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Sleeper ADP and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. V2 model points and V2 projection ranks remain frozen until the planned early-September snapshot. V2 is backtested on 2021–2025 and **not** live-validated — its first live test is 2026 — and it does not beat ADP on that backtest. The gaps are neutral rank differences shown for context, not calls about any player.
 
 - **Rookie Board**: a per-position hit-probability score for drafted rookies, beside the rookie season-total projections (RB, WR and TE — the QB rookie arm was built and held as too thin), a College Talent score, and college/athletic percentiles. Backtested, not live-validated: at this sample college production and athletic testing added no measured edge beyond draft capital.
 
@@ -320,8 +320,8 @@ tests/                                 # Dashboard + board suites; conftest.py p
 nav_registry.py                        # Cross-link registry, populated before nav.run()
 dashboard_chrome.py / dashboard_data.py   # Shared chrome and data loaders
 dashboard_utils.py                     # Streamlit-free dashboard helpers (testable; metric_card, loaders, etc.)
-draft_board_2026.py                    # Draft Board renderer (license-frozen copy; reads season_dataset ADP +
-                                       #   fantasy/projections/results + fantasy/talent scores)
+draft_board_2026.py                    # Draft Board renderer (frozen V2 model source + daily Sleeper overlay +
+                                       #   fantasy/talent scores)
 film_room.py                           # Film Room renderer (embedded TikToks + breakdown popups)
 video_content.py                       # Registry of published videos (embed ids + breakdown files)
 video_breakdowns/                      # Long-form written breakdowns (markdown), one per video
@@ -376,9 +376,9 @@ fantasy/
   rookie/                              # Rookie Board hit-probability score + its frozen (spent) harness
   seasonal_projections/                # The closed value-signal research campaign
     phase4_band_2026.csv               # FROZEN, RETIRED FROM THE PAGE (2026-07-22): kept for the closed
-                                       #   campaign and as a fixed input to the daily ADP refresh
+                                       #   campaign only
     talent_index_2026.csv              # FROZEN, RETIRED: superseded by fantasy/talent/ per-position builds
-    refresh_board_adp.py               # Daily Sleeper ADP refresh -> board_adp_live_2026.csv (245 rows)
+    refresh_board_adp.py               # Daily Sleeper market refresh -> board_adp_live_2026.csv (180 rows)
     phase4_band.py                     # Band engine (walk-forward isotonic + residual quantiles)
     apply_board_labels.py              # Post-process: population flags + licensed signal_status wording
     build_talent_index.py              # Regenerates talent_index_2026.csv (descriptive only, never blended)
@@ -394,7 +394,7 @@ memory/                                # Repo-specific engineering notes, the da
   weekly_predictions.yml               # Tue/Thu/Sun automation (spread, totals, agent)
   test.yml                             # Push/PR CI: features + calibration; seasonal/dashboard/talent +
                                        #   betting execution layer; deploy-parity on py3.12
-  board_refresh.yml                    # Daily Sleeper ADP refresh for the Draft Board
+  board_refresh.yml                    # Daily Sleeper market refresh for the Draft Board
 ```
 
 ---
