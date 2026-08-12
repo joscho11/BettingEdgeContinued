@@ -35,8 +35,8 @@ _HERE = Path(__file__).resolve().parent
 SEAS = _HERE / "fantasy" / "seasonal_projections"
 # Retained only for legacy metadata helpers below; it no longer defines the displayed board.
 DATASET = SEAS / "season_dataset_2014_2026.csv"
-# Retained only for legacy metadata helpers below. The displayed board uses the V2 source's
-# frozen ADP snapshot and intentionally does not merge this live overlay.
+# Daily, regenerable overlay for live Sleeper ADP and projection points. The frozen V2 source
+# remains the authority for the 180-player universe and model values/ranks.
 LIVE_OVERLAY = SEAS / "board_adp_live_2026.csv"
 # Legacy per-position files supply only optional Sleeper projection and team metadata.
 # The independent model projection is read solely from INDEPENDENT_V2.
@@ -235,8 +235,27 @@ def _load_board_2026_cached(source_fingerprint):
     df["pos_rank"] = pd.to_numeric(df["adp_pos_rank"], errors="raise").astype("Int64")
     df["model_proj_pos_rank"] = pd.to_numeric(
         df["projected_pos_rank"], errors="raise").astype("Int64")
-    df["model_gap"] = (df["pos_rank"] - df["model_proj_pos_rank"]).astype("Int64")
     df["sleeper_proj"] = pd.NA
+    live_market_loaded = False
+    if LIVE_OVERLAY.exists():
+        overlay = pd.read_csv(LIVE_OVERLAY)
+        required_overlay = {"player", "position", "adp_half_ppr", "adp_pos_rank",
+                            "sleeper_pts_half_ppr", "refreshed_at"}
+        if len(overlay) == 180 and required_overlay <= set(overlay.columns):
+            overlay["_name_position"] = _name_position_key(overlay)
+            if not overlay["_name_position"].duplicated().any():
+                overlay = overlay.set_index("_name_position")
+                df["_name_position"] = _name_position_key(df)
+                if df["_name_position"].isin(overlay.index).all():
+                    df["adp_half_ppr"] = df["_name_position"].map(overlay["adp_half_ppr"])
+                    df["pos_rank"] = pd.to_numeric(
+                        df["_name_position"].map(overlay["adp_pos_rank"]), errors="raise"
+                    ).astype("Int64")
+                    df["sleeper_proj"] = pd.to_numeric(
+                        df["_name_position"].map(overlay["sleeper_pts_half_ppr"]), errors="coerce"
+                    )
+                    live_market_loaded = True
+                df = df.drop(columns="_name_position")
 
     legacy = _load_projections().reset_index() if any(
         (PROJ_RESULTS / f"{p}_projection_2026.csv").exists() for p in ("rb", "wr", "te", "qb")
@@ -246,15 +265,17 @@ def _load_board_2026_cached(source_fingerprint):
         by_id = legacy.set_index("player_id")
         resolved = df["player_id"].notna()
         df.loc[resolved, "team"] = df.loc[resolved, "player_id"].map(by_id["team"])
-        df.loc[resolved, "sleeper_proj"] = df.loc[resolved, "player_id"].map(by_id["sleeper"])
+        if not live_market_loaded:
+            df.loc[resolved, "sleeper_proj"] = df.loc[resolved, "player_id"].map(by_id["sleeper"])
         legacy["_name_position"] = _name_position_key(legacy)
         legacy = legacy[~legacy["_name_position"].duplicated(keep=False)].set_index("_name_position")
         df["_name_position"] = _name_position_key(df)
         unresolved = df["team"].isna() & df["_name_position"].isin(legacy.index)
         df.loc[unresolved, "team"] = df.loc[unresolved, "_name_position"].map(legacy["team"])
-        missing_sleeper = df["sleeper_proj"].isna() & df["_name_position"].isin(legacy.index)
-        df.loc[missing_sleeper, "sleeper_proj"] = df.loc[
-            missing_sleeper, "_name_position"].map(legacy["sleeper"])
+        if not live_market_loaded:
+            missing_sleeper = df["sleeper_proj"].isna() & df["_name_position"].isin(legacy.index)
+            df.loc[missing_sleeper, "sleeper_proj"] = df.loc[
+                missing_sleeper, "_name_position"].map(legacy["sleeper"])
         df = df.drop(columns="_name_position")
 
     # Talent scores — populated ONLY from artifact membership (disjoint by construction).
@@ -334,6 +355,7 @@ def _load_board_2026_cached(source_fingerprint):
     df["sleeper_proj_pos_rank"] = df.groupby("position")["sleeper_proj"] \
                        .rank(method="min", ascending=False).astype("Int64")
     df["sleeper_gap"] = (df["pos_rank"] - df["sleeper_proj_pos_rank"]).astype("Int64")
+    df["model_gap"] = (df["pos_rank"] - df["model_proj_pos_rank"]).astype("Int64")
     return df
 
 
@@ -341,6 +363,7 @@ def _board_source_fingerprint():
     """Cache key for every local artifact that contributes to the board."""
     paths = [
         INDEPENDENT_V2,
+        LIVE_OVERLAY,
         *(PROJ_RESULTS / f"{position}_projection_2026.csv"
           for position in ("rb", "wr", "te", "qb")),
         ANALYST_PROJECTION_ADJUSTMENTS,
@@ -528,19 +551,33 @@ _projection_pool_size.clear = _projection_pool_size_cached.clear
 
 @st.cache_data
 def _refresh_date():
-    """The ADP snapshot date from the live overlay (ISO string), or None if absent."""
+    """The valid V2-universe live-market overlay date, or None if absent/stale-schema."""
     if not LIVE_OVERLAY.exists():
         return None
     try:
-        s = pd.read_csv(LIVE_OVERLAY, usecols=["refreshed_at"])["refreshed_at"]
-        return str(s.iloc[0]) if len(s) else None
+        overlay = pd.read_csv(LIVE_OVERLAY)
+        required = {"player", "position", "adp_half_ppr", "adp_pos_rank",
+                    "sleeper_pts_half_ppr", "refreshed_at"}
+        if len(overlay) != 180 or not required <= set(overlay.columns):
+            return None
+        return str(overlay["refreshed_at"].iloc[0])
     except (KeyError, ValueError, pd.errors.EmptyDataError):
         return None
 
 
 def _adp_caption():
-    return ("This is the frozen ADP snapshot used by the independent V2 pipeline. "
-            "It is not a live ADP feed and will be refreshed with the planned early-September snapshot.")
+    iso = _refresh_date()
+    if not iso:
+        return ("The independent V2 model projection is frozen. Live Sleeper ADP and Sleeper "
+                "projection refreshes will appear after the next successful daily market pull.")
+    try:
+        stamp = date.fromisoformat(str(iso)[:10])
+        pretty = f"{_MONTHS[stamp.month - 1]} {stamp.day}, {stamp.year}"
+    except (ValueError, TypeError):
+        pretty = str(iso)
+    return (f"Live Sleeper ADP and Sleeper projection refresh: {pretty}. Draft-price ranks, "
+            "Sleeper ranks, Sleeper Gap, and Model Gap update from this pull; V2 model points "
+            "and V2 projection ranks remain frozen until the early-September snapshot.")
 
 
 # Sortable display column -> the underlying NUMERIC field it sorts on. Every sentinel
@@ -930,8 +967,9 @@ def render():
             "This board lists the independent model's exact 180-player 2026 universe: "
             "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the frozen snapshot's "
             "draft price and **the independent V2 season-total projection**, plus Sleeper's "
-            "projection when its record matches — and, for each available projection, "
-            "projection, the gap between his draft-price rank and his projected rank at "
+            "projection when its record matches. Sleeper ADP, Sleeper Proj, and both gap "
+            "columns refresh daily; V2 points and V2 projection ranks stay frozen. For each "
+            "available projection, the gap between his draft-price rank and his projected rank at "
             "his position.\n\n"
             "- **Sleeper ADP** is his average draft position; **Position Rank** turns that "
             "into his rank at his position (1 = first off the board there).\n"

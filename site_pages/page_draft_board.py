@@ -19,9 +19,9 @@ ORIENTATION = ("I build machine-learning models for NFL betting and fantasy, run
                "live, and show my work — the numbers, the honest track record, and the "
                "code on my GitHub.")
 PURPOSE = ("My pre-season draft board: the independent model's exact 180-player 2026 "
-           "projection universe, with its snapshot draft price and positional rank beside "
-           "Sleeper's projection when available. The published model side is frozen until "
-           "the planned early-September snapshot.")
+           "projection universe. Sleeper ADP, Sleeper projections, and both rank gaps refresh "
+           "daily; the V2 model points and projection ranks stay frozen until the planned "
+           "early-September snapshot.")
 
 
 def render():

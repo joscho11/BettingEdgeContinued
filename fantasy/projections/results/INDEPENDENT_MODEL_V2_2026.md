@@ -20,7 +20,9 @@ re-score, calibrate, or alter it.
 - Imported dashboard CSV SHA-256:
   `4b90bed049ec0278239b88e57ad4a0d3b28f82ecc487a241e458c8e9d0d06e66`.
 
-The source board is frozen until the planned dated early-September 2026 public
-information snapshot. That future snapshot must be preserved with its source
-files, capture time, player-resolution report, and cutoff before it replaces
-this dashboard import.
+V2 model points and V2 positional ranks are frozen until the planned dated
+early-September 2026 public-information snapshot. The dashboard separately refreshes
+Sleeper ADP and Sleeper projection points daily over these exact 180 players, then
+recomputes live Sleeper ranks plus Sleeper Gap and Model Gap. That future V2 snapshot
+must be preserved with its source files, capture time, player-resolution report, and
+cutoff before it replaces this dashboard import.

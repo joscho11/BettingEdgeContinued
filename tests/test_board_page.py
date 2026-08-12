@@ -106,8 +106,9 @@ def test_full_v2_board_default_adp_ascending():
     assert set(board._DISPLAY_COLS) <= set(t.columns), \
         f"default view is missing columns: {set(board._DISPLAY_COLS) - set(t.columns)}"
     assert int(pd.isna(t["model_proj"]).sum()) == 0
-    # Some source rows have no uniquely matchable legacy Sleeper projection; V2 remains complete.
-    assert int(pd.isna(t["sleeper_proj"]).sum()) == 2
+    # Sleeper projection availability comes from the current live market overlay, not legacy files.
+    live = pd.read_csv(board.LIVE_OVERLAY)
+    assert int(pd.isna(t["sleeper_proj"]).sum()) == int(live["sleeper_pts_half_ppr"].isna().sum())
 
     # COMPACT mode drops exactly the four detail columns and nothing else, same 180 rows,
     # same ADP-ascending order.
@@ -275,8 +276,8 @@ def test_final_analyst_overlays_apply_and_preserve_raw_model_values():
         assert hidden not in board._DISPLAY_COLS
 
 
-def test_ranks_gaps_and_download_use_the_frozen_v2_source():
-    """V2's published ranks and values arrive unchanged; there is no dashboard recalculation."""
+def test_ranks_gaps_and_download_use_frozen_v2_and_live_market_overlay():
+    """V2 values/ranks stay immutable while displayed market values/ranks use the live overlay."""
     import draft_board_2026 as board
 
     df = board._load_board_2026()
@@ -286,7 +287,11 @@ def test_ranks_gaps_and_download_use_the_frozen_v2_source():
     assert got["model_proj"].equals(expected["projected_half_ppr"])
     assert got["model_proj_pos_rank"].astype("Int64").equals(
         expected["projected_pos_rank"].astype("Int64"))
-    assert got["pos_rank"].astype("Int64").equals(expected["adp_pos_rank"].astype("Int64"))
+    live = pd.read_csv(board.LIVE_OVERLAY)
+    live = live.assign(_key=live["player"].str.lower() + "|" + live["position"])
+    expected_keys = expected["player"].str.lower() + "|" + expected["position"]
+    expected_live_ranks = expected_keys.map(live.set_index("_key")["adp_pos_rank"])
+    assert got["pos_rank"].astype("Int64").equals(expected_live_ranks.astype("Int64"))
     assert got["model_gap"].astype(float).equals(
         (got["pos_rank"] - got["model_proj_pos_rank"]).astype(float))
 
@@ -429,7 +434,9 @@ def test_semantic_gap_colors_and_active_sort_tint():
     # Find a non-null negative model gap and a non-null positive Sleeper gap to
     # prove the two independently-computed disagreement columns keep direction.
     neg_i = next(i for i, v in enumerate(view["model_gap"]) if v < 0)
-    pos_i = next(i for i, v in enumerate(view["sleeper_gap"]) if v > 0)
+    max_sleeper_gap = view["sleeper_gap"].max()
+    pos_i = next(i for i, v in enumerate(view["sleeper_gap"])
+                 if pd.notna(v) and v == max_sleeper_gap)
     def _rgb(value):
         return tuple(int(x) for x in value.removeprefix("rgb(").removesuffix(")").split(","))
 

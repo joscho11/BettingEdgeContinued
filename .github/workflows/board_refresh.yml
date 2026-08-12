@@ -1,14 +1,14 @@
-name: Draft Board ADP Refresh
+name: Draft Board Sleeper Market Refresh
 
-# Re-pulls LIVE Sleeper ADP for the shipped 2026 Draft Board and recomputes ONLY the
-# price-derived columns against the FROZEN projections (see refresh_board_adp.py and
+# Re-pulls LIVE Sleeper ADP and projection points for the exact 180-player 2026 Draft Board.
+# It recomputes live market-derived columns against the frozen V2 model (see refresh_board_adp.py and
 # .claude/skills/board-refresh/SKILL.md). Commits ONLY the regenerable overlay CSV;
 # never a frozen artifact. A failed pull publishes nothing — the last-good board stays live.
 
 on:
   schedule:
     # Daily 13:00 UTC = 9am ET (EDT). Cadence is this one line: weekly = '0 13 * * 2'.
-    # On/after SEASON_START (default 2026-09-04) the scheduled run auto-pauses (no-op,
+    # On/after SEASON_START (default 2026-09-09) the scheduled run auto-pauses (no-op,
     # commits nothing) via the date guard in refresh_board_adp.py.
     - cron: '0 13 * * *'
 
@@ -59,7 +59,7 @@ jobs:
         continue-on-error: true
         run: python fantasy/seasonal_projections/capture_market_snapshot.py --season 2026
 
-      - name: Refresh board ADP
+      - name: Refresh board Sleeper market data
         env:
           # '1' only on a manual dispatch with force=true; empty on schedule so the
           # in-season date guard governs the scheduled run.
@@ -102,5 +102,5 @@ jobs:
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add fantasy/seasonal_projections/board_adp_live_2026.csv
-          git diff --staged --quiet || git commit -m "Board ADP refresh $(date +'%Y-%m-%d')"
+          git diff --staged --quiet || git commit -m "Board Sleeper market refresh $(date +'%Y-%m-%d')"
           git push

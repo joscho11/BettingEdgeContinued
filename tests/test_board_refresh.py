@@ -46,12 +46,13 @@ def test_build_overlay_full_coverage_and_fallback():
 def test_real_board_universe_is_full_adp_set():
     import refresh_board_adp as rb
     u = rb.load_board_universe()
-    assert 240 <= len(u) <= 250, f"expected the full ~245 Sleeper-ADP universe, got {len(u)}"
-    assert u["player_id"].is_unique
+    assert len(u) == 180, f"expected the exact 180-player V2 universe, got {len(u)}"
+    assert u["position"].value_counts().to_dict() == {"WR": 72, "RB": 60, "QB": 24, "TE": 24}
+    assert not u[["player", "position"]].duplicated().any()
     assert set(u.columns) == {"player_id", "player", "position", "adp_frozen"}
 
 
 if __name__ == "__main__":
     test_build_overlay_full_coverage_and_fallback()
     test_real_board_universe_is_full_adp_set()
-    print("OK  refresh covers the full ~245 board universe; fresh-or-fallback; value_gap dropped")
+    print("OK  refresh covers the exact 180-player V2 universe; fresh-or-fallback; value_gap dropped")

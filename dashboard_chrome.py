@@ -167,7 +167,7 @@ def render_preseason_banner(board_page=None, season_year=2026):
     st.info(
         f"🏈 The {season_year} season hasn't kicked off yet. My **2026 Draft Board** is "
         "live with its current frozen independent-model snapshot; the next update is the "
-        "planned early-September pre-kickoff snapshot. Weekly "
+        "planned early-September pre-kickoff model snapshot; Sleeper market values refresh daily. Weekly "
         "predictions return at Week 1.")
     if board_page is not None:
         st.page_link(board_page, label="Open the Draft Board", icon="📋")

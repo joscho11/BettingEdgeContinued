@@ -68,8 +68,9 @@ LOGS_DIR = HERE / "adp_logs"                          # PRIVATE — gitignored
 LEDGER = LOGS_DIR / "refresh_ledger.jsonl"
 
 BOARD_SEASON = 2026
+V2_SOURCE = REPO_ROOT / "fantasy" / "projections" / "results" / "independent_half_ppr_points_2026.csv"
 MIN_PULL_PLAYERS = 150                                # healthy-pull floor; abort below this
-MIN_UNIVERSE = 200                                    # board-universe floor (was a bare assert)
+MIN_UNIVERSE = 180                                    # exact V2 board universe
 
 # ─────────────────────────── COVERAGE FLOORS ──────────────────────────────────
 # COVERAGE = matched / len(universe). Pull size is NOT the denominator: a 245-row pull
@@ -119,7 +120,7 @@ COVERAGE_CONFIDENCE = 0.99      # one-sided Clopper–Pearson confidence for p_l
 COVERAGE_SIGMAS = 4.0           # run-to-run binomial noise allowance below p_lo
 COVERAGE_GRANULARITY = 0.05     # round the floor DOWN to this step
 COVERAGE_ABSOLUTE_MIN = 0.50    # a floor below this would stop catching a collapse
-FROZEN_FLOORS = {"overall": 0.90, "QB": 0.60, "RB": 0.80, "TE": 0.65, "WR": 0.85}
+FROZEN_FLOORS = {"overall": 0.90, "QB": 0.50, "RB": 0.75, "TE": 0.50, "WR": 0.80}
 
 
 def coverage_floor(n: int) -> float:
@@ -174,16 +175,18 @@ def _atomic_write(df: pd.DataFrame, path: Path) -> None:
 
 
 def load_board_universe() -> pd.DataFrame:
-    """The fixed board universe: every player with a 2026 Sleeper ADP in the frozen season
-    dataset (~245). Columns: player_id, player, position, adp_frozen (the frozen fallback price)."""
-    ds = pd.read_csv(DATASET, usecols=["player_id", "season", "player", "position", "adp_half_ppr"])
-    u = ds[(ds.season == BOARD_SEASON) & ds.adp_half_ppr.notna()].drop_duplicates("player_id")
-    return u[["player_id", "player", "position", "adp_half_ppr"]] \
-             .rename(columns={"adp_half_ppr": "adp_frozen"}).reset_index(drop=True)
+    """Exact frozen V2 board universe and its fallback ADP snapshot."""
+    u = pd.read_csv(V2_SOURCE, usecols=["season", "player_id", "player", "position", "adp_half_ppr"])
+    if len(u) != 180 or set(u["position"]) != {"QB", "RB", "WR", "TE"}:
+        raise ValueError("V2 source must contain the exact 180-row four-position board universe")
+    if u[["player", "position"]].duplicated().any():
+        raise ValueError("V2 source has duplicate player-position rows")
+    return u.drop(columns="season").rename(columns={"adp_half_ppr": "adp_frozen"}).reset_index(drop=True)
 
 
-OVERLAY_CORE_COLS = ["player_id", "adp_half_ppr", "adp_pos_rank", "refreshed_at"]
-OVERLAY_META_COLS = ["position", "adp_source", "adp_matched"]
+OVERLAY_CORE_COLS = ["player_id", "player", "position", "adp_half_ppr", "adp_pos_rank",
+                     "sleeper_pts_half_ppr", "refreshed_at"]
+OVERLAY_META_COLS = ["adp_source", "adp_matched", "sleeper_matched"]
 
 
 def build_overlay_full(universe: pd.DataFrame, fresh: pd.DataFrame, source_date: str):
@@ -200,20 +203,25 @@ def build_overlay_full(universe: pd.DataFrame, fresh: pd.DataFrame, source_date:
     u = universe.copy()
     u["nn"] = u["player"].map(nmz)
     f = fresh.copy()
+    if "sleeper_pts_half_ppr" not in f.columns:
+        f["sleeper_pts_half_ppr"] = pd.NA
     f["nn"] = f["player"].map(nmz)
-    fresh_adp = f.drop_duplicates(["nn", "position"])[["nn", "position", "adp_half_ppr"]] \
-                 .rename(columns={"adp_half_ppr": "adp_fresh"})
-    m = u.merge(fresh_adp, on=["nn", "position"], how="left")
+    fresh_fields = f.drop_duplicates(["nn", "position"])[
+        ["nn", "position", "adp_half_ppr", "sleeper_pts_half_ppr"]
+    ].rename(columns={"adp_half_ppr": "adp_fresh", "sleeper_pts_half_ppr": "sleeper_fresh"})
+    m = u.merge(fresh_fields, on=["nn", "position"], how="left")
     m["adp_matched"] = m["adp_fresh"].notna()
+    m["sleeper_matched"] = m["sleeper_fresh"].notna()
     m["adp_source"] = m["adp_matched"].map({True: "fresh", False: "frozen"})
     matched = int(m["adp_matched"].sum())
     m["adp_half_ppr"] = m["adp_fresh"].where(m["adp_fresh"].notna(), m["adp_frozen"])
+    m["sleeper_pts_half_ppr"] = m["sleeper_fresh"]
     # deterministic within-position ADP rank over the fixed universe (1 = lowest ADP)
     m = m.sort_values(["adp_half_ppr", "player_id"]).reset_index(drop=True)
     m["adp_pos_rank"] = m.groupby("position").cumcount() + 1
     m["refreshed_at"] = source_date
     overlay = m[OVERLAY_CORE_COLS + OVERLAY_META_COLS] \
-                .sort_values("player_id").reset_index(drop=True)
+                .sort_values(["position", "player"], kind="stable").reset_index(drop=True)
 
     by_position = {}
     for pos, grp in m.groupby("position"):
@@ -236,7 +244,7 @@ def build_overlay(universe: pd.DataFrame, fresh: pd.DataFrame, source_date: str)
     """Back-compatible view of build_overlay_full: the four core columns + the matched
     count, i.e. exactly what this function returned before the coverage gate existed."""
     overlay, coverage = build_overlay_full(universe, fresh, source_date)
-    return overlay[OVERLAY_CORE_COLS].copy(), coverage["matched"]
+    return overlay[["player_id", "adp_half_ppr", "adp_pos_rank", "refreshed_at"]].copy(), coverage["matched"]
 
 
 def check_coverage(coverage: dict) -> list[str]:
@@ -278,7 +286,7 @@ def main() -> int:
                         "matched": None, "mean_abs_rank_change": None, "movers": []})
         return 0
 
-    # --- pull live ADP (reuse fetch_adp; no disk write) ---
+    # --- pull live Sleeper ADP + projections (reuse fetch_adp; no disk write) ---
     try:
         players = load_players()
         fresh = fetch_season(BOARD_SEASON, players)
@@ -301,11 +309,11 @@ def main() -> int:
                         "mean_abs_rank_change": None, "movers": []})
         return 1
 
-    # --- fixed board universe (frozen, read only) + fresh-ADP overlay over ALL of it ---
+    # --- exact V2 board universe (frozen, read only) + live-market overlay ---
     universe = load_board_universe()
     if len(universe) < MIN_UNIVERSE:
-        reason = (f"aborted: board universe is {len(universe)} rows, expected ~245 "
-                  f"(2026 Sleeper-ADP players)")
+        reason = (f"aborted: board universe is {len(universe)} rows, below the "
+                  f"{MIN_UNIVERSE}-row V2 floor")
         print(reason)
         _append_ledger({"run_ts": run_ts, "source_date": source_date, "status": reason,
                         "pull_players": int(len(fresh)), "matched": None,
@@ -366,7 +374,7 @@ def main() -> int:
 
     pos_str = ", ".join(f"{p} {s['matched']}/{s['n']}"
                         for p, s in sorted(coverage["by_position"].items()))
-    print(f"refresh OK: {matched}/{len(universe)} matched to fresh ADP "
+    print(f"refresh OK: {matched}/{len(universe)} matched to fresh Sleeper ADP "
           f"({coverage['coverage']:.1%}, floor {coverage['floor']:.0%}); {pos_str}; "
           f"source {source_date}; mean|Δrank| {mean_abs}; "
           f"wrote {OVERLAY.name} + snapshot + ledger row")

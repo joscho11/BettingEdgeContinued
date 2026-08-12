@@ -27,7 +27,7 @@ sys.path.insert(0, str(_ROOT / "fantasy" / "seasonal_projections"))
 import refresh_board_adp as rb  # noqa: E402
 
 # The real universe composition, verified from the frozen season dataset.
-REAL_N = {"QB": 33, "RB": 76, "TE": 35, "WR": 101}
+REAL_N = {"QB": 24, "RB": 60, "TE": 24, "WR": 72}
 
 
 # ── floor derivation ──────────────────────────────────────────────────────────
@@ -37,12 +37,12 @@ def test_frozen_floors_match_the_documented_derivation():
     assert rb.coverage_floor(sum(REAL_N.values())) == pytest.approx(rb.FROZEN_FLOORS["overall"])
     for pos, n in REAL_N.items():
         assert rb.coverage_floor(n) == pytest.approx(rb.FROZEN_FLOORS[pos]), pos
-    assert rb.FROZEN_FLOORS == {"overall": 0.90, "QB": 0.60, "RB": 0.80, "TE": 0.65, "WR": 0.85}
+    assert rb.FROZEN_FLOORS == {"overall": 0.90, "QB": 0.50, "RB": 0.75, "TE": 0.50, "WR": 0.80}
 
 
 def test_floor_is_monotone_in_n_and_bounded():
     prev = 0.0
-    for n in (5, 10, 33, 35, 76, 101, 245, 500, 2000):
+    for n in (5, 10, 24, 60, 72, 180, 500, 2000):
         f = rb.coverage_floor(n)
         assert rb.COVERAGE_ABSOLUTE_MIN <= f < 1.0
         assert f >= prev, "a larger group must not get a weaker floor"
@@ -84,10 +84,12 @@ def _fresh_from(universe, keep_mask=None, shift=1.0):
     the pull always clears MIN_PULL_PLAYERS)."""
     u = universe if keep_mask is None else universe[keep_mask]
     df = pd.DataFrame({"player": u["player"], "position": u["position"],
-                       "adp_half_ppr": u["adp_frozen"] + shift})
+                       "adp_half_ppr": u["adp_frozen"] + shift,
+                       "sleeper_pts_half_ppr": 100.0})
     filler = pd.DataFrame({"player": [f"Filler {i}" for i in range(200)],
                            "position": ["WR"] * 200,
-                           "adp_half_ppr": [200.0 + i for i in range(200)]})
+                           "adp_half_ppr": [200.0 + i for i in range(200)],
+                           "sleeper_pts_half_ppr": [100.0] * 200})
     return pd.concat([df, filler], ignore_index=True)
 
 
@@ -154,7 +156,7 @@ def test_low_overall_coverage_aborts_and_leaves_the_prior_overlay_byte_identical
 def test_low_single_position_coverage_aborts_even_when_overall_passes(sandbox, monkeypatch):
     u = _universe()
     # Drop 20 of 33 QBs: QB 13/33 = 39.4% < 0.60, while overall 225/245 = 91.8% >= 0.90.
-    qb_rows = u.index[u["position"] == "QB"][:20]
+    qb_rows = u.index[u["position"] == "QB"][:13]
     keep = ~u.index.isin(qb_rows)
     fresh = _fresh_from(u, keep)
 
@@ -181,10 +183,12 @@ def test_healthy_run_writes_the_overlay_snapshot_and_ledger(sandbox, monkeypatch
 
     assert rc == 0
     out = pd.read_csv(sandbox["overlay"])
-    assert len(out) == len(u) == 245
+    assert len(out) == len(u) == 180
     assert list(out.columns) == rb.OVERLAY_CORE_COLS + rb.OVERLAY_META_COLS
     assert out["adp_source"].eq("fresh").all()
     assert out["adp_matched"].all()
+    assert out["sleeper_matched"].all()
+    assert out["sleeper_pts_half_ppr"].eq(100.0).all()
     assert sandbox["overlay"].read_bytes() != sandbox["prior_bytes"], "it must have published"
     snaps = list(sandbox["logs"].glob("board_adp_*.csv"))
     assert len(snaps) == 1, "one dated private snapshot per run day"
@@ -233,17 +237,17 @@ def test_build_overlay_keeps_its_original_two_value_signature_and_schema():
     u = _universe({"RB": 3})
     fresh = _fresh_from(u)
     overlay, matched = rb.build_overlay(u, fresh, "2026-08-03")
-    assert list(overlay.columns) == rb.OVERLAY_CORE_COLS
+    assert list(overlay.columns) == ["player_id", "adp_half_ppr", "adp_pos_rank", "refreshed_at"]
     assert matched == 3
 
 
 # ── check_coverage in isolation ───────────────────────────────────────────────
 def test_check_coverage_reports_every_breach():
     cov = {
-        "n": 245, "matched": 100, "coverage": 100 / 245, "floor": 0.90,
+        "n": 180, "matched": 100, "coverage": 100 / 180, "floor": 0.90,
         "by_position": {
-            "QB": {"n": 33, "matched": 3, "coverage": 3 / 33, "floor": 0.60},
-            "RB": {"n": 76, "matched": 76, "coverage": 1.0, "floor": 0.80},
+            "QB": {"n": 24, "matched": 3, "coverage": 3 / 24, "floor": 0.50},
+            "RB": {"n": 60, "matched": 60, "coverage": 1.0, "floor": 0.75},
         },
     }
     failures = rb.check_coverage(cov)
@@ -254,7 +258,7 @@ def test_check_coverage_reports_every_breach():
 
 
 def test_check_coverage_passes_a_clean_run():
-    cov = {"n": 245, "matched": 245, "coverage": 1.0, "floor": 0.90,
+    cov = {"n": 180, "matched": 180, "coverage": 1.0, "floor": 0.90,
            "by_position": {p: {"n": n, "matched": n, "coverage": 1.0,
                                "floor": rb.FROZEN_FLOORS[p]} for p, n in REAL_N.items()}}
     assert rb.check_coverage(cov) == []

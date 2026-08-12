@@ -4,7 +4,7 @@ from datetime import date
 
 
 # Kickoff-week default: the scheduled pre-draft ADP refresh pauses on or after this date.
-SEASON_START = date(2026, 9, 4)
+SEASON_START = date(2026, 9, 9)
 
 
 def board_refresh_season_start() -> date:
