@@ -18,7 +18,13 @@ re-score, calibrate, or alter it.
 - Source artifact SHA-256:
   `e6385740cce8c5f137915aa8245c7c69d68e4260f6291df64cc7535162342595`.
 - Imported dashboard CSV SHA-256:
-  `4b90bed049ec0278239b88e57ad4a0d3b28f82ecc487a241e458c8e9d0d06e66`.
+  `5bfc3c21f931863a1d7d4c63229d2dc4c50bf5e71bed8eabc76351afe71eac81`.
+
+The import was refreshed on 2026-08-12 after the forward V2 pipeline repaired
+draft-ledger fallback and identity resolution. This restores normal feature
+rows for 14 drafted 2026 rookies and two previously unmatched veterans (Kenny
+Gainwell and Travis Hunter); it does not alter the V2 estimator, its immutable
+historical OOF artifact, or the 2021-25 benchmark above.
 
 V2 model points and V2 positional ranks are frozen until the planned dated
 early-September 2026 public-information snapshot. The dashboard separately refreshes
