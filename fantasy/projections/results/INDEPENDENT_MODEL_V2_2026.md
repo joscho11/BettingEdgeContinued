@@ -16,10 +16,12 @@ re-score, calibrate, or alter it.
   66.358707 RMSE. ADP was better on the same panel: 51.754135 MAE,
   .696551 pairwise, 65.689277 RMSE. The model beats ADP ordering in 2023
   only (1 of 6 seasons).
-- Source artifact SHA-256:
-  `6a4c48f4cc10a4e65abe5d9f3b651a034210e37a8d809bd40ea4537fe6fd7a37`.
-- Imported dashboard CSV SHA-256:
+- Source 2026 board CSV SHA-256:
   `2887cba971abd35bc3162906b3a057a3ef28b1bbf97f20e9f81615189f8114f7`.
+- Imported dashboard CSV SHA-256 (same bytes):
+  `2887cba971abd35bc3162906b3a057a3ef28b1bbf97f20e9f81615189f8114f7`.
+- OOF / baseline SHA-256 (not the board CSV):
+  `6a4c48f4cc10a4e65abe5d9f3b651a034210e37a8d809bd40ea4537fe6fd7a37`.
 
 The import was refreshed on 2026-08-12 when v6 replaced v5. V5 remains
 immutable in the projections_v2 registry. This does not change the 180-player

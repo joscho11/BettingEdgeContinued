@@ -705,15 +705,16 @@ COLUMN_META = [
     ("model_gap", _NUM, "Model Gap",
      "Position Rank minus Model Proj Position Rank. Positive = my model ranks him higher "
      "than his draft cost; negative = lower. From the published independent V2 model, "
-     "backtested on 2021–2025 and not live-validated — a descriptive difference, not advice.",
+     "backtested on 2021-2025 and not live-validated. A descriptive difference, not advice.",
      {"format": "%d", "width": "small"}),
     ("sleeper_proj", _NUM, "Sleeper Proj",
      "Sleeper's projected season-total half-PPR points (raw).",
      {"format": "%d", "width": "small"}),
     ("model_proj", _NUM, "Model Proj",
-     "Published season-total half-PPR points from the independent V2 pipeline: an equal raw "
-     "LightGBM/ExtraTrees participation-hurdle blend with rolling affine calibration. ADP is "
-     "not a model input. The model was backtested on 2021–2025 and is not live-validated.",
+     "Published season-total half-PPR points from the independent V2 pipeline: an equal 1/3 "
+     "LightGBM, ExtraTrees, and Ridge participation-hurdle blend with rolling affine "
+     "calibration. ADP is not a model input. The model was backtested on 2021-2025 and is "
+     "not live-validated.",
      {"format": "%d", "width": "small"}),
     ("nfl_talent", _NUM, "NFL Talent Score",
      "My model-based per-opportunity talent estimate for players with NFL history, net of "
@@ -1059,10 +1060,10 @@ def render():
                       "see them.")
     st.caption(sort_note)
     st.caption("Model Proj and Model Gap are the immutable independent V2 pipeline output: "
-               "an equal raw blend of LightGBM and ExtraTrees participation-hurdle forecasts, "
-               "using 132 cutoff-valid non-outcome features and rolling affine calibration. "
-               "It was backtested on 2021–2025 and is not live-validated; it is not presented "
-               "as better than ADP. No analyst scenario overlay is applied.")
+               "an equal 1/3 raw blend of LightGBM, ExtraTrees, and Ridge participation-hurdle "
+               "forecasts, using 132 cutoff-valid non-outcome features and rolling affine "
+               "calibration. It was backtested on 2021-2025 and is not live-validated; it is "
+               "not presented as better than ADP. No analyst scenario overlay is applied.")
     st.caption("NFL Talent Score ranks NFL players against NFL players; College Talent Score "
                "ranks 2026 rookies against past drafted prospects — different instruments on "
                "different scales, and neither feeds any other column.")

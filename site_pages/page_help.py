@@ -235,9 +235,9 @@ The Draft Board is a **pre-season comparison table** for the 2026 season, separa
 
 **What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is a plain arithmetic difference between two ranks shown on the same row — descriptive context, never a recommendation about any player.
 
-**How good is my model?** The independent V2 model was backtested on 2021–2025 and is **not live-validated** — the first live test is the 2026 season. It does not beat ADP on that backtest: V2 scored .6796 pairwise accuracy versus ADP's .6966, with 53.77 versus 51.75 MAE. It is shown as an independently produced estimate, not as a claim that it is better than the market.
+**How good is my model?** The independent V2 model was backtested on 2021-2025 and is **not live-validated**. The first live test is the 2026 season. It does not beat ADP on that backtest: V2 scored .6892 pairwise versus ADP's .6966, with 51.97 versus 51.75 MAE. It is shown as an independently produced estimate, not as a claim that it is better than the market.
 
-The Model Proj values are the immutable V2 pipeline output: an equal raw blend of LightGBM and ExtraTrees participation-hurdle forecasts, using 132 cutoff-valid non-outcome features and rolling affine calibration. No analyst scenario overlay is applied. **Sleeper ADP and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.** V2 model points and V2 projection ranks remain frozen until the planned dated early-September public-information snapshot.
+The Model Proj values are the immutable V2 pipeline output: an equal 1/3 raw blend of LightGBM, ExtraTrees, and Ridge participation-hurdle forecasts, using 132 cutoff-valid non-outcome features and rolling affine calibration. No analyst scenario overlay is applied. **Sleeper ADP and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.** V2 model points and V2 projection ranks remain frozen until the planned dated early-September public-information snapshot.
 
 The two talent columns are described in their own section further down this page. They are descriptive context on their own scales and feed no other column.
 
@@ -461,17 +461,17 @@ You can filter by season or view all-time records across every year your league 
 The Draft Board's **Model Proj** is produced by the separate independent V2 pipeline. It is a
 season-total half-PPR forecast, not a ranking copied from ADP, Sleeper, or the talent scores.
 
-For each QB, RB, WR, and TE, two different tree-model systems estimate three pieces:
+For each QB, RB, WR, and TE, three systems estimate three pieces:
 
 1. the probability of playing at least five games;
 2. expected games played if he clears that threshold; and
 3. expected half-PPR points per game if he clears it.
 
-Each system multiplies those pieces into a season-point estimate. One system is deterministic
-LightGBM; the other is fixed-seed ExtraTrees. Their raw estimates are blended 50/50, then a
-position-specific affine calibration is fit using only predictions and results from earlier
-out-of-fold seasons. That last step maps the raw blend back to the historical point scale
-without using the season being scored.
+Each system multiplies those pieces into a season-point estimate. One is deterministic
+LightGBM, one is fixed-seed ExtraTrees, and one is Ridge. Their raw estimates are blended
+equally, then a position-specific affine calibration is fit using only predictions and
+results from earlier out-of-fold seasons. That last step maps the raw blend back to the
+historical point scale without using the season being scored.
 
 The model uses 132 cutoff-valid, non-outcome inputs drawn from prior production and usage,
 play-by-play and PFF-derived performance, injury history, age and draft context, and available
