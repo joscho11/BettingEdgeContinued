@@ -34,7 +34,7 @@ def _demo_notice():
         "👋 **Heads up — Weekly Predictions is a demo until the 2026 season kicks "
         "off.** The games below are from 2025, shown so you can see how the model "
         "works; live 2026 predictions start at Week 1. In the meantime, take a look "
-        "around the top nav — my **2026 Draft Board has frozen V2 model projections and "
+        "around the top nav — my **2026 Draft Board has frozen Model Proj and "
         "daily Sleeper market data**.")
     board = nav_registry.PAGES.get("draft-board")
     if board is not None:
@@ -86,10 +86,13 @@ def render():
         _n_total   = len(week_df)
         _partial   = _n_settled < _n_total
         _banner_suffix = f" ({_n_settled} of {_n_total} games settled)" if _partial else ""
-        st.success(
-            f"{'Some results are in!' if _partial else 'Results are in!'} Week {week} ATS record: "
-            f"**{correct}-{total - correct}** ({correct/total*100:.0f}%){_banner_suffix}"
-        )
+        if total > 0:
+            st.success(
+                f"{'Some results are in!' if _partial else 'Results are in!'} Week {week} ATS record: "
+                f"**{correct}-{total - correct}** ({correct/total*100:.0f}%){_banner_suffix}"
+            )
+        else:
+            st.info("Games not yet played. Check back after the week's results are in.")
     else:
         st.info("Games not yet played. Check back after the week's results are in.")
 

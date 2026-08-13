@@ -1,9 +1,8 @@
 """Multi-book line shopping for NFL spreads & totals (The Odds API).
 
-The validated edge is measured vs the CLOSING line, but you bet at the line you
-can GET — so taking the best number across books is free CLV. One bulk call
-returns every US book; this finds the most favorable spread/total per side and
-quantifies how much shopping is worth (points gained vs the median book).
+Shopping is a price-improvement utility, not a claim that the model beats the close.
+One bulk call returns every US book; this finds the most favorable spread/total per
+side and quantifies how much shopping is worth (points gained vs the median book).
 
     python betting/line_shopping.py board                 # shopping value across the slate
     python betting/line_shopping.py board --min-gain 0.5  # only games where shopping gains >=0.5 pt

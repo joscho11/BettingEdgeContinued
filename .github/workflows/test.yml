@@ -90,6 +90,12 @@ jobs:
           tests/test_app_talent_columns.py
           tests/test_runtime_telemetry.py
           tests/test_responsive_layout.py
+          tests/test_no_stale_ats_claim.py
+          tests/test_breakeven_claim.py
+          tests/test_agent_market_provenance.py
+          tests/test_no_credential_leak.py
+          tests/test_page_futures.py
+          tests/test_page_rookie_board.py
           fantasy/projections/test_fold_guards.py
 
       # Talent build suites REMOVED FROM CI 2026-08-08: the build code, specs and tests
@@ -235,3 +241,9 @@ jobs:
           tests/test_model_explanations.py
           tests/test_runtime_telemetry.py
           tests/test_responsive_layout.py
+          tests/test_no_stale_ats_claim.py
+          tests/test_breakeven_claim.py
+          tests/test_agent_market_provenance.py
+          tests/test_no_credential_leak.py
+          tests/test_page_futures.py
+          tests/test_page_rookie_board.py

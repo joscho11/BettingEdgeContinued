@@ -181,7 +181,7 @@ def _write_tracker_atomic(df: pd.DataFrame, orig: pd.DataFrame) -> None:
 
     The tracker is an append-only forward record. Before replacing it: row count
     and column list must be unchanged, and every NON-TARGET column must equal the
-    original frame — a snapshot may only fill pick_line/closing_line/clv."""
+    original frame: a snapshot may only fill pick_line/closing_line/clv."""
     target_cols = {"pick_line", "closing_line", "clv"}
     if len(df) != len(orig):
         sys.exit(f"REFUSING tracker write: row count changed {len(orig)} -> {len(df)}")
@@ -226,7 +226,7 @@ def snapshot_cmd(args) -> None:
         if key not in lines:
             unmatched += 1
             continue
-        # pick_line is the CLV baseline (line WHEN you picked) — first write wins so a
+        # pick_line is the CLV baseline (line WHEN you picked) � first write wins so a
         # re-run doesn't stomp it; closing_line is always refreshed to the latest.
         if (col == "pick_line" and pd.notna(df.at[i, "pick_line"])
                 and not getattr(args, "force", False)):   # R32 (review L-15)

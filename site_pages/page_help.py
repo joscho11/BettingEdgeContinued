@@ -181,9 +181,9 @@ During the season the site runs on an automated schedule through GitHub Actions.
 Tuesday morning it fills in the previous week's results and posts initial predictions for the upcoming week using the opening Vegas lines. Thursday night it refreshes those predictions after injury reports drop. Sunday morning it locks in final predictions before kickoff. Then the cycle repeats on Tuesday.
 
 During the offseason the weekly predictions pause. The pre-season **Draft Board** refreshes
-Sleeper ADP and Sleeper projections daily for its fixed 180-player V2 universe; draft-price
-ranks, Sleeper ranks, and both gap columns move with those updates. The V2 model points and
-V2 projection ranks remain frozen until the dated early-September public-information snapshot.
+Sleeper ADP and Sleeper projections daily for its fixed 180-player universe; draft-price
+ranks, Sleeper ranks, and both gap columns move with those updates. Model Proj points and
+ranks remain frozen until the dated early-September public-information snapshot.
 Weekly predictions spin back up when the season kicks off in September.
         """)
 
@@ -231,13 +231,15 @@ Upload your DraftKings salary CSV and the optimizer generates the highest-projec
 
     with st.expander("What is the Draft Board page?"):
         st.markdown("""
-The Draft Board is a **pre-season comparison table** for the 2026 season, separate from the Weekly Fantasy page. It lists the exact 180-player universe published by my independent model: 24 QBs, 60 RBs, 72 WRs and 24 TEs. For each player it puts the current Sleeper draft price and positional rank next to the independent model's season-total half-PPR projection. Sleeper's current season projection is shown when its player record can be matched. Alongside each available projection is the gap between draft-price rank and projected rank at that position.
+The Draft Board is a **pre-season comparison table** for the 2026 season, separate from the Weekly Fantasy page. It lists the exact 180-player universe published by my independent model: 24 QBs, 60 RBs, 72 WRs and 24 TEs. For each player it puts the current Sleeper draft price and positional rank next to **Model Proj**, which is 75% that independent model and 25% Sleeper's published projection. Sleeper's current season projection is shown when its player record can be matched. Alongside each available projection is the gap between draft-price rank and projected rank at that position.
 
-**What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is a plain arithmetic difference between two ranks shown on the same row — descriptive context, never a recommendation about any player.
+**What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is a plain arithmetic difference between two ranks shown on the same row, descriptive context, never a recommendation about any player.
 
-**How good is my model?** The independent V2 model was backtested on 2021-2025 and is **not live-validated**. The first live test is the 2026 season. It does not beat ADP on that backtest: V2 scored .6892 pairwise versus ADP's .6966, with 51.97 versus 51.75 MAE. It is shown as an independently produced estimate, not as a claim that it is better than the market.
+**How good is the number on the board?** Model Proj is 75% the independent v6 hurdle blend and 25% Sleeper's published projection, then the same affine calibration. On 2021-2025 that mix scored .7101 pairwise versus ADP's .6965, MAE 49.31 versus 51.75, and beat ADP ordering in 5 of 6 seasons (it lost 2020, when Sleeper projections are empty). It is **not live-validated**. The first live test is the 2026 season.
 
-The Model Proj values are the immutable V2 pipeline output: an equal 1/3 raw blend of LightGBM, ExtraTrees, and Ridge participation-hurdle forecasts, using 132 cutoff-valid non-outcome features and rolling affine calibration. No analyst scenario overlay is applied. **Sleeper ADP and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.** V2 model points and V2 projection ranks remain frozen until the planned dated early-September public-information snapshot.
+The independent v6 model alone (no Sleeper mix) scored .6892 pairwise versus ADP's .6965, MAE 51.97 versus 51.75, and beat ADP in 2023 only. That independent score is still the research baseline. It is not what the board displays.
+
+The Model Proj values are frozen until the planned dated early-September public-information snapshot. **Sleeper ADP and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.**
 
 The two talent columns are described in their own section further down this page. They are descriptive context on their own scales and feed no other column.
 
@@ -454,12 +456,13 @@ You can filter by season or view all-time records across every year your league 
 
     # ── Section 6: Model explanations ────────────────────────────────────────
     st.subheader("🧠 What Drives the Models")
-    st.caption("The current 2026 Draft Board uses the independent V2 point model.")
+    st.caption("The current 2026 Draft Board uses 75% independent v6 plus 25% Sleeper's published projection.")
 
     with st.expander("What inputs drive the 2026 Draft Board projections"):
         st.markdown("""
-The Draft Board's **Model Proj** is produced by the separate independent V2 pipeline. It is a
-season-total half-PPR forecast, not a ranking copied from ADP, Sleeper, or the talent scores.
+The Draft Board's **Model Proj** starts from the independent v6 pipeline, then mixes in
+Sleeper's published projection. It is a season-total half-PPR forecast, not a ranking
+copied from ADP or the talent scores.
 
 For each QB, RB, WR, and TE, three systems estimate three pieces:
 
@@ -469,19 +472,21 @@ For each QB, RB, WR, and TE, three systems estimate three pieces:
 
 Each system multiplies those pieces into a season-point estimate. One is deterministic
 LightGBM, one is fixed-seed ExtraTrees, and one is Ridge. Their raw estimates are blended
-equally, then a position-specific affine calibration is fit using only predictions and
-results from earlier out-of-fold seasons. That last step maps the raw blend back to the
+equally. That independent raw blend is then mixed 75/25 with Sleeper's published half-PPR
+projection. A position-specific affine calibration is fit using only earlier out-of-fold
+mixed predictions and results. That last step maps the mixed raw value back to the
 historical point scale without using the season being scored.
 
-The model uses 132 cutoff-valid, non-outcome inputs drawn from prior production and usage,
+The hurdle blend uses 132 cutoff-valid, non-outcome inputs drawn from prior production and usage,
 play-by-play and PFF-derived performance, injury history, age and draft context, and available
-preseason role, roster, coach, and vacated-usage context. **ADP, Sleeper projections, and the
-two Talent Scores are not model inputs.**
+preseason role, roster, coach, and vacated-usage context. **ADP and the two Talent Scores are
+not model inputs.** Sleeper's published projection is mixed in at 25% after the hurdle blend.
+It is not one of the 132 columns.
 
-The model currently publishes exactly 180 players: 24 QB, 60 RB, 72 WR, and 24 TE. Its points
-and model positional ranks are frozen for the current V2 snapshot. Separately, the Draft Board
+The board currently publishes exactly 180 players: 24 QB, 60 RB, 72 WR, and 24 TE. Model Proj
+points and positional ranks are frozen for the current snapshot. Separately, the Draft Board
 refreshes Sleeper ADP and Sleeper projection points daily; those live values recalculate the
-market ranks and both displayed gap columns, but do not change the V2 model forecast.
+market ranks and both displayed gap columns, but do not change Model Proj.
         """)
 
     st.divider()

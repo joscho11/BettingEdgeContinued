@@ -166,7 +166,8 @@ def render_preseason_banner(board_page=None, season_year=2026):
     (skipped gracefully if not registered, e.g. in a test harness)."""
     st.info(
         f"🏈 The {season_year} season hasn't kicked off yet. My **2026 Draft Board** is "
-        "live with frozen V2 model projections and daily Sleeper market data; the next model update is the "
+        "live with frozen Model Proj (75% independent v6, 25% Sleeper's published "
+        "projection) and daily Sleeper market data; the next model update is the "
         "planned early-September pre-kickoff snapshot. Weekly "
         "predictions return at Week 1.")
     if board_page is not None:

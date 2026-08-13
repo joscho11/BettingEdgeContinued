@@ -3,19 +3,20 @@
 This page retires the licensed Phase-4 band as its spine. It lists the 180-player capped
 preseason universe published by the independent V2 pipeline (24 QB / 60 RB / 72 WR / 24 TE)
 and shows, side by side, the snapshot's draft price and positional rank next to Sleeper's
-season-total projection when available and the V2 model estimate — plus the
-positional-rank gap for each and two descriptive talent scores. A detail toggle (ON by default)
-can drop the four raw-estimate/talent columns for a compact 9-column comparison view.
+season-total projection when available and the published Model Proj (75% independent v6
+hurdle blend, 25% Sleeper published projection), plus the positional-rank gap for each
+and two descriptive talent scores. A detail toggle (ON by default) can drop the four
+raw-estimate/talent columns for a compact 9-column comparison view.
 
 The frozen artifacts (phase4_band_2026.csv, talent_index_2026.csv) stay on disk, read-only,
 for the closed H-campaign. This module reads neither, and neither does the daily Sleeper
-market refresh; its frozen source is the independent V2 180-player publication.
+market refresh; its frozen source is the 180-player publication CSV.
 
-Compliance — DESCRIPTIVE ONLY.
+Compliance. DESCRIPTIVE ONLY.
   • Sleeper ADP + Sleeper Proj are Sleeper's data (attributed).
-  • Model Proj + Model Gap use the separate independent V2 hurdle blend, BACKTESTED
-    (2021–2025) and NOT live-validated. The displayed values are the immutable pipeline
-    output; no analyst overlay is applied.
+  • Model Proj + Model Gap use 75% independent v6 plus 25% Sleeper's published
+    projection, BACKTESTED (2021-2025) and NOT live-validated. The displayed values are
+    the immutable pipeline output; no analyst overlay is applied.
   • The gap columns are neutral positional-rank differences, not recommendations.
   • Talent Scores are descriptive context on their own scales, and feed no other column.
   • No buy/sell/fade/steal/reach/target/tier/valued/hit-rate/accuracy language anywhere.
@@ -576,16 +577,17 @@ def _refresh_date():
 def _adp_caption():
     iso = _refresh_date()
     if not iso:
-        return ("The independent V2 model projection is frozen. Live Sleeper ADP and Sleeper "
-                "projection refreshes will appear after the next successful daily market pull.")
+        return ("Model Proj is frozen (75% independent v6, 25% Sleeper's published projection). "
+                "Live Sleeper ADP and Sleeper projection refreshes will appear after the next "
+                "successful daily market pull.")
     try:
         stamp = date.fromisoformat(str(iso)[:10])
         pretty = f"{_MONTHS[stamp.month - 1]} {stamp.day}, {stamp.year}"
     except (ValueError, TypeError):
         pretty = str(iso)
     return (f"Live Sleeper ADP and Sleeper projection refresh: {pretty}. Draft-price ranks, "
-            "Sleeper ranks, Sleeper Gap, and Model Gap update from this pull; V2 model points "
-            "and V2 projection ranks remain frozen until the early-September snapshot.")
+            "Sleeper ranks, Sleeper Gap, and Model Gap update from this pull; Model Proj "
+            "points and ranks remain frozen until the early-September snapshot.")
 
 
 # Sortable display column -> the underlying NUMERIC field it sorts on. Every sentinel
@@ -700,20 +702,21 @@ COLUMN_META = [
      "him higher than his draft cost; negative = lower. A descriptive difference, not advice. "
      "Blank = no Sleeper projection.", {"format": "%d", "width": "small"}),
     ("model_proj_pos_rank", _NUM, "Model Proj Position Rank",
-     "His published rank at his position in the independent V2 projection universe "
+     "His published rank at his position in the 180-player Model Proj universe "
      "(1 = highest projected).", {"format": "%d", "width": "small"}),
     ("model_gap", _NUM, "Model Gap",
-     "Position Rank minus Model Proj Position Rank. Positive = my model ranks him higher "
-     "than his draft cost; negative = lower. From the published independent V2 model, "
-     "backtested on 2021-2025 and not live-validated. A descriptive difference, not advice.",
+     "Position Rank minus Model Proj Position Rank. Positive = Model Proj ranks him higher "
+     "than his draft cost; negative = lower. From the published 75/25 mix (independent v6 "
+     "plus Sleeper's projection), backtested on 2021-2025 and not live-validated. "
+     "A descriptive difference, not advice.",
      {"format": "%d", "width": "small"}),
     ("sleeper_proj", _NUM, "Sleeper Proj",
      "Sleeper's projected season-total half-PPR points (raw).",
      {"format": "%d", "width": "small"}),
     ("model_proj", _NUM, "Model Proj",
-     "Published season-total half-PPR points from the independent V2 pipeline: an equal 1/3 "
-     "LightGBM, ExtraTrees, and Ridge participation-hurdle blend with rolling affine "
-     "calibration. ADP is not a model input. The model was backtested on 2021-2025 and is "
+     "Published season-total half-PPR points: 75% independent v6 (equal 1/3 LightGBM, "
+     "ExtraTrees, and Ridge hurdle blend) plus 25% Sleeper's published projection, then "
+     "rolling affine calibration. ADP is not a model input. Backtested on 2021-2025 and "
      "not live-validated.",
      {"format": "%d", "width": "small"}),
     ("nfl_talent", _NUM, "NFL Talent Score",
@@ -843,8 +846,8 @@ _OUTSIDE_COLUMN_META = [
     ("team", _TXT, "Team", "His 2026 team. Blank = not signed / unavailable.",
      {"width": "small"}),
     ("model_proj", _NUM, "Model Proj",
-     "Season-total half-PPR points from the same from-scratch model that feeds the board "
-     "above, read from the same projection artifacts. Backtested on 2021–2025 and NOT "
+     "Season-total half-PPR points from the separate from-scratch seasonal projection "
+     "artifacts, not the Draft Board 75/25 mix. Backtested on 2021-2025 and NOT "
      "live-validated. There is no Sleeper projection or draft price to compare it against "
      "for these players, so none is shown.", {"format": "%.1f", "width": "small"}),
     ("model_proj_pos_rank_full", _NUM, "Model Proj Position Rank",
@@ -916,10 +919,11 @@ def _render_outside_market(board_size: int):
             "board above rather than being ranked below it. No draft price, Sleeper "
             "projection or rank difference is shown here, because none exists for them.")
         st.caption(
-            "The projections and talent scores are read from the same underlying artifacts "
-            "the board above reads — the same model and the same per-position talent "
-            "instruments, with nothing recomputed for this list. A blank talent cell means "
-            "the player did not meet that instrument's qualification or coverage rules.")
+            "The talent scores are read from the same underlying artifacts the board above "
+            "reads. The projections are the separate from-scratch seasonal artifacts, not "
+            "the Draft Board 75/25 mix, with nothing recomputed for this list. A blank "
+            "talent cell means the player did not meet that instrument's qualification or "
+            "coverage rules.")
         st.caption(
             "NFL Talent ranks NFL players against NFL players; College Talent ranks college "
             "players against past prospects who reached the NFL. Different reference pools on "
@@ -975,26 +979,27 @@ def render():
         st.markdown(
             "This board lists the independent model's exact 180-player 2026 universe: "
             "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the current Sleeper "
-            "draft price and **the independent V2 season-total projection**, plus Sleeper's "
-            "projection when its record matches. Sleeper ADP, Sleeper Proj, and both gap "
-            "columns refresh daily; V2 points and V2 projection ranks stay frozen. For each "
-            "available projection, the gap between his draft-price rank and his projected rank at "
-            "his position.\n\n"
+            "draft price and **Model Proj** (75% independent v6, 25% Sleeper's published "
+            "projection), plus Sleeper's projection when its record matches. Sleeper ADP, "
+            "Sleeper Proj, and both gap columns refresh daily; Model Proj points and ranks "
+            "stay frozen. For each available projection, the gap between his draft-price "
+            "rank and his projected rank at his position.\n\n"
             "- **Sleeper ADP** is his average draft position; **Position Rank** turns that "
             "into his rank at his position (1 = first off the board there).\n"
-            "- **Sleeper Proj** and **Model Proj** are two separate estimates of his "
+            "- **Sleeper Proj** and **Model Proj** are two estimates of his "
             "season-total half-PPR points. Sleeper's is shown only when its record can be "
-            "matched; **Model Proj** is the immutable independent V2 output, built without "
-            "ADP as a model input, backtested on 2021–2025 and not yet live-validated.\n"
+            "matched; **Model Proj** is 75% the independent v6 hurdle blend and 25% Sleeper's "
+            "published projection, affine-calibrated, built without ADP as a model input, "
+            "backtested on 2021-2025 and not yet live-validated.\n"
             "- **Sleeper Gap** and **Model Gap** are each Position Rank minus that "
             "projection's position rank: positive means the projection ranks him higher than "
             "his draft cost, negative means lower. They are descriptive differences, not "
             "recommendations.\n"
             "- **NFL Talent Score** and **College Talent Score** are descriptive context on "
-            "different scales (NFL players vs. 2026 rookies) — neither feeds any other "
+            "different scales (NFL players vs. 2026 rookies). Neither feeds any other "
             "column.\n\n"
-            "Everything here is descriptive information for your own judgment — not betting "
-            "or draft advice — and none of it guarantees what any player will do.")
+            "Everything here is descriptive information for your own judgment, not betting "
+            "or draft advice, and none of it guarantees what any player will do.")
         st.markdown("**What each column means:**")
         for _key, _kind, _label, _help, _extra in COLUMN_META:
             _detail = " *(hidden in the compact view)*" if _key in _DETAIL_ONLY else ""
@@ -1059,11 +1064,12 @@ def render():
                       "applied but its values are off-screen; turn the detail toggle back on to "
                       "see them.")
     st.caption(sort_note)
-    st.caption("Model Proj and Model Gap are the immutable independent V2 pipeline output: "
-               "an equal 1/3 raw blend of LightGBM, ExtraTrees, and Ridge participation-hurdle "
-               "forecasts, using 132 cutoff-valid non-outcome features and rolling affine "
-               "calibration. It was backtested on 2021-2025 and is not live-validated; it is "
-               "not presented as better than ADP. No analyst scenario overlay is applied.")
+    st.caption("Model Proj and Model Gap are 75% independent v6 (equal 1/3 LightGBM, "
+               "ExtraTrees, and Ridge hurdle blend) plus 25% Sleeper's published projection, "
+               "then rolling affine calibration. 132 cutoff-valid non-outcome features. ADP is "
+               "not a model input. Backtested on 2021-2025 and not live-validated. On that "
+               "backtest the mix beat ADP ordering in 5 of 6 seasons; independent v6 alone "
+               "did not. No analyst scenario overlay is applied.")
     st.caption("NFL Talent Score ranks NFL players against NFL players; College Talent Score "
                "ranks 2026 rookies against past drafted prospects — different instruments on "
                "different scales, and neither feeds any other column.")
@@ -1090,7 +1096,7 @@ def render():
     st.markdown("---")
     st.caption(
         "**About these numbers.** Sleeper ADP and Sleeper Proj are Sleeper's. Model Proj is "
-        "the immutable independent V2 pipeline output, evaluated historically on 2021–2025 "
-        "and not live-validated (the first live test is 2026). The gap columns are simple "
-        "positional-rank differences shown for context. All of this is descriptive information "
-        "for your own judgment — not a recommendation about any player.")
+        "75% independent v6 and 25% Sleeper's published projection, evaluated historically "
+        "on 2021-2025 and not live-validated (the first live test is 2026). The gap columns "
+        "are simple positional-rank differences shown for context. All of this is descriptive "
+        "information for your own judgment, not a recommendation about any player.")

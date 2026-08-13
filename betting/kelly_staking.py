@@ -110,8 +110,9 @@ def main() -> None:
     else:
         print("  => No tier clears break-even on the conservative read at this price.")
     print(f"\n  Win prob = ATS vs the line you BET (the open), out-of-sample, pushes excluded.")
-    print(f"  The model does NOT beat the close (no CLV edge) — the edge is raw ATS skill on")
-    print(f"  HIGH-tier picks. Re-fit as the live 2026 record grows.")
+    print(f"  The model does NOT beat the close (no CLV edge). Corrected HIGH-tier walk-forward")
+    print(f"  is 129/238 = 54.2017%, Wilson lower 47.86%, below the 52.4% break-even.")
+    print(f"  Re-fit as the live 2026 record grows.")
 
 
 if __name__ == "__main__":

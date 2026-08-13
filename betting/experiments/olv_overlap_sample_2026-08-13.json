@@ -1,0 +1,810 @@
+{
+  "created_utc": "2026-08-13T21:48:44+00:00",
+  "protocol": "four frozen weeks, Tuesday 9am ET, us/spreads/median/min3",
+  "weeks": [
+    [
+      2021,
+      1
+    ],
+    [
+      2022,
+      10
+    ],
+    [
+      2024,
+      1
+    ],
+    [
+      2025,
+      10
+    ]
+  ],
+  "free_check_2020_2024": {
+    "join_exact_2020_2024": {
+      "nflverse_reg": 1343,
+      "joined": 1339,
+      "join_rate": 0.997
+    },
+    "xlsx_close_vs_nflverse_spread_line": {
+      "n": 1339,
+      "mean_abs": 0.2707,
+      "median_abs": 0.0,
+      "max_abs": 5.5,
+      "pct_exact": 62.3,
+      "pct_within_0_5": 91.6,
+      "pct_within_1": 96.3,
+      "corr": 0.996029
+    },
+    "xlsx_open_vs_nflverse_spread_line": {
+      "n": 1339,
+      "mean_abs": 1.5482,
+      "median_abs": 1.0,
+      "max_abs": 15.0,
+      "pct_exact": 15.7,
+      "pct_within_0_5": 38.5,
+      "pct_within_1": 55.1,
+      "corr": 0.931743
+    },
+    "xlsx_open_vs_xlsx_close": {
+      "n": 1339,
+      "mean_abs": 1.4776,
+      "median_abs": 1.0,
+      "max_abs": 15.5,
+      "pct_exact": 18.8,
+      "pct_within_0_5": 41.7,
+      "pct_within_1": 57.2,
+      "corr": 0.933262
+    }
+  },
+  "odds_api_weeks": [
+    {
+      "season": 2021,
+      "week": 1,
+      "first_gameday": "2021-09-09",
+      "snapshot_et": "2021-09-07T09:00:00-04:00",
+      "api_timestamp": "2021-09-07T12:55:00Z",
+      "n_nflverse": 16,
+      "n_xlsx_joined_week": 16,
+      "n_api_consensus": 40,
+      "n_thin_lt3_books": 6,
+      "n_matched": 16,
+      "open_vs_api_tue": {
+        "n": 16,
+        "mean_abs": 0.75,
+        "median_abs": 0.5,
+        "max_abs": 5.5,
+        "pct_exact": 43.8,
+        "pct_within_0_5": 75.0,
+        "pct_within_1": 81.2
+      },
+      "close_vs_api_tue": {
+        "n": 16,
+        "mean_abs": 0.0938,
+        "median_abs": 0.0,
+        "max_abs": 0.5,
+        "pct_exact": 81.2,
+        "pct_within_0_5": 100.0,
+        "pct_within_1": 100.0
+      },
+      "open_vs_nflverse_close": {
+        "n": 16,
+        "mean_abs": 1.5625,
+        "median_abs": 1.0,
+        "max_abs": 6.0,
+        "pct_exact": 18.8,
+        "pct_within_0_5": 43.8,
+        "pct_within_1": 56.2
+      },
+      "quota": {
+        "remaining": "18420",
+        "used": "1580",
+        "last": "10"
+      },
+      "sample_rows": [
+        {
+          "home": "ATL",
+          "away": "PHI",
+          "xlsx_open": 3.5,
+          "xlsx_close": 3.5,
+          "api_tue": 3.5,
+          "nflverse_close": 3.5,
+          "n_books": 15
+        },
+        {
+          "home": "BUF",
+          "away": "PIT",
+          "xlsx_open": 6.0,
+          "xlsx_close": 6.5,
+          "api_tue": 6.5,
+          "nflverse_close": 6.5,
+          "n_books": 15
+        },
+        {
+          "home": "CAR",
+          "away": "NYJ",
+          "xlsx_open": 4.0,
+          "xlsx_close": 5.0,
+          "api_tue": 5.0,
+          "nflverse_close": 3.5,
+          "n_books": 15
+        },
+        {
+          "home": "CIN",
+          "away": "MIN",
+          "xlsx_open": -3.0,
+          "xlsx_close": -3.0,
+          "api_tue": -3.0,
+          "nflverse_close": -3.0,
+          "n_books": 15
+        },
+        {
+          "home": "DET",
+          "away": "SF",
+          "xlsx_open": -7.5,
+          "xlsx_close": -7.5,
+          "api_tue": -7.5,
+          "nflverse_close": -9.5,
+          "n_books": 15
+        },
+        {
+          "home": "HOU",
+          "away": "JAX",
+          "xlsx_open": -2.5,
+          "xlsx_close": -3.0,
+          "api_tue": -3.0,
+          "nflverse_close": -3.5,
+          "n_books": 15
+        },
+        {
+          "home": "IND",
+          "away": "SEA",
+          "xlsx_open": 3.0,
+          "xlsx_close": -2.5,
+          "api_tue": -2.5,
+          "nflverse_close": -3.0,
+          "n_books": 15
+        },
+        {
+          "home": "KC",
+          "away": "CLE",
+          "xlsx_open": 6.0,
+          "xlsx_close": 6.0,
+          "api_tue": 6.0,
+          "nflverse_close": 5.5,
+          "n_books": 15
+        },
+        {
+          "home": "LA",
+          "away": "CHI",
+          "xlsx_open": 7.0,
+          "xlsx_close": 7.5,
+          "api_tue": 7.5,
+          "nflverse_close": 9.5,
+          "n_books": 15
+        },
+        {
+          "home": "LV",
+          "away": "BAL",
+          "xlsx_open": -4.5,
+          "xlsx_close": -4.5,
+          "api_tue": -4.5,
+          "nflverse_close": -3.0,
+          "n_books": 15
+        },
+        {
+          "home": "NE",
+          "away": "MIA",
+          "xlsx_open": 2.5,
+          "xlsx_close": 2.5,
+          "api_tue": 3.0,
+          "nflverse_close": 3.5,
+          "n_books": 15
+        },
+        {
+          "home": "NO",
+          "away": "GB",
+          "xlsx_open": -4.0,
+          "xlsx_close": -4.0,
+          "api_tue": -4.5,
+          "nflverse_close": -4.0,
+          "n_books": 14
+        },
+        {
+          "home": "NYG",
+          "away": "DEN",
+          "xlsx_open": -1.0,
+          "xlsx_close": -2.5,
+          "api_tue": -2.5,
+          "nflverse_close": -3.0,
+          "n_books": 15
+        },
+        {
+          "home": "TB",
+          "away": "DAL",
+          "xlsx_open": 6.5,
+          "xlsx_close": 7.5,
+          "api_tue": 8.0,
+          "nflverse_close": 10.0,
+          "n_books": 15
+        },
+        {
+          "home": "TEN",
+          "away": "ARI",
+          "xlsx_open": 3.0,
+          "xlsx_close": 3.0,
+          "api_tue": 3.0,
+          "nflverse_close": 2.5,
+          "n_books": 15
+        },
+        {
+          "home": "WAS",
+          "away": "LAC",
+          "xlsx_open": -1.0,
+          "xlsx_close": -1.0,
+          "api_tue": -1.0,
+          "nflverse_close": 2.5,
+          "n_books": 15
+        }
+      ]
+    },
+    {
+      "season": 2022,
+      "week": 10,
+      "first_gameday": "2022-11-10",
+      "snapshot_et": "2022-11-08T09:00:00-05:00",
+      "api_timestamp": "2022-11-08T13:55:39Z",
+      "n_nflverse": 14,
+      "n_xlsx_joined_week": 14,
+      "n_api_consensus": 13,
+      "n_thin_lt3_books": 0,
+      "n_matched": 13,
+      "open_vs_api_tue": {
+        "n": 13,
+        "mean_abs": 1.4231,
+        "median_abs": 1.5,
+        "max_abs": 3.5,
+        "pct_exact": 23.1,
+        "pct_within_0_5": 30.8,
+        "pct_within_1": 46.2
+      },
+      "close_vs_api_tue": {
+        "n": 13,
+        "mean_abs": 0.7692,
+        "median_abs": 0.5,
+        "max_abs": 2.5,
+        "pct_exact": 30.8,
+        "pct_within_0_5": 61.5,
+        "pct_within_1": 76.9
+      },
+      "open_vs_nflverse_close": {
+        "n": 13,
+        "mean_abs": 1.3462,
+        "median_abs": 1.0,
+        "max_abs": 5.0,
+        "pct_exact": 7.7,
+        "pct_within_0_5": 46.2,
+        "pct_within_1": 69.2
+      },
+      "quota": {
+        "remaining": "18410",
+        "used": "1590",
+        "last": "10"
+      },
+      "sample_rows": [
+        {
+          "home": "BUF",
+          "away": "MIN",
+          "xlsx_open": 9.5,
+          "xlsx_close": 6.0,
+          "api_tue": 6.5,
+          "nflverse_close": 6.5,
+          "n_books": 20
+        },
+        {
+          "home": "CAR",
+          "away": "ATL",
+          "xlsx_open": -1.5,
+          "xlsx_close": -2.5,
+          "api_tue": -3.0,
+          "nflverse_close": -2.5,
+          "n_books": 20
+        },
+        {
+          "home": "CHI",
+          "away": "DET",
+          "xlsx_open": 1.5,
+          "xlsx_close": 3.0,
+          "api_tue": 3.0,
+          "nflverse_close": 3.0,
+          "n_books": 19
+        },
+        {
+          "home": "GB",
+          "away": "DAL",
+          "xlsx_open": -3.0,
+          "xlsx_close": -3.5,
+          "api_tue": -5.0,
+          "nflverse_close": -3.5,
+          "n_books": 20
+        },
+        {
+          "home": "KC",
+          "away": "JAX",
+          "xlsx_open": 9.5,
+          "xlsx_close": 9.5,
+          "api_tue": 9.5,
+          "nflverse_close": 10.0,
+          "n_books": 20
+        },
+        {
+          "home": "LA",
+          "away": "ARI",
+          "xlsx_open": 3.0,
+          "xlsx_close": 3.5,
+          "api_tue": 3.0,
+          "nflverse_close": 3.5,
+          "n_books": 20
+        },
+        {
+          "home": "LV",
+          "away": "IND",
+          "xlsx_open": 3.5,
+          "xlsx_close": 4.0,
+          "api_tue": 6.5,
+          "nflverse_close": 4.5,
+          "n_books": 20
+        },
+        {
+          "home": "MIA",
+          "away": "CLE",
+          "xlsx_open": 5.5,
+          "xlsx_close": 3.0,
+          "api_tue": 4.0,
+          "nflverse_close": 3.0,
+          "n_books": 20
+        },
+        {
+          "home": "NYG",
+          "away": "HOU",
+          "xlsx_open": 6.0,
+          "xlsx_close": 4.5,
+          "api_tue": 6.5,
+          "nflverse_close": 5.5,
+          "n_books": 20
+        },
+        {
+          "home": "PHI",
+          "away": "WAS",
+          "xlsx_open": 10.0,
+          "xlsx_close": 11.0,
+          "api_tue": 11.0,
+          "nflverse_close": 11.0,
+          "n_books": 20
+        },
+        {
+          "home": "SF",
+          "away": "LAC",
+          "xlsx_open": 3.5,
+          "xlsx_close": 8.0,
+          "api_tue": 7.0,
+          "nflverse_close": 8.5,
+          "n_books": 20
+        },
+        {
+          "home": "TB",
+          "away": "SEA",
+          "xlsx_open": 2.5,
+          "xlsx_close": 2.5,
+          "api_tue": 2.5,
+          "nflverse_close": 2.5,
+          "n_books": 19
+        },
+        {
+          "home": "TEN",
+          "away": "DEN",
+          "xlsx_open": 2.0,
+          "xlsx_close": 2.5,
+          "api_tue": 3.0,
+          "nflverse_close": 2.5,
+          "n_books": 19
+        }
+      ]
+    },
+    {
+      "season": 2024,
+      "week": 1,
+      "first_gameday": "2024-09-05",
+      "snapshot_et": "2024-09-03T09:00:00-04:00",
+      "api_timestamp": "2024-09-03T12:55:38Z",
+      "n_nflverse": 16,
+      "n_xlsx_joined_week": 16,
+      "n_api_consensus": 64,
+      "n_thin_lt3_books": 208,
+      "n_matched": 16,
+      "open_vs_api_tue": {
+        "n": 16,
+        "mean_abs": 1.0625,
+        "median_abs": 1.0,
+        "max_abs": 3.5,
+        "pct_exact": 18.8,
+        "pct_within_0_5": 37.5,
+        "pct_within_1": 68.8
+      },
+      "close_vs_api_tue": {
+        "n": 16,
+        "mean_abs": 0.3438,
+        "median_abs": 0.375,
+        "max_abs": 1.0,
+        "pct_exact": 43.8,
+        "pct_within_0_5": 81.2,
+        "pct_within_1": 100.0
+      },
+      "open_vs_nflverse_close": {
+        "n": 16,
+        "mean_abs": 1.0625,
+        "median_abs": 1.0,
+        "max_abs": 3.5,
+        "pct_exact": 18.8,
+        "pct_within_0_5": 43.8,
+        "pct_within_1": 62.5
+      },
+      "quota": {
+        "remaining": "18400",
+        "used": "1600",
+        "last": "10"
+      },
+      "sample_rows": [
+        {
+          "home": "ATL",
+          "away": "PIT",
+          "xlsx_open": 3.0,
+          "xlsx_close": 3.5,
+          "api_tue": 3.0,
+          "nflverse_close": 4.0,
+          "n_books": 10
+        },
+        {
+          "home": "BUF",
+          "away": "ARI",
+          "xlsx_open": 7.0,
+          "xlsx_close": 6.5,
+          "api_tue": 6.0,
+          "nflverse_close": 6.5,
+          "n_books": 10
+        },
+        {
+          "home": "CHI",
+          "away": "TEN",
+          "xlsx_open": 5.0,
+          "xlsx_close": 4.0,
+          "api_tue": 4.0,
+          "nflverse_close": 4.0,
+          "n_books": 10
+        },
+        {
+          "home": "CIN",
+          "away": "NE",
+          "xlsx_open": 7.5,
+          "xlsx_close": 8.0,
+          "api_tue": 8.75,
+          "nflverse_close": 8.0,
+          "n_books": 10
+        },
+        {
+          "home": "CLE",
+          "away": "DAL",
+          "xlsx_open": -1.0,
+          "xlsx_close": 2.5,
+          "api_tue": 2.5,
+          "nflverse_close": 2.5,
+          "n_books": 10
+        },
+        {
+          "home": "DET",
+          "away": "LA",
+          "xlsx_open": 3.5,
+          "xlsx_close": 4.5,
+          "api_tue": 3.5,
+          "nflverse_close": 5.0,
+          "n_books": 9
+        },
+        {
+          "home": "IND",
+          "away": "HOU",
+          "xlsx_open": -1.5,
+          "xlsx_close": -3.0,
+          "api_tue": -2.5,
+          "nflverse_close": -3.0,
+          "n_books": 10
+        },
+        {
+          "home": "KC",
+          "away": "BAL",
+          "xlsx_open": 2.5,
+          "xlsx_close": 3.0,
+          "api_tue": 3.0,
+          "nflverse_close": 3.0,
+          "n_books": 10
+        },
+        {
+          "home": "LAC",
+          "away": "LV",
+          "xlsx_open": 3.0,
+          "xlsx_close": 3.0,
+          "api_tue": 3.0,
+          "nflverse_close": 3.0,
+          "n_books": 10
+        },
+        {
+          "home": "MIA",
+          "away": "JAX",
+          "xlsx_open": 3.5,
+          "xlsx_close": 3.5,
+          "api_tue": 3.0,
+          "nflverse_close": 3.5,
+          "n_books": 10
+        },
+        {
+          "home": "NO",
+          "away": "CAR",
+          "xlsx_open": 4.5,
+          "xlsx_close": 4.0,
+          "api_tue": 4.0,
+          "nflverse_close": 3.5,
+          "n_books": 10
+        },
+        {
+          "home": "NYG",
+          "away": "MIN",
+          "xlsx_open": 1.0,
+          "xlsx_close": -1.5,
+          "api_tue": -1.5,
+          "nflverse_close": -1.0,
+          "n_books": 10
+        },
+        {
+          "home": "PHI",
+          "away": "GB",
+          "xlsx_open": 1.5,
+          "xlsx_close": 2.0,
+          "api_tue": 3.0,
+          "nflverse_close": 2.0,
+          "n_books": 10
+        },
+        {
+          "home": "SEA",
+          "away": "DEN",
+          "xlsx_open": 5.0,
+          "xlsx_close": 6.0,
+          "api_tue": 6.0,
+          "nflverse_close": 6.5,
+          "n_books": 10
+        },
+        {
+          "home": "SF",
+          "away": "NYJ",
+          "xlsx_open": 5.5,
+          "xlsx_close": 3.5,
+          "api_tue": 3.75,
+          "nflverse_close": 3.5,
+          "n_books": 10
+        },
+        {
+          "home": "TB",
+          "away": "WAS",
+          "xlsx_open": 4.0,
+          "xlsx_close": 3.5,
+          "api_tue": 3.0,
+          "nflverse_close": 4.0,
+          "n_books": 10
+        }
+      ]
+    },
+    {
+      "season": 2025,
+      "week": 10,
+      "first_gameday": "2025-11-06",
+      "snapshot_et": "2025-11-04T09:00:00-05:00",
+      "api_timestamp": "2025-11-04T13:55:38Z",
+      "n_nflverse": 14,
+      "n_xlsx_joined_week": 14,
+      "n_api_consensus": 14,
+      "n_thin_lt3_books": 0,
+      "n_matched": 14,
+      "open_vs_api_tue": {
+        "n": 14,
+        "mean_abs": 1.9286,
+        "median_abs": 1.25,
+        "max_abs": 5.0,
+        "pct_exact": 7.1,
+        "pct_within_0_5": 28.6,
+        "pct_within_1": 50.0
+      },
+      "close_vs_api_tue": {
+        "n": 14,
+        "mean_abs": 1.3571,
+        "median_abs": 0.75,
+        "max_abs": 8.0,
+        "pct_exact": 35.7,
+        "pct_within_0_5": 50.0,
+        "pct_within_1": 71.4
+      },
+      "open_vs_nflverse_close": {
+        "n": 14,
+        "mean_abs": 2.0714,
+        "median_abs": 1.25,
+        "max_abs": 5.0,
+        "pct_exact": 0.0,
+        "pct_within_0_5": 7.1,
+        "pct_within_1": 50.0
+      },
+      "quota": {
+        "remaining": "18390",
+        "used": "1610",
+        "last": "10"
+      },
+      "sample_rows": [
+        {
+          "home": "CAR",
+          "away": "NO",
+          "xlsx_open": 3.5,
+          "xlsx_close": 4.5,
+          "api_tue": 5.5,
+          "nflverse_close": 5.5,
+          "n_books": 11
+        },
+        {
+          "home": "CHI",
+          "away": "NYG",
+          "xlsx_open": 3.5,
+          "xlsx_close": 3.5,
+          "api_tue": 3.5,
+          "nflverse_close": 4.5,
+          "n_books": 11
+        },
+        {
+          "home": "DEN",
+          "away": "LV",
+          "xlsx_open": 10.5,
+          "xlsx_close": 7.5,
+          "api_tue": 9.0,
+          "nflverse_close": 9.5,
+          "n_books": 11
+        },
+        {
+          "home": "GB",
+          "away": "PHI",
+          "xlsx_open": -2.5,
+          "xlsx_close": -5.5,
+          "api_tue": 2.5,
+          "nflverse_close": 1.5,
+          "n_books": 11
+        },
+        {
+          "home": "HOU",
+          "away": "JAX",
+          "xlsx_open": 2.5,
+          "xlsx_close": 1.5,
+          "api_tue": 1.5,
+          "nflverse_close": -1.5,
+          "n_books": 11
+        },
+        {
+          "home": "IND",
+          "away": "ATL",
+          "xlsx_open": 7.5,
+          "xlsx_close": 5.5,
+          "api_tue": 5.5,
+          "nflverse_close": 6.5,
+          "n_books": 11
+        },
+        {
+          "home": "LAC",
+          "away": "PIT",
+          "xlsx_open": 3.5,
+          "xlsx_close": 3.5,
+          "api_tue": 3.0,
+          "nflverse_close": 3.0,
+          "n_books": 11
+        },
+        {
+          "home": "MIA",
+          "away": "BUF",
+          "xlsx_open": -7.5,
+          "xlsx_close": -7.5,
+          "api_tue": -9.5,
+          "nflverse_close": -8.5,
+          "n_books": 11
+        },
+        {
+          "home": "MIN",
+          "away": "BAL",
+          "xlsx_open": -3.5,
+          "xlsx_close": -4.5,
+          "api_tue": -4.0,
+          "nflverse_close": -4.5,
+          "n_books": 11
+        },
+        {
+          "home": "NYJ",
+          "away": "CLE",
+          "xlsx_open": 1.5,
+          "xlsx_close": -1.5,
+          "api_tue": 2.0,
+          "nflverse_close": -1.5,
+          "n_books": 11
+        },
+        {
+          "home": "SEA",
+          "away": "ARI",
+          "xlsx_open": 5.5,
+          "xlsx_close": 6.5,
+          "api_tue": 6.5,
+          "nflverse_close": 7.0,
+          "n_books": 10
+        },
+        {
+          "home": "SF",
+          "away": "LA",
+          "xlsx_open": -8.5,
+          "xlsx_close": -4.5,
+          "api_tue": -3.5,
+          "nflverse_close": -5.5,
+          "n_books": 11
+        },
+        {
+          "home": "TB",
+          "away": "NE",
+          "xlsx_open": 1.5,
+          "xlsx_close": 2.5,
+          "api_tue": 2.5,
+          "nflverse_close": 2.5,
+          "n_books": 11
+        },
+        {
+          "home": "WAS",
+          "away": "DET",
+          "xlsx_open": -3.5,
+          "xlsx_close": -7.5,
+          "api_tue": -8.5,
+          "nflverse_close": -8.5,
+          "n_books": 11
+        }
+      ]
+    }
+  ],
+  "pooled_matched": {
+    "open_vs_api_tue": {
+      "n": 59,
+      "mean_abs": 1.2627,
+      "median_abs": 1.0,
+      "max_abs": 5.5,
+      "pct_exact": 23.7,
+      "pct_within_0_5": 44.1,
+      "pct_within_1": 62.7
+    },
+    "close_vs_api_tue": {
+      "n": 59,
+      "mean_abs": 0.6102,
+      "median_abs": 0.25,
+      "max_abs": 8.0,
+      "pct_exact": 49.2,
+      "pct_within_0_5": 74.6,
+      "pct_within_1": 88.1
+    },
+    "open_vs_nflverse_close": {
+      "n": 59,
+      "mean_abs": 1.5,
+      "median_abs": 1.0,
+      "max_abs": 6.0,
+      "pct_exact": 11.9,
+      "pct_within_0_5": 35.6,
+      "pct_within_1": 59.3
+    }
+  },
+  "quota_last": {
+    "remaining": "18390",
+    "used": "1610",
+    "last": "10"
+  }
+}
