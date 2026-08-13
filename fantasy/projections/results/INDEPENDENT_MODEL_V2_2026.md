@@ -1,4 +1,4 @@
-# Independent V2 dashboard import — 2026
+# Independent V2 dashboard import, 2026
 
 The dashboard's 2026 Draft Board reads
 `independent_half_ppr_points_2026.csv` as its independent-model source. The
@@ -11,7 +11,7 @@ re-score, calibrate, or alter it.
   ExtraTrees, and Ridge participation-hurdle forecasts, followed by rolling
   affine calibration.
 - Feature set: 132 cutoff-valid non-outcome features. ADP is not a model input.
-- Published universe: 180 rows — 24 QB, 60 RB, 72 WR, and 24 TE.
+- Published universe: 180 rows (24 QB, 60 RB, 72 WR, and 24 TE).
 - Historical 2021-25 benchmark: 51.967235 MAE, .689210 pairwise accuracy,
   66.358707 RMSE. ADP was better on the same panel: 51.754135 MAE,
   .696551 pairwise, 65.689277 RMSE. The model beats ADP ordering in 2023
