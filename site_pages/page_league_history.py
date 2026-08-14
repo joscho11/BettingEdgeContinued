@@ -1044,661 +1044,693 @@ def render():
                     _stable_h2h_records
                 )
 
-                st.subheader("Rivalry Week Builder")
+                st.subheader("Rivalries")
                 st.caption(
-                    "Generate a complete upcoming-season slate for the league's current "
-                    "managers. Scores describe historical rivalry fit; they are not predictions."
+                    "Build a rivalry week, inspect one matchup, or compare the full "
+                    "league. Only the selected view is shown."
+                )
+                _rivalry_view = st.radio(
+                    "Rivalry view",
+                    ("Build a Week", "Explore a Matchup", "League Matrix"),
+                    horizontal=True,
+                    key="lh_rivalry_view",
+                    label_visibility="collapsed",
                 )
 
-                _builder_left, _builder_right = st.columns(2)
-                with _builder_left:
-                    _rivalry_mode = st.selectbox(
-                        "Slate style",
-                        list(_league_intel.RIVALRY_WEEK_MODES),
-                        key="lh_rivalry_mode",
-                        help=(
-                            "Classic rewards established series and playoff history; Maximum "
-                            "Drama emphasizes close, back-and-forth games; Fresh Blood favors "
-                            "underplayed opponents with similar historical results."
-                        ),
-                    )
-                with _builder_right:
-                    _rivalry_history = st.selectbox(
-                        "History window",
-                        ["All history", "Last 3 completed seasons"],
-                        key="lh_rivalry_history",
+                if _rivalry_view == "Build a Week":
+                    st.markdown("#### Rivalry Week Builder")
+                    st.caption(
+                        "Generate a complete upcoming-season slate for the league's current "
+                        "managers. Scores describe historical rivalry fit, not predictions."
                     )
 
-                _builder_matchups = _all_h2h_matchups.copy()
-                if (
-                    _rivalry_history == "Last 3 completed seasons"
-                    and not _builder_matchups.empty
-                ):
-                    _played_seasons = sorted(
-                        _builder_matchups["season"].astype(str).unique().tolist(),
-                        key=lambda value: (
-                            pd.to_numeric(value, errors="coerce")
-                            if pd.notna(pd.to_numeric(value, errors="coerce")) else -1
-                        ),
+                    _builder_left, _builder_right = st.columns(2)
+                    with _builder_left:
+                        _rivalry_mode = st.selectbox(
+                            "Slate style",
+                            list(_league_intel.RIVALRY_WEEK_MODES),
+                            key="lh_rivalry_mode",
+                            help=(
+                                "Classic rewards established series and playoff history; Maximum "
+                                "Drama emphasizes close, back-and-forth games; Fresh Blood favors "
+                                "underplayed opponents with similar historical results."
+                            ),
+                        )
+                    with _builder_right:
+                        _rivalry_history = st.selectbox(
+                            "History window",
+                            ["All history", "Last 3 completed seasons"],
+                            key="lh_rivalry_history",
+                        )
+
+                    _builder_matchups = _all_h2h_matchups.copy()
+                    if (
+                        _rivalry_history == "Last 3 completed seasons"
+                        and not _builder_matchups.empty
+                    ):
+                        _played_seasons = sorted(
+                            _builder_matchups["season"].astype(str).unique().tolist(),
+                            key=lambda value: (
+                                pd.to_numeric(value, errors="coerce")
+                                if pd.notna(pd.to_numeric(value, errors="coerce")) else -1
+                            ),
+                        )
+                        _recent_seasons = set(_played_seasons[-3:])
+                        _builder_matchups = _builder_matchups[
+                            _builder_matchups["season"].astype(str).isin(_recent_seasons)
+                        ].copy()
+
+                    _builder_signature = "|".join([
+                        _lid,
+                        _rivalry_mode,
+                        _rivalry_history,
+                        *_active_rivalry_managers,
+                    ])
+                    if st.session_state.get("lh_rivalry_signature") != _builder_signature:
+                        st.session_state["lh_rivalry_signature"] = _builder_signature
+                        st.session_state["lh_rivalry_locked_pairs"] = []
+                        st.session_state["lh_rivalry_avoided_pairs"] = []
+                        st.session_state.pop("lh_rivalry_locked_choices", None)
+
+                    _pair_scores = _league_intel.rivalry_pair_score_frame(
+                        _builder_matchups,
+                        _active_rivalry_managers,
+                        mode=_rivalry_mode,
                     )
-                    _recent_seasons = set(_played_seasons[-3:])
-                    _builder_matchups = _builder_matchups[
-                        _builder_matchups["season"].astype(str).isin(_recent_seasons)
-                    ].copy()
-
-                _builder_signature = "|".join([
-                    _lid,
-                    _rivalry_mode,
-                    _rivalry_history,
-                    *_active_rivalry_managers,
-                ])
-                if st.session_state.get("lh_rivalry_signature") != _builder_signature:
-                    st.session_state["lh_rivalry_signature"] = _builder_signature
-                    st.session_state["lh_rivalry_locked_pairs"] = []
-                    st.session_state["lh_rivalry_avoided_pairs"] = []
-                    st.session_state.pop("lh_rivalry_locked_choices", None)
-
-                _pair_scores = _league_intel.rivalry_pair_score_frame(
-                    _builder_matchups,
-                    _active_rivalry_managers,
-                    mode=_rivalry_mode,
-                )
-                _saved_locks = [
-                    tuple(pair)
-                    for pair in st.session_state.get("lh_rivalry_locked_pairs", [])
-                ]
-                _saved_avoids = [
-                    tuple(pair)
-                    for pair in st.session_state.get("lh_rivalry_avoided_pairs", [])
-                ]
-                _rivalry_slate = _league_intel.rivalry_week_slate_frame(
-                    _pair_scores,
-                    locked_pairs=_saved_locks,
-                    avoided_pairs=_saved_avoids,
-                )
-
-                _lock_lookup = {}
-                if not _rivalry_slate.empty:
-                    for _, _slate_row in _rivalry_slate.iterrows():
-                        if pd.isna(_slate_row.get("manager_b")):
-                            continue
-                        _slate_pair = tuple(sorted((
-                            str(_slate_row["manager_a"]),
-                            str(_slate_row["manager_b"]),
-                        )))
-                        _slate_label = f"{_slate_pair[0]} vs {_slate_pair[1]}"
-                        _lock_lookup[_slate_label] = _slate_pair
-
-                _selected_lock_labels = st.multiselect(
-                    "Lock matchups before generating another slate",
-                    list(_lock_lookup),
-                    key="lh_rivalry_locked_choices",
-                    disabled=not _lock_lookup,
-                )
-                _requested_locks = [
-                    _lock_lookup[label]
-                    for label in _selected_lock_labels
-                    if label in _lock_lookup
-                ]
-                _alternative_requested = st.button(
-                    "Generate another slate",
-                    key="lh_rivalry_regenerate",
-                    disabled=len(_active_rivalry_managers) < 4,
-                )
-                if _alternative_requested:
-                    _requested_lock_set = {
-                        tuple(sorted(pair)) for pair in _requested_locks
-                    }
-                    _new_avoid_set = {
-                        tuple(sorted(pair)) for pair in _saved_avoids
-                    }.difference(_requested_lock_set)
-                    for _, _slate_row in _rivalry_slate.iterrows():
-                        if pd.isna(_slate_row.get("manager_b")):
-                            continue
-                        _slate_pair = tuple(sorted((
-                            str(_slate_row["manager_a"]),
-                            str(_slate_row["manager_b"]),
-                        )))
-                        if _slate_pair not in _requested_lock_set:
-                            _new_avoid_set.add(_slate_pair)
-                    _new_avoids = sorted(_new_avoid_set)
-                    st.session_state["lh_rivalry_locked_pairs"] = [
-                        list(pair) for pair in _requested_locks
+                    _saved_locks = [
+                        tuple(pair)
+                        for pair in st.session_state.get("lh_rivalry_locked_pairs", [])
                     ]
-                    st.session_state["lh_rivalry_avoided_pairs"] = [
-                        list(pair) for pair in _new_avoids
+                    _saved_avoids = [
+                        tuple(pair)
+                        for pair in st.session_state.get("lh_rivalry_avoided_pairs", [])
                     ]
                     _rivalry_slate = _league_intel.rivalry_week_slate_frame(
                         _pair_scores,
-                        locked_pairs=_requested_locks,
-                        avoided_pairs=_new_avoids,
+                        locked_pairs=_saved_locks,
+                        avoided_pairs=_saved_avoids,
                     )
 
-                if len(_active_rivalry_managers) < 2:
-                    st.info(
-                        "At least two current managers with stable Sleeper owner IDs are "
-                        "needed to build a rivalry slate."
+                    _lock_lookup = {}
+                    if not _rivalry_slate.empty:
+                        for _, _slate_row in _rivalry_slate.iterrows():
+                            if pd.isna(_slate_row.get("manager_b")):
+                                continue
+                            _slate_pair = tuple(sorted((
+                                str(_slate_row["manager_a"]),
+                                str(_slate_row["manager_b"]),
+                            )))
+                            _slate_label = f"{_slate_pair[0]} vs {_slate_pair[1]}"
+                            _lock_lookup[_slate_label] = _slate_pair
+
+                    _selected_lock_labels = st.multiselect(
+                        "Lock matchups before generating another slate",
+                        list(_lock_lookup),
+                        key="lh_rivalry_locked_choices",
+                        disabled=not _lock_lookup,
                     )
-                elif _rivalry_slate.empty:
-                    st.info("No rivalry slate is available for the current league yet.")
-                else:
-                    _scored_slate = pd.to_numeric(
-                        _rivalry_slate["rivalry_score"], errors="coerce"
-                    ).dropna()
-                    _summary1, _summary2, _summary3 = st.columns(3)
-                    with _summary1:
-                        st.metric(
-                            "Current Managers", len(_active_rivalry_managers),
-                            border=True,
-                        )
-                    with _summary2:
-                        st.metric(
-                            "Suggested Matchups",
-                            int(_rivalry_slate["manager_b"].notna().sum()),
-                            border=True,
-                        )
-                    with _summary3:
-                        st.metric(
-                            "Average Rivalry Score",
-                            f"{_scored_slate.mean():.1f}/100" if not _scored_slate.empty else "—",
-                            border=True,
-                        )
-
-                    for _, _slate_row in _rivalry_slate.iterrows():
-                        if pd.isna(_slate_row.get("manager_b")):
-                            st.warning(
-                                f"**{_slate_row['manager_a']}** has the open slot because "
-                                "the league currently has an odd number of managers."
-                            )
-                            continue
-                        with st.container(border=True):
-                            _matchup_copy, _score_copy = st.columns([4, 1])
-                            with _matchup_copy:
-                                _lock_badge = " 🔒" if bool(_slate_row.get("locked")) else ""
-                                st.markdown(
-                                    f"#### {_slate_row['manager_a']} vs "
-                                    f"{_slate_row['manager_b']}{_lock_badge}"
-                                )
-                                st.caption(str(_slate_row["reason"]))
-                            with _score_copy:
-                                st.metric(
-                                    "Rivalry Score",
-                                    f"{float(_slate_row['rivalry_score']):.1f}/100",
-                                    border=False,
-                                )
-
-                st.caption(
-                    "The builder always uses current managers and its own history window. "
-                    "The page-level Season filter applies to the matchup explorer below."
-                )
-                st.divider()
-
-                _h2h_scope = _season_filter if _season_filter != "All Time" else "all-time"
-                st.subheader("Matchup Explorer")
-                st.caption(
-                    f"Explore an individual rivalry and the league-wide matchup landscape, "
-                    f"{_h2h_scope}. Includes playoffs; scores of 5 points or fewer are excluded."
-                )
-
-                _h2h_matchups = _all_h2h_matchups
-                if _season_filter != "All Time":
-                    _h2h_matchups = _h2h_matchups[
-                        _h2h_matchups["season"].astype(str).eq(str(_season_filter))
-                    ].copy()
-                _rivalries = _league_intel.rivalry_summary_frame(_h2h_matchups)
-                if _rivalries.empty:
-                    st.info("No completed head-to-head matchups are available for this selection.")
-                else:
-                    _rivalry_managers = sorted(set(_rivalries["manager_a"]).union(
-                        _rivalries["manager_b"]
-                    ))
-                    _manager_meetings = {manager: 0 for manager in _rivalry_managers}
-                    for _, _series in _rivalries.iterrows():
-                        _manager_meetings[_series["manager_a"]] += int(_series["games"])
-                        _manager_meetings[_series["manager_b"]] += int(_series["games"])
-                    _default_a = sorted(
-                        _rivalry_managers,
-                        key=lambda manager: (-_manager_meetings[manager], manager),
-                    )[0]
-                    if st.session_state.get("lh_h2h_manager_a") not in _rivalry_managers:
-                        st.session_state.pop("lh_h2h_manager_a", None)
-                    _select_a, _select_b = st.columns(2)
-                    with _select_a:
-                        _manager_a = st.selectbox(
-                            "Manager A",
-                            _rivalry_managers,
-                            index=_rivalry_managers.index(_default_a),
-                            key="lh_h2h_manager_a",
-                        )
-
-                    _opponent_series = _rivalries[
-                        (_rivalries["manager_a"] == _manager_a)
-                        | (_rivalries["manager_b"] == _manager_a)
-                    ].copy()
-                    _opponent_series["opponent"] = _opponent_series.apply(
-                        lambda row: (
-                            row["manager_b"]
-                            if row["manager_a"] == _manager_a else row["manager_a"]
-                        ),
-                        axis=1,
-                    )
-                    _opponent_series["series_gap"] = (
-                        _opponent_series["manager_a_wins"]
-                        - _opponent_series["manager_b_wins"]
-                    ).abs()
-                    _opponent_series = _opponent_series.sort_values(
-                        ["games", "series_gap", "opponent"],
-                        ascending=[False, True, True],
-                    )
-                    _manager_b_options = sorted(
-                        _opponent_series["opponent"].unique().tolist()
-                    )
-                    _default_b = _opponent_series.iloc[0]["opponent"]
-                    if st.session_state.get("lh_h2h_manager_b") not in _manager_b_options:
-                        st.session_state.pop("lh_h2h_manager_b", None)
-                    with _select_b:
-                        _manager_b = st.selectbox(
-                            "Manager B",
-                            _manager_b_options,
-                            index=_manager_b_options.index(_default_b),
-                            key="lh_h2h_manager_b",
-                        )
-
-                    _selected_series = _rivalries[
-                        ((_rivalries["manager_a"] == _manager_a)
-                         & (_rivalries["manager_b"] == _manager_b))
-                        | ((_rivalries["manager_a"] == _manager_b)
-                           & (_rivalries["manager_b"] == _manager_a))
+                    _requested_locks = [
+                        _lock_lookup[label]
+                        for label in _selected_lock_labels
+                        if label in _lock_lookup
                     ]
-                    if _selected_series.empty:
+                    _alternative_requested = st.button(
+                        "Generate another slate",
+                        key="lh_rivalry_regenerate",
+                        disabled=len(_active_rivalry_managers) < 4,
+                    )
+                    if _alternative_requested:
+                        _requested_lock_set = {
+                            tuple(sorted(pair)) for pair in _requested_locks
+                        }
+                        _new_avoid_set = {
+                            tuple(sorted(pair)) for pair in _saved_avoids
+                        }.difference(_requested_lock_set)
+                        for _, _slate_row in _rivalry_slate.iterrows():
+                            if pd.isna(_slate_row.get("manager_b")):
+                                continue
+                            _slate_pair = tuple(sorted((
+                                str(_slate_row["manager_a"]),
+                                str(_slate_row["manager_b"]),
+                            )))
+                            if _slate_pair not in _requested_lock_set:
+                                _new_avoid_set.add(_slate_pair)
+                        _new_avoids = sorted(_new_avoid_set)
+                        st.session_state["lh_rivalry_locked_pairs"] = [
+                            list(pair) for pair in _requested_locks
+                        ]
+                        st.session_state["lh_rivalry_avoided_pairs"] = [
+                            list(pair) for pair in _new_avoids
+                        ]
+                        _rivalry_slate = _league_intel.rivalry_week_slate_frame(
+                            _pair_scores,
+                            locked_pairs=_requested_locks,
+                            avoided_pairs=_new_avoids,
+                        )
+
+                    if len(_active_rivalry_managers) < 2:
                         st.info(
-                            f"{_manager_a} and {_manager_b} did not play during this selection."
+                            "At least two current managers with stable Sleeper owner IDs are "
+                            "needed to build a rivalry slate."
+                        )
+                    elif _rivalry_slate.empty:
+                        st.info("No rivalry slate is available for the current league yet.")
+                    else:
+                        _scored_slate = pd.to_numeric(
+                            _rivalry_slate["rivalry_score"], errors="coerce"
+                        ).dropna()
+                        _matchup_count = int(
+                            _rivalry_slate["manager_b"].notna().sum()
+                        )
+                        _average_score = (
+                            f"{_scored_slate.mean():.1f}/100"
+                            if not _scored_slate.empty else "—"
+                        )
+                        st.caption(
+                            f"{_matchup_count} matchups for "
+                            f"{len(_active_rivalry_managers)} current managers · "
+                            f"average score {_average_score}"
+                        )
+
+                        for _, _slate_row in _rivalry_slate.iterrows():
+                            if pd.isna(_slate_row.get("manager_b")):
+                                st.warning(
+                                    f"**{_slate_row['manager_a']}** has the open slot because "
+                                    "the league currently has an odd number of managers."
+                                )
+                                continue
+                            with st.container(border=True):
+                                _matchup_copy, _score_copy = st.columns([4, 1])
+                                with _matchup_copy:
+                                    _lock_badge = " 🔒" if bool(_slate_row.get("locked")) else ""
+                                    st.markdown(
+                                        f"#### {_slate_row['manager_a']} vs "
+                                        f"{_slate_row['manager_b']}{_lock_badge}"
+                                    )
+                                    st.caption(str(_slate_row["reason"]))
+                                with _score_copy:
+                                    st.metric(
+                                        "Rivalry Score",
+                                        f"{float(_slate_row['rivalry_score']):.1f}/100",
+                                        border=False,
+                                    )
+
+                elif _rivalry_view == "Explore a Matchup":
+                    _h2h_scope = _season_filter if _season_filter != "All Time" else "all-time"
+                    st.markdown("#### Matchup Explorer")
+                    st.caption(
+                        f"Inspect one completed series {_h2h_scope}. Includes playoffs; "
+                        "scores of 5 points or fewer are excluded."
+                    )
+
+                    _h2h_matchups = _all_h2h_matchups
+                    if _season_filter != "All Time":
+                        _h2h_matchups = _h2h_matchups[
+                            _h2h_matchups["season"].astype(str).eq(str(_season_filter))
+                        ].copy()
+                    _rivalries = _league_intel.rivalry_summary_frame(_h2h_matchups)
+                    if _rivalries.empty:
+                        st.info("No completed head-to-head matchups are available for this selection.")
+                    else:
+                        _rivalry_managers = sorted(set(_rivalries["manager_a"]).union(
+                            _rivalries["manager_b"]
+                        ))
+                        _manager_meetings = {manager: 0 for manager in _rivalry_managers}
+                        for _, _series in _rivalries.iterrows():
+                            _manager_meetings[_series["manager_a"]] += int(_series["games"])
+                            _manager_meetings[_series["manager_b"]] += int(_series["games"])
+                        _default_a = sorted(
+                            _rivalry_managers,
+                            key=lambda manager: (-_manager_meetings[manager], manager),
+                        )[0]
+                        if st.session_state.get("lh_h2h_manager_a") not in _rivalry_managers:
+                            st.session_state.pop("lh_h2h_manager_a", None)
+                        _select_a, _select_b = st.columns(2)
+                        with _select_a:
+                            _manager_a = st.selectbox(
+                                "Manager A",
+                                _rivalry_managers,
+                                index=_rivalry_managers.index(_default_a),
+                                key="lh_h2h_manager_a",
+                            )
+
+                        _opponent_series = _rivalries[
+                            (_rivalries["manager_a"] == _manager_a)
+                            | (_rivalries["manager_b"] == _manager_a)
+                        ].copy()
+                        _opponent_series["opponent"] = _opponent_series.apply(
+                            lambda row: (
+                                row["manager_b"]
+                                if row["manager_a"] == _manager_a else row["manager_a"]
+                            ),
+                            axis=1,
+                        )
+                        _opponent_series["series_gap"] = (
+                            _opponent_series["manager_a_wins"]
+                            - _opponent_series["manager_b_wins"]
+                        ).abs()
+                        _opponent_series = _opponent_series.sort_values(
+                            ["games", "series_gap", "opponent"],
+                            ascending=[False, True, True],
+                        )
+                        _manager_b_options = sorted(
+                            _opponent_series["opponent"].unique().tolist()
+                        )
+                        _default_b = _opponent_series.iloc[0]["opponent"]
+                        if st.session_state.get("lh_h2h_manager_b") not in _manager_b_options:
+                            st.session_state.pop("lh_h2h_manager_b", None)
+                        with _select_b:
+                            _manager_b = st.selectbox(
+                                "Manager B",
+                                _manager_b_options,
+                                index=_manager_b_options.index(_default_b),
+                                key="lh_h2h_manager_b",
+                            )
+
+                        _selected_series = _rivalries[
+                            ((_rivalries["manager_a"] == _manager_a)
+                             & (_rivalries["manager_b"] == _manager_b))
+                            | ((_rivalries["manager_a"] == _manager_b)
+                               & (_rivalries["manager_b"] == _manager_a))
+                        ]
+                        if _selected_series.empty:
+                            st.info(
+                                f"{_manager_a} and {_manager_b} did not play during this selection."
+                            )
+                        else:
+                            _series = _selected_series.iloc[0]
+                            if _series["manager_a"] == _manager_a:
+                                _a_wins = int(_series["manager_a_wins"])
+                                _b_wins = int(_series["manager_b_wins"])
+                                _a_avg = float(_series["manager_a_avg_score"])
+                                _b_avg = float(_series["manager_b_avg_score"])
+                                _a_diff = float(_series["avg_point_diff"])
+                            else:
+                                _a_wins = int(_series["manager_b_wins"])
+                                _b_wins = int(_series["manager_a_wins"])
+                                _a_avg = float(_series["manager_b_avg_score"])
+                                _b_avg = float(_series["manager_a_avg_score"])
+                                _a_diff = -float(_series["avg_point_diff"])
+                            _ties = int(_series["ties"])
+                            if _a_wins > _b_wins:
+                                _series_leader = _manager_a
+                            elif _b_wins > _a_wins:
+                                _series_leader = _manager_b
+                            else:
+                                _series_leader = "Series tied"
+                            if _a_diff > 0:
+                                _point_edge_manager = _manager_a
+                            elif _a_diff < 0:
+                                _point_edge_manager = _manager_b
+                            else:
+                                _point_edge_manager = None
+                            _streak_manager = _series["current_streak_manager"]
+                            _streak_count = int(_series["current_streak"])
+                            _streak_value = (
+                                "Latest game tied"
+                                if _streak_manager == "Tie"
+                                else f"{_streak_manager} · W{_streak_count}"
+                            )
+
+                            st.markdown(f"#### {_manager_a} vs {_manager_b}")
+                            _r1, _r2, _r3, _r4 = st.columns(4)
+                            with _r1:
+                                st.metric(
+                                    "Series Record",
+                                    f"{_a_wins}–{_b_wins}" + (f"–{_ties}T" if _ties else ""),
+                                    (
+                                        "Series tied"
+                                        if _series_leader == "Series tied"
+                                        else f"{_series_leader} leads"
+                                    ),
+                                    delta_color="off", delta_arrow="off", border=True,
+                                )
+                            with _r2:
+                                st.metric(
+                                    f"{_manager_a} Avg Score", f"{_a_avg:.1f} pts",
+                                    (
+                                        f"{_a_diff:+.2f} per meeting"
+                                        if _a_diff else "Even per meeting"
+                                    ),
+                                    delta_color="off", delta_arrow="off", border=True,
+                                )
+                            with _r3:
+                                st.metric(
+                                    f"{_manager_b} Avg Score", f"{_b_avg:.1f} pts",
+                                    (
+                                        f"{-_a_diff:+.2f} per meeting"
+                                        if _a_diff else "Even per meeting"
+                                    ),
+                                    delta_color="off", delta_arrow="off", border=True,
+                                )
+                            with _r4:
+                                st.metric(
+                                    "Current Streak", _streak_value,
+                                    f"{int(_series['playoff_meetings'])} playoff meetings",
+                                    delta_color="off", delta_arrow="off", border=True,
+                                )
+
+                            _pair_mask = (
+                                ((_h2h_matchups["team_a"] == _manager_a)
+                                 & (_h2h_matchups["team_b"] == _manager_b))
+                                | ((_h2h_matchups["team_a"] == _manager_b)
+                                   & (_h2h_matchups["team_b"] == _manager_a))
+                            )
+                            _rivalry_games = _h2h_matchups[_pair_mask].copy()
+                            _rivalry_games["season_sort"] = pd.to_numeric(
+                                _rivalry_games["season"], errors="coerce"
+                            ).fillna(0)
+                            _rivalry_games = _rivalry_games.sort_values(
+                                ["season_sort", "week"]
+                            ).reset_index(drop=True)
+
+                            def _score_for_manager(row, manager):
+                                if row["is_tie"]:
+                                    return float(row["winner_score"])
+                                return float(
+                                    row["winner_score"]
+                                    if row["winner"] == manager else row["loser_score"]
+                                )
+
+                            _rivalry_games["manager_a_score"] = _rivalry_games.apply(
+                                lambda row: _score_for_manager(row, _manager_a), axis=1
+                            )
+                            _rivalry_games["manager_b_score"] = _rivalry_games.apply(
+                                lambda row: _score_for_manager(row, _manager_b), axis=1
+                            )
+                            _rivalry_games["signed_margin"] = (
+                                _rivalry_games["manager_a_score"]
+                                - _rivalry_games["manager_b_score"]
+                            )
+                            _rivalry_games["game_label"] = _rivalry_games.apply(
+                                lambda row: f"{row['season']} W{int(row['week'])}", axis=1
+                            )
+                            _bar_colors = [
+                                "#38bdf8" if margin > 0 else "#fb7185" if margin < 0 else "#94a3b8"
+                                for margin in _rivalry_games["signed_margin"]
+                            ]
+                            _fig_rivalry = go.Figure(go.Bar(
+                                x=_rivalry_games["game_label"],
+                                y=_rivalry_games["signed_margin"],
+                                marker={
+                                    "color": _bar_colors,
+                                    "line": {"color": "rgba(255,255,255,0.45)", "width": 1},
+                                },
+                                customdata=_rivalry_games[[
+                                    "manager_a_score", "manager_b_score", "winner", "is_playoff",
+                                ]],
+                                hovertemplate=(
+                                    f"<b>%{{x}}</b><br>{_manager_a}: %{{customdata[0]:.2f}}<br>"
+                                    f"{_manager_b}: %{{customdata[1]:.2f}}<br>"
+                                    "Winner: %{customdata[2]}<br>Margin: %{y:+.2f}"
+                                    "<br>Playoff: %{customdata[3]}<extra></extra>"
+                                ),
+                            ))
+                            _playoff_games = _rivalry_games[_rivalry_games["is_playoff"]]
+                            if not _playoff_games.empty:
+                                _fig_rivalry.add_trace(go.Scatter(
+                                    x=_playoff_games["game_label"],
+                                    y=_playoff_games["signed_margin"],
+                                    mode="markers",
+                                    name="Playoff meeting",
+                                    marker={
+                                        "symbol": "diamond", "size": 11,
+                                        "color": "#fbbf24",
+                                        "line": {"color": "#f8fafc", "width": 1},
+                                    },
+                                    hovertemplate="Playoff meeting<extra></extra>",
+                                ))
+                            _fig_rivalry.add_hline(
+                                y=0, line_color="#94a3b8", line_width=1
+                            )
+                            _fig_rivalry.update_layout(
+                                title=f"{_manager_a} vs {_manager_b}: Game-by-Game Margin",
+                                height=460,
+                                template="plotly_dark",
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="rgba(15,23,42,0.36)",
+                                margin={"l": 55, "r": 35, "t": 70, "b": 70},
+                                showlegend=not _playoff_games.empty,
+                                xaxis={
+                                    "title": "Meeting",
+                                    "tickangle": -35,
+                                    "gridcolor": "rgba(148,163,184,0.08)",
+                                },
+                                yaxis={
+                                    "title": f"Margin: {_manager_a} (+) / {_manager_b} (–)",
+                                    "gridcolor": "rgba(148,163,184,0.16)",
+                                    "zeroline": False,
+                                },
+                                legend={"orientation": "h", "y": -0.28},
+                            )
+                            st.plotly_chart(_fig_rivalry, width="stretch")
+
+                            _largest_game = _rivalry_games.loc[
+                                _rivalry_games["signed_margin"].abs().idxmax()
+                            ]
+                            if _series_leader == "Series tied":
+                                _series_meaning = (
+                                    "Neither manager has established a repeatable advantage in the win column"
+                                )
+                            elif _point_edge_manager == _series_leader:
+                                _series_meaning = (
+                                    f"{_series_leader} leads both the series and average scoring, so the edge is "
+                                    "supported by weekly production rather than only close-game timing"
+                                )
+                            else:
+                                _series_meaning = (
+                                    f"{_series_leader} leads the series, but {_point_edge_manager} owns the average "
+                                    "scoring edge; the record is therefore less dominant than the W–L line looks"
+                                )
+                            _recent_meaning = (
+                                "the latest meeting ended level"
+                                if _streak_manager == "Tie"
+                                else (
+                                    f"{_streak_manager} has won the last {_streak_count} meetings, creating recent momentum"
+                                    if _streak_count > 1
+                                    else f"{_streak_manager} won the latest meeting, but there is no multi-game streak"
+                                )
+                            )
+                            _largest_winner = (
+                                _manager_a
+                                if _largest_game["signed_margin"] > 0 else _manager_b
+                            )
+                            st.markdown(
+                                f" **What it means:** {_series_meaning}. {_recent_meaning.capitalize()}. "
+                                f"The rivalry's biggest separation was {_largest_winner}'s "
+                                f"{abs(_largest_game['signed_margin']):.2f}-point win in "
+                                f"{_largest_game['game_label']}; the rest of the bars show whether that result was "
+                                "typical or an isolated blowout."
+                            )
+
+                else:
+                    _h2h_scope = (
+                        _season_filter
+                        if _season_filter != "All Time" else "all-time"
+                    )
+                    st.markdown("#### League Matrix")
+                    st.caption(
+                        f"Compare every completed series {_h2h_scope}. Includes playoffs; "
+                        "scores of 5 points or fewer are excluded."
+                    )
+                    _h2h_matchups = _all_h2h_matchups
+                    if _season_filter != "All Time":
+                        _h2h_matchups = _h2h_matchups[
+                            _h2h_matchups["season"].astype(str).eq(
+                                str(_season_filter)
+                            )
+                        ].copy()
+                    _rivalries = _league_intel.rivalry_summary_frame(_h2h_matchups)
+                    if _rivalries.empty:
+                        st.info(
+                            "No completed head-to-head matchups are available for "
+                            "this selection."
                         )
                     else:
-                        _series = _selected_series.iloc[0]
-                        if _series["manager_a"] == _manager_a:
-                            _a_wins = int(_series["manager_a_wins"])
-                            _b_wins = int(_series["manager_b_wins"])
-                            _a_avg = float(_series["manager_a_avg_score"])
-                            _b_avg = float(_series["manager_b_avg_score"])
-                            _a_diff = float(_series["avg_point_diff"])
-                        else:
-                            _a_wins = int(_series["manager_b_wins"])
-                            _b_wins = int(_series["manager_a_wins"])
-                            _a_avg = float(_series["manager_b_avg_score"])
-                            _b_avg = float(_series["manager_a_avg_score"])
-                            _a_diff = -float(_series["avg_point_diff"])
-                        _ties = int(_series["ties"])
-                        if _a_wins > _b_wins:
-                            _series_leader = _manager_a
-                        elif _b_wins > _a_wins:
-                            _series_leader = _manager_b
-                        else:
-                            _series_leader = "Series tied"
-                        if _a_diff > 0:
-                            _point_edge_manager = _manager_a
-                        elif _a_diff < 0:
-                            _point_edge_manager = _manager_b
-                        else:
-                            _point_edge_manager = None
-                        _streak_manager = _series["current_streak_manager"]
-                        _streak_count = int(_series["current_streak"])
-                        _streak_value = (
-                            "Latest game tied"
-                            if _streak_manager == "Tie"
-                            else f"{_streak_manager} · W{_streak_count}"
+                        _rivalry_managers = sorted(
+                            set(_rivalries["manager_a"]).union(
+                                _rivalries["manager_b"]
+                            )
                         )
+                        _pair_lookup = {
+                            frozenset((row["manager_a"], row["manager_b"])): row
+                            for _, row in _rivalries.iterrows()
+                        }
 
-                        st.markdown(f"#### {_manager_a} vs {_manager_b}")
-                        _r1, _r2, _r3, _r4 = st.columns(4)
-                        with _r1:
-                            st.metric(
-                                "Series Record",
-                                f"{_a_wins}–{_b_wins}" + (f"–{_ties}T" if _ties else ""),
-                                (
-                                    "Series tied"
-                                    if _series_leader == "Series tied"
-                                    else f"{_series_leader} leads"
-                                ),
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _r2:
-                            st.metric(
-                                f"{_manager_a} Avg Score", f"{_a_avg:.1f} pts",
-                                (
-                                    f"{_a_diff:+.2f} per meeting"
-                                    if _a_diff else "Even per meeting"
-                                ),
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _r3:
-                            st.metric(
-                                f"{_manager_b} Avg Score", f"{_b_avg:.1f} pts",
-                                (
-                                    f"{-_a_diff:+.2f} per meeting"
-                                    if _a_diff else "Even per meeting"
-                                ),
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _r4:
-                            st.metric(
-                                "Current Streak", _streak_value,
-                                f"{int(_series['playoff_meetings'])} playoff meetings",
-                                delta_color="off", delta_arrow="off", border=True,
+                        def _record_for(manager, opponent):
+                            row = _pair_lookup.get(frozenset((manager, opponent)))
+                            if row is None:
+                                return 0, 0, 0
+                            if row["manager_a"] == manager:
+                                return (
+                                    int(row["manager_a_wins"]),
+                                    int(row["manager_b_wins"]),
+                                    int(row["ties"]),
+                                )
+                            return (
+                                int(row["manager_b_wins"]),
+                                int(row["manager_a_wins"]),
+                                int(row["ties"]),
                             )
 
-                        _pair_mask = (
-                            ((_h2h_matchups["team_a"] == _manager_a)
-                             & (_h2h_matchups["team_b"] == _manager_b))
-                            | ((_h2h_matchups["team_a"] == _manager_b)
-                               & (_h2h_matchups["team_b"] == _manager_a))
-                        )
-                        _rivalry_games = _h2h_matchups[_pair_mask].copy()
-                        _rivalry_games["season_sort"] = pd.to_numeric(
-                            _rivalry_games["season"], errors="coerce"
-                        ).fillna(0)
-                        _rivalry_games = _rivalry_games.sort_values(
-                            ["season_sort", "week"]
-                        ).reset_index(drop=True)
-
-                        def _score_for_manager(row, manager):
-                            if row["is_tie"]:
-                                return float(row["winner_score"])
-                            return float(
-                                row["winner_score"]
-                                if row["winner"] == manager else row["loser_score"]
+                        _manager_h2h_stats = {}
+                        for _manager in _rivalry_managers:
+                            _wins = _losses = _ties_total = _games_total = 0
+                            for _opponent in _rivalry_managers:
+                                if _manager == _opponent:
+                                    continue
+                                _w, _l, _t = _record_for(_manager, _opponent)
+                                _wins += _w
+                                _losses += _l
+                                _ties_total += _t
+                                _games_total += _w + _l + _t
+                            _manager_h2h_stats[_manager] = (
+                                (_wins + 0.5 * _ties_total) / _games_total
+                                if _games_total else 0,
+                                _games_total,
                             )
+                        _mgrs_sorted = sorted(
+                            _rivalry_managers,
+                            key=lambda manager: (
+                                -_manager_h2h_stats[manager][0],
+                                -_manager_h2h_stats[manager][1],
+                                manager,
+                            ),
+                        )
+                        _heat_values = []
+                        _heat_text = []
+                        _heat_games = []
+                        _matrix_rows = []
+                        for _row_manager in _mgrs_sorted:
+                            _z_row = []
+                            _text_row = []
+                            _games_row = []
+                            _matrix_row = {"Manager": _row_manager}
+                            for _col_manager in _mgrs_sorted:
+                                if _row_manager == _col_manager:
+                                    _z_row.append(None)
+                                    _text_row.append("—")
+                                    _games_row.append(0)
+                                    _matrix_row[_col_manager] = "—"
+                                    continue
+                                _wins, _losses, _ties = _record_for(
+                                    _row_manager, _col_manager
+                                )
+                                _games = _wins + _losses + _ties
+                                _edge = (
+                                    ((_wins + 0.5 * _ties) / _games * 100) - 50
+                                    if _games else None
+                                )
+                                _record_text = f"{_wins}–{_losses}" if _games else "—"
+                                if _games and _ties:
+                                    _record_text += f"–{_ties}T"
+                                _z_row.append(_edge)
+                                _text_row.append(_record_text)
+                                _games_row.append(_games)
+                                _matrix_row[_col_manager] = _record_text
+                            _heat_values.append(_z_row)
+                            _heat_text.append(_text_row)
+                            _heat_games.append(_games_row)
+                            _matrix_rows.append(_matrix_row)
 
-                        _rivalry_games["manager_a_score"] = _rivalry_games.apply(
-                            lambda row: _score_for_manager(row, _manager_a), axis=1
-                        )
-                        _rivalry_games["manager_b_score"] = _rivalry_games.apply(
-                            lambda row: _score_for_manager(row, _manager_b), axis=1
-                        )
-                        _rivalry_games["signed_margin"] = (
-                            _rivalry_games["manager_a_score"]
-                            - _rivalry_games["manager_b_score"]
-                        )
-                        _rivalry_games["game_label"] = _rivalry_games.apply(
-                            lambda row: f"{row['season']} W{int(row['week'])}", axis=1
-                        )
-                        _bar_colors = [
-                            "#38bdf8" if margin > 0 else "#fb7185" if margin < 0 else "#94a3b8"
-                            for margin in _rivalry_games["signed_margin"]
-                        ]
-                        _fig_rivalry = go.Figure(go.Bar(
-                            x=_rivalry_games["game_label"],
-                            y=_rivalry_games["signed_margin"],
-                            marker={
-                                "color": _bar_colors,
-                                "line": {"color": "rgba(255,255,255,0.45)", "width": 1},
+                        _fig_h2h = go.Figure(go.Heatmap(
+                            z=_heat_values,
+                            x=_mgrs_sorted,
+                            y=_mgrs_sorted,
+                            text=_heat_text,
+                            customdata=_heat_games,
+                            texttemplate="%{text}",
+                            textfont={"size": 11},
+                            hoverongaps=False,
+                            zmin=-50,
+                            zmax=50,
+                            zmid=0,
+                            colorscale=[
+                                [0, "#7f1d1d"],
+                                [0.5, "#1e293b"],
+                                [1, "#166534"],
+                            ],
+                            xgap=2,
+                            ygap=2,
+                            colorbar={
+                                "title": "Win-rate edge",
+                                "ticksuffix": " pp",
                             },
-                            customdata=_rivalry_games[[
-                                "manager_a_score", "manager_b_score", "winner", "is_playoff",
-                            ]],
                             hovertemplate=(
-                                f"<b>%{{x}}</b><br>{_manager_a}: %{{customdata[0]:.2f}}<br>"
-                                f"{_manager_b}: %{{customdata[1]:.2f}}<br>"
-                                "Winner: %{customdata[2]}<br>Margin: %{y:+.2f}"
-                                "<br>Playoff: %{customdata[3]}<extra></extra>"
+                                "<b>%{y} vs %{x}</b><br>Record: %{text}<br>"
+                                "Win-rate edge: %{z:+.1f} pp<br>Meetings: %{customdata}<extra></extra>"
                             ),
                         ))
-                        _playoff_games = _rivalry_games[_rivalry_games["is_playoff"]]
-                        if not _playoff_games.empty:
-                            _fig_rivalry.add_trace(go.Scatter(
-                                x=_playoff_games["game_label"],
-                                y=_playoff_games["signed_margin"],
-                                mode="markers",
-                                name="Playoff meeting",
-                                marker={
-                                    "symbol": "diamond", "size": 11,
-                                    "color": "#fbbf24",
-                                    "line": {"color": "#f8fafc", "width": 1},
-                                },
-                                hovertemplate="Playoff meeting<extra></extra>",
-                            ))
-                        _fig_rivalry.add_hline(
-                            y=0, line_color="#94a3b8", line_width=1
-                        )
-                        _fig_rivalry.update_layout(
-                            title=f"{_manager_a} vs {_manager_b}: Game-by-Game Margin",
-                            height=460,
+                        _fig_h2h.update_layout(
+                            title="League-Wide Head-to-Head Dominance",
+                            height=max(520, 42 * len(_mgrs_sorted) + 170),
                             template="plotly_dark",
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(15,23,42,0.36)",
-                            margin={"l": 55, "r": 35, "t": 70, "b": 70},
-                            showlegend=not _playoff_games.empty,
-                            xaxis={
-                                "title": "Meeting",
-                                "tickangle": -35,
-                                "gridcolor": "rgba(148,163,184,0.08)",
-                            },
-                            yaxis={
-                                "title": f"Margin: {_manager_a} (+) / {_manager_b} (–)",
-                                "gridcolor": "rgba(148,163,184,0.16)",
-                                "zeroline": False,
-                            },
-                            legend={"orientation": "h", "y": -0.28},
+                            margin={"l": 95, "r": 45, "t": 75, "b": 110},
+                            xaxis={"title": "Opponent", "tickangle": -45, "side": "bottom"},
+                            yaxis={"title": "Manager", "autorange": "reversed"},
                         )
-                        st.plotly_chart(_fig_rivalry, width="stretch")
+                        st.plotly_chart(_fig_h2h, width="stretch")
 
-                        _largest_game = _rivalry_games.loc[
-                            _rivalry_games["signed_margin"].abs().idxmax()
+                        _analysis_pairs = _rivalries.copy()
+                        _analysis_pairs["series_gap"] = (
+                            _analysis_pairs["manager_a_wins"]
+                            - _analysis_pairs["manager_b_wins"]
+                        ).abs()
+                        _analysis_pairs["dominance"] = _analysis_pairs["series_gap"].div(
+                            _analysis_pairs["games"]
+                        )
+                        _established_pairs = _analysis_pairs[
+                            _analysis_pairs["games"].ge(3)
                         ]
-                        if _series_leader == "Series tied":
-                            _series_meaning = (
-                                "Neither manager has established a repeatable advantage in the win column"
-                            )
-                        elif _point_edge_manager == _series_leader:
-                            _series_meaning = (
-                                f"{_series_leader} leads both the series and average scoring, so the edge is "
-                                "supported by weekly production rather than only close-game timing"
-                            )
-                        else:
-                            _series_meaning = (
-                                f"{_series_leader} leads the series, but {_point_edge_manager} owns the average "
-                                "scoring edge; the record is therefore less dominant than the W–L line looks"
-                            )
-                        _recent_meaning = (
-                            "the latest meeting ended level"
-                            if _streak_manager == "Tie"
-                            else (
-                                f"{_streak_manager} has won the last {_streak_count} meetings, creating recent momentum"
-                                if _streak_count > 1
-                                else f"{_streak_manager} won the latest meeting, but there is no multi-game streak"
-                            )
+                        if _established_pairs.empty:
+                            _established_pairs = _analysis_pairs
+                        _dominant = _established_pairs.sort_values(
+                            ["dominance", "games"], ascending=[False, False]
+                        ).iloc[0]
+                        _competitive = _established_pairs.sort_values(
+                            ["series_gap", "games"], ascending=[True, False]
+                        ).iloc[0]
+                        _dominant_leader = (
+                            _dominant["manager_a"]
+                            if _dominant["manager_a_wins"] > _dominant["manager_b_wins"]
+                            else _dominant["manager_b"]
                         )
-                        _largest_winner = (
-                            _manager_a
-                            if _largest_game["signed_margin"] > 0 else _manager_b
+                        _dominant_wins = max(
+                            int(_dominant["manager_a_wins"]),
+                            int(_dominant["manager_b_wins"]),
                         )
+                        _dominant_losses = min(
+                            int(_dominant["manager_a_wins"]),
+                            int(_dominant["manager_b_wins"]),
+                        )
+                        _winning_opponents = {}
+                        for _manager in _mgrs_sorted:
+                            _winning_opponents[_manager] = sum(
+                                _record_for(_manager, opponent)[0]
+                                > _record_for(_manager, opponent)[1]
+                                for opponent in _mgrs_sorted if opponent != _manager
+                            )
+                        _broadest = sorted(
+                            _mgrs_sorted,
+                            key=lambda manager: (-_winning_opponents[manager], manager),
+                        )[0]
                         st.markdown(
-                            f" **What it means:** {_series_meaning}. {_recent_meaning.capitalize()}. "
-                            f"The rivalry's biggest separation was {_largest_winner}'s "
-                            f"{abs(_largest_game['signed_margin']):.2f}-point win in "
-                            f"{_largest_game['game_label']}; the rest of the bars show whether that result was "
-                            "typical or an isolated blowout."
+                            f" **What it means:** **{_broadest}** owns a winning record against "
+                            f"{_winning_opponents[_broadest]} different managers, the broadest matchup edge in "
+                            f"this view. The most one-sided established series is **{_dominant_leader}** over "
+                            f"**{_dominant['manager_b'] if _dominant_leader == _dominant['manager_a'] else _dominant['manager_a']}** "
+                            f"at {_dominant_wins}–{_dominant_losses}, showing a repeated opponent-specific advantage. "
+                            f"**{_competitive['manager_a']} vs {_competitive['manager_b']}** is the most balanced "
+                            f"established rivalry at {int(_competitive['manager_a_wins'])}–"
+                            f"{int(_competitive['manager_b_wins'])}; neither side has separated consistently. "
+                            "Green cells favor the row manager, red cells favor the column opponent."
                         )
 
-                    _pair_lookup = {
-                        frozenset((row["manager_a"], row["manager_b"])): row
-                        for _, row in _rivalries.iterrows()
-                    }
-
-                    def _record_for(manager, opponent):
-                        row = _pair_lookup.get(frozenset((manager, opponent)))
-                        if row is None:
-                            return 0, 0, 0
-                        if row["manager_a"] == manager:
-                            return (
-                                int(row["manager_a_wins"]),
-                                int(row["manager_b_wins"]),
-                                int(row["ties"]),
-                            )
-                        return (
-                            int(row["manager_b_wins"]),
-                            int(row["manager_a_wins"]),
-                            int(row["ties"]),
-                        )
-
-                    _manager_h2h_stats = {}
-                    for _manager in _rivalry_managers:
-                        _wins = _losses = _ties_total = _games_total = 0
-                        for _opponent in _rivalry_managers:
-                            if _manager == _opponent:
-                                continue
-                            _w, _l, _t = _record_for(_manager, _opponent)
-                            _wins += _w
-                            _losses += _l
-                            _ties_total += _t
-                            _games_total += _w + _l + _t
-                        _manager_h2h_stats[_manager] = (
-                            (_wins + 0.5 * _ties_total) / _games_total
-                            if _games_total else 0,
-                            _games_total,
-                        )
-                    _mgrs_sorted = sorted(
-                        _rivalry_managers,
-                        key=lambda manager: (
-                            -_manager_h2h_stats[manager][0],
-                            -_manager_h2h_stats[manager][1],
-                            manager,
-                        ),
-                    )
-                    _heat_values = []
-                    _heat_text = []
-                    _heat_games = []
-                    _matrix_rows = []
-                    for _row_manager in _mgrs_sorted:
-                        _z_row = []
-                        _text_row = []
-                        _games_row = []
-                        _matrix_row = {"Manager": _row_manager}
-                        for _col_manager in _mgrs_sorted:
-                            if _row_manager == _col_manager:
-                                _z_row.append(None)
-                                _text_row.append("—")
-                                _games_row.append(0)
-                                _matrix_row[_col_manager] = "—"
-                                continue
-                            _wins, _losses, _ties = _record_for(
-                                _row_manager, _col_manager
-                            )
-                            _games = _wins + _losses + _ties
-                            _edge = (
-                                ((_wins + 0.5 * _ties) / _games * 100) - 50
-                                if _games else None
-                            )
-                            _record_text = f"{_wins}–{_losses}" if _games else "—"
-                            if _games and _ties:
-                                _record_text += f"–{_ties}T"
-                            _z_row.append(_edge)
-                            _text_row.append(_record_text)
-                            _games_row.append(_games)
-                            _matrix_row[_col_manager] = _record_text
-                        _heat_values.append(_z_row)
-                        _heat_text.append(_text_row)
-                        _heat_games.append(_games_row)
-                        _matrix_rows.append(_matrix_row)
-
-                    _fig_h2h = go.Figure(go.Heatmap(
-                        z=_heat_values,
-                        x=_mgrs_sorted,
-                        y=_mgrs_sorted,
-                        text=_heat_text,
-                        customdata=_heat_games,
-                        texttemplate="%{text}",
-                        textfont={"size": 11},
-                        hoverongaps=False,
-                        zmin=-50,
-                        zmax=50,
-                        zmid=0,
-                        colorscale=[
-                            [0, "#7f1d1d"],
-                            [0.5, "#1e293b"],
-                            [1, "#166534"],
-                        ],
-                        xgap=2,
-                        ygap=2,
-                        colorbar={
-                            "title": "Win-rate edge",
-                            "ticksuffix": " pp",
-                        },
-                        hovertemplate=(
-                            "<b>%{y} vs %{x}</b><br>Record: %{text}<br>"
-                            "Win-rate edge: %{z:+.1f} pp<br>Meetings: %{customdata}<extra></extra>"
-                        ),
-                    ))
-                    _fig_h2h.update_layout(
-                        title="League-Wide Head-to-Head Dominance",
-                        height=max(520, 42 * len(_mgrs_sorted) + 170),
-                        template="plotly_dark",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(15,23,42,0.36)",
-                        margin={"l": 95, "r": 45, "t": 75, "b": 110},
-                        xaxis={"title": "Opponent", "tickangle": -45, "side": "bottom"},
-                        yaxis={"title": "Manager", "autorange": "reversed"},
-                    )
-                    st.plotly_chart(_fig_h2h, width="stretch")
-
-                    _analysis_pairs = _rivalries.copy()
-                    _analysis_pairs["series_gap"] = (
-                        _analysis_pairs["manager_a_wins"]
-                        - _analysis_pairs["manager_b_wins"]
-                    ).abs()
-                    _analysis_pairs["dominance"] = _analysis_pairs["series_gap"].div(
-                        _analysis_pairs["games"]
-                    )
-                    _established_pairs = _analysis_pairs[
-                        _analysis_pairs["games"].ge(3)
-                    ]
-                    if _established_pairs.empty:
-                        _established_pairs = _analysis_pairs
-                    _dominant = _established_pairs.sort_values(
-                        ["dominance", "games"], ascending=[False, False]
-                    ).iloc[0]
-                    _competitive = _established_pairs.sort_values(
-                        ["series_gap", "games"], ascending=[True, False]
-                    ).iloc[0]
-                    _dominant_leader = (
-                        _dominant["manager_a"]
-                        if _dominant["manager_a_wins"] > _dominant["manager_b_wins"]
-                        else _dominant["manager_b"]
-                    )
-                    _dominant_wins = max(
-                        int(_dominant["manager_a_wins"]),
-                        int(_dominant["manager_b_wins"]),
-                    )
-                    _dominant_losses = min(
-                        int(_dominant["manager_a_wins"]),
-                        int(_dominant["manager_b_wins"]),
-                    )
-                    _winning_opponents = {}
-                    for _manager in _mgrs_sorted:
-                        _winning_opponents[_manager] = sum(
-                            _record_for(_manager, opponent)[0]
-                            > _record_for(_manager, opponent)[1]
-                            for opponent in _mgrs_sorted if opponent != _manager
-                        )
-                    _broadest = sorted(
-                        _mgrs_sorted,
-                        key=lambda manager: (-_winning_opponents[manager], manager),
-                    )[0]
-                    st.markdown(
-                        f" **What it means:** **{_broadest}** owns a winning record against "
-                        f"{_winning_opponents[_broadest]} different managers, the broadest matchup edge in "
-                        f"this view. The most one-sided established series is **{_dominant_leader}** over "
-                        f"**{_dominant['manager_b'] if _dominant_leader == _dominant['manager_a'] else _dominant['manager_a']}** "
-                        f"at {_dominant_wins}–{_dominant_losses}, showing a repeated opponent-specific advantage. "
-                        f"**{_competitive['manager_a']} vs {_competitive['manager_b']}** is the most balanced "
-                        f"established rivalry at {int(_competitive['manager_a_wins'])}–"
-                        f"{int(_competitive['manager_b_wins'])}; neither side has separated consistently. "
-                        "Green cells favor the row manager, red cells favor the column opponent."
-                    )
-
-                    _h2h_df = pd.DataFrame(_matrix_rows).set_index("Manager")
-                    with st.expander("View complete head-to-head record matrix"):
-                        st.dataframe(_h2h_df, width="stretch")
+                        _h2h_df = pd.DataFrame(_matrix_rows).set_index("Manager")
+                        with st.expander("View complete head-to-head record matrix"):
+                            st.dataframe(_h2h_df, width="stretch")
 
             # ── Sub-tab D: Report Cards ───────────────────────────────────────
             with _lhD:

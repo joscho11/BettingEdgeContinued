@@ -581,7 +581,29 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert any(metric.label == "Scoring vs League" for metric in at.metric)
     assert any(metric.label == "Most Consistent" for metric in at.metric)
     assert any(expander.label == "View complete manager records" for expander in at.expander)
+    rivalry_view = next(widget for widget in at.radio if widget.key == "lh_rivalry_view")
+    assert rivalry_view.value == "Build a Week"
+    assert {"lh_rivalry_mode", "lh_rivalry_history"} <= {
+        widget.key for widget in at.selectbox
+    }
+    assert not {"lh_h2h_manager_a", "lh_h2h_manager_b"} & {
+        widget.key for widget in at.selectbox
+    }
+    assert any(
+        button.label == "Generate another slate" for button in at.button
+    )
+    assert not any(
+        expander.label == "View complete head-to-head record matrix"
+        for expander in at.expander
+    )
+
+    rivalry_view.set_value("Explore a Matchup")
+    at.run()
+    assert not at.exception, at.exception
     assert {"lh_h2h_manager_a", "lh_h2h_manager_b"} <= {
+        widget.key for widget in at.selectbox
+    }
+    assert not {"lh_rivalry_mode", "lh_rivalry_history"} & {
         widget.key for widget in at.selectbox
     }
     alice_average = next(
@@ -592,17 +614,19 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     )
     assert alice_average.value == "120.0 pts"
     assert bob_average.value == "80.0 pts"
-    assert {"lh_rivalry_mode", "lh_rivalry_history"} <= {
-        widget.key for widget in at.selectbox
-    }
-    assert any(
-        button.label == "Generate another slate" for button in at.button
-    )
-    assert any(metric.label == "Average Rivalry Score" for metric in at.metric)
+
+    next(
+        widget for widget in at.radio if widget.key == "lh_rivalry_view"
+    ).set_value("League Matrix")
+    at.run()
+    assert not at.exception, at.exception
     assert any(
         expander.label == "View complete head-to-head record matrix"
         for expander in at.expander
     )
+    assert not {"lh_h2h_manager_a", "lh_h2h_manager_b"} & {
+        widget.key for widget in at.selectbox
+    }
     assert any(
         expander.label == "View complete career season history"
         for expander in at.expander
