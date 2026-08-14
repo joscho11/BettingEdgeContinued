@@ -264,7 +264,7 @@ The page also carries four collapsed lists of **college players who are not in t
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-The Film Room page collects short, model-backed video breakdowns. Open the page and the newest episode is already loaded. Pick another title from the list to swap the player; only one TikTok embed is on the page at a time. The channel intro is a separate **Start here** control, not mixed into the episode list. Click **📖 Full breakdown** under the player to open the write-up the short couldn't fit.
+The Film Room page collects short, model-backed video breakdowns. Open the page and the newest episode is already loaded. Pick another title from the list to swap the player; only one TikTok embed is on the page at a time. Click **📖 Full breakdown** under the player to open the write-up the short couldn't fit.
 
 Some older videos predate my validation work and make calls I wouldn't make today. Those carry a **📼 Archived: why?** pop-out explaining what's changed; they stay up, unedited, as part of the record, and point you to what I publish now.
         """)
@@ -455,6 +455,20 @@ The League History page pulls your Sleeper fantasy league's historical data and 
 Enter your Sleeper league ID (found in your league's URL: `sleeper.com/leagues/{ID}/league`) and the page loads standings, matchup results, and season-by-season records for every manager in the league.
 
 You can filter by season or view all-time records across every year your league has existed. It's useful for settling debates about who's actually been the best manager historically versus just the most recent champion.
+
+**Draft & Roster Insights** opens first and adds three chart-first views. Draft Room shows positional timing, runs, backup QB/TE usage and manager tendencies. My Team calculates lineup scoring and season facts after requiring four rostered weeks per player-season. Best Values compares realized lineup production with draft round and keeps post-draft additions separate; waiver, free-agent and trade classification is intentionally deferred until transaction history is explicitly loaded.
+
+The **All-Time Leaderboard** replaces the old table-first records view with headline leaders, a win-rate-versus-adjusted-scoring map, and a ranked win-rate chart. Adjusted scoring compares each manager with that same week's league average, which makes cross-season comparisons fairer than career points scored.
+
+The **Hall of Fame** is a chart-first league record book. Its Chaos Map shows every matchup by combined score and victory margin, while the scoring-range chart adds season or week context. “Luckiest Win” uses all-play probability—the share of teams the winner would have beaten that week—rather than assuming the lowest winning score was automatically the luckiest.
+
+The **Head-to-Head** tab is a rivalry dashboard. Choose two managers to compare their series, average scoring edge, playoff meetings, current streak, and every game margin. The league-wide heatmap shows each row manager's record against every opponent; green favors the row manager and red favors the column opponent. The complete W–L matrix remains available underneath the charts.
+
+The **Report Cards** tab gives each manager transparent league ranks for head-to-head winning, scoring relative to the weekly league average, and consistency. All-time mode charts the manager's season trajectory; a single-season filter switches to a weekly performance chart. The opponent profile shows where that manager consistently gains or loses points, with complete season and opponent details collapsed below.
+
+The **Consistency & Luck** tab separates scoring quality, week-to-week volatility, and matchup timing. Expected wins come from all-play probability: each score is compared with every other team in that same league-week. Actual wins minus expected wins estimates schedule luck, while adjusted volatility measures how steady a manager remained after accounting for the week's scoring environment.
+
+The **Score Trends** tab separates changes in the league's scoring environment from changes in manager performance. All-time mode shows each season's average, median, and middle scoring range beside a manager heatmap adjusted for the exact weeks played. A single-season filter switches to weekly scoring bands and cumulative points above or below the weekly league average, making it easier to distinguish sustained strength from one unusually high-scoring period.
         """)
 
     st.divider()

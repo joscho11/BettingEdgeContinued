@@ -37,6 +37,543 @@ def manager_identity_map(seasons: Mapping) -> dict[str, str]:
     return identities
 
 
+def manager_leaderboard_frame(
+    seasons: Mapping,
+    game_records: list[Mapping],
+) -> pd.DataFrame:
+    """Build fair cross-season manager records and era-adjusted scoring metrics.
+
+    Win/loss records come from Sleeper's regular-season standings.  Scoring is
+    normalized within each league-week, so ``avg_above_league`` compares a
+    manager with the opponents playing under the same settings and scoring era.
+    """
+    columns = [
+        "manager", "titles", "finals", "seasons", "wins", "losses",
+        "win_pct", "best_finish", "avg_score", "avg_above_league", "games",
+    ]
+    stats: dict[str, dict] = {}
+
+    def _manager(name) -> str:
+        value = str(name or "").strip()
+        return "" if value in {"?", "—"} else value
+
+    for season_data in seasons.values():
+        for standing in season_data.get("standings", []) or []:
+            manager = _manager(standing.get("username"))
+            if not manager:
+                continue
+            row = stats.setdefault(manager, {
+                "titles": 0, "runner_ups": 0, "seasons": 0,
+                "wins": 0, "losses": 0, "best_finish": None,
+            })
+            row["seasons"] += 1
+            row["wins"] += int(standing.get("wins") or 0)
+            row["losses"] += int(standing.get("losses") or 0)
+            finish = standing.get("playoff_finish")
+            try:
+                finish = int(finish) if finish is not None else None
+            except (TypeError, ValueError):
+                finish = None
+            if finish is not None:
+                current = row["best_finish"]
+                row["best_finish"] = finish if current is None else min(current, finish)
+
+        champion = _manager((season_data.get("champion") or {}).get("username"))
+        runner_up = _manager((season_data.get("runner_up") or {}).get("username"))
+        if champion:
+            stats.setdefault(champion, {
+                "titles": 0, "runner_ups": 0, "seasons": 0,
+                "wins": 0, "losses": 0, "best_finish": None,
+            })["titles"] += 1
+        if runner_up:
+            stats.setdefault(runner_up, {
+                "titles": 0, "runner_ups": 0, "seasons": 0,
+                "wins": 0, "losses": 0, "best_finish": None,
+            })["runner_ups"] += 1
+
+    weekly_scores: dict[tuple[str, int], list[float]] = {}
+    regular_records: list[tuple[str, str, int, float]] = []
+    for record in game_records:
+        if bool(record.get("is_playoff")):
+            continue
+        manager = _manager(record.get("username"))
+        if not manager:
+            continue
+        try:
+            season = str(record.get("season"))
+            week = int(record.get("week") or 0)
+            score = float(record.get("score"))
+        except (TypeError, ValueError):
+            continue
+        weekly_scores.setdefault((season, week), []).append(score)
+        regular_records.append((manager, season, week, score))
+
+    weekly_means = {
+        key: sum(scores) / len(scores)
+        for key, scores in weekly_scores.items()
+        if scores
+    }
+    manager_scores: dict[str, list[float]] = {}
+    manager_adjusted: dict[str, list[float]] = {}
+    for manager, season, week, score in regular_records:
+        manager_scores.setdefault(manager, []).append(score)
+        manager_adjusted.setdefault(manager, []).append(
+            score - weekly_means[(season, week)]
+        )
+
+    rows = []
+    for manager, values in stats.items():
+        wins = int(values["wins"])
+        losses = int(values["losses"])
+        decisions = wins + losses
+        scores = manager_scores.get(manager, [])
+        adjusted = manager_adjusted.get(manager, [])
+        rows.append({
+            "manager": manager,
+            "titles": int(values["titles"]),
+            "finals": int(values["titles"] + values["runner_ups"]),
+            "seasons": int(values["seasons"]),
+            "wins": wins,
+            "losses": losses,
+            "win_pct": round(wins / decisions * 100, 1) if decisions else None,
+            "best_finish": values["best_finish"],
+            "avg_score": round(sum(scores) / len(scores), 2) if scores else None,
+            "avg_above_league": (
+                round(sum(adjusted) / len(adjusted), 2) if adjusted else None
+            ),
+            "games": len(scores),
+        })
+    return pd.DataFrame(rows, columns=columns)
+
+
+def matchup_record_frame(
+    game_records: list[Mapping],
+    min_valid_score: float = 5.0,
+) -> pd.DataFrame:
+    """Return one auditable row per played matchup with all-play win context.
+
+    ``all_play_win_pct`` asks how often the actual winner would have beaten every
+    other team in that same league-week.  It is a stronger luck signal than
+    simply finding the lowest raw score that happened to win.
+    """
+    columns = [
+        "season", "week", "is_playoff", "team_a", "team_b", "is_tie",
+        "winner", "loser",
+        "winner_score", "loser_score", "margin", "combined",
+        "all_play_wins", "all_play_ties", "all_play_opponents",
+        "all_play_win_pct",
+    ]
+    weekly_scores: dict[tuple[str, int], dict[str, float]] = {}
+    normalized: list[dict] = []
+
+    for record in game_records:
+        manager = str(record.get("username") or "").strip()
+        opponent = str(record.get("opp") or "").strip()
+        if not manager or not opponent or "?" in {manager, opponent}:
+            continue
+        try:
+            season = str(record.get("season"))
+            week = int(record.get("week") or 0)
+            score = float(record.get("score"))
+            opponent_score = float(record.get("opp_score"))
+        except (TypeError, ValueError):
+            continue
+        if score <= min_valid_score:
+            continue
+        weekly_scores.setdefault((season, week), {})[manager] = score
+        normalized.append({
+            "season": season,
+            "week": week,
+            "is_playoff": bool(record.get("is_playoff")),
+            "manager": manager,
+            "opponent": opponent,
+            "score": score,
+            "opponent_score": opponent_score,
+        })
+
+    rows = []
+    seen: set[tuple[str, int, tuple[str, str]]] = set()
+    for record in normalized:
+        if record["opponent_score"] <= min_valid_score:
+            continue
+        pair = tuple(sorted((record["manager"], record["opponent"])))
+        key = (record["season"], record["week"], pair)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        score = record["score"]
+        opponent_score = record["opponent_score"]
+        if score > opponent_score:
+            winner, loser = record["manager"], record["opponent"]
+            winner_score, loser_score = score, opponent_score
+        elif opponent_score > score:
+            winner, loser = record["opponent"], record["manager"]
+            winner_score, loser_score = opponent_score, score
+        else:
+            winner = loser = "Tie"
+            winner_score = loser_score = score
+
+        all_play_wins = None
+        all_play_ties = None
+        all_play_opponents = None
+        all_play_win_pct = None
+        if winner != "Tie":
+            field = weekly_scores.get((record["season"], record["week"]), {})
+            comparison_scores = [
+                value for manager, value in field.items() if manager != winner
+            ]
+            if comparison_scores:
+                all_play_wins = sum(winner_score > value for value in comparison_scores)
+                all_play_ties = sum(winner_score == value for value in comparison_scores)
+                all_play_opponents = len(comparison_scores)
+                all_play_win_pct = round(
+                    (all_play_wins + 0.5 * all_play_ties)
+                    / all_play_opponents * 100,
+                    1,
+                )
+
+        rows.append({
+            "season": record["season"],
+            "week": record["week"],
+            "is_playoff": record["is_playoff"],
+            "team_a": record["manager"],
+            "team_b": record["opponent"],
+            "is_tie": winner == "Tie",
+            "winner": winner,
+            "loser": loser,
+            "winner_score": round(winner_score, 2),
+            "loser_score": round(loser_score, 2),
+            "margin": round(abs(winner_score - loser_score), 2),
+            "combined": round(winner_score + loser_score, 2),
+            "all_play_wins": all_play_wins,
+            "all_play_ties": all_play_ties,
+            "all_play_opponents": all_play_opponents,
+            "all_play_win_pct": all_play_win_pct,
+        })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ["season", "week", "winner"], ignore_index=True
+    )
+
+
+def rivalry_summary_frame(matchups: pd.DataFrame) -> pd.DataFrame:
+    """Summarize every manager pairing from normalized matchup records."""
+    columns = [
+        "manager_a", "manager_b", "games", "manager_a_wins", "manager_b_wins",
+        "ties", "manager_a_avg_score", "manager_b_avg_score", "avg_point_diff",
+        "playoff_meetings", "current_streak_manager", "current_streak",
+        "closest_margin", "largest_margin",
+    ]
+    if matchups.empty:
+        return pd.DataFrame(columns=columns)
+
+    work = matchups.copy()
+    work["pair"] = work.apply(
+        lambda row: tuple(sorted((str(row["team_a"]), str(row["team_b"])))),
+        axis=1,
+    )
+    work["season_sort"] = pd.to_numeric(work["season"], errors="coerce").fillna(0)
+    rows = []
+    for (manager_a, manager_b), games in work.groupby("pair", sort=True):
+        games = games.sort_values(["season_sort", "week"]).copy()
+        manager_a_scores = []
+        manager_b_scores = []
+        results = []
+        for _, game in games.iterrows():
+            if bool(game["is_tie"]):
+                score_a = score_b = float(game["winner_score"])
+                result = "Tie"
+            elif game["winner"] == manager_a:
+                score_a = float(game["winner_score"])
+                score_b = float(game["loser_score"])
+                result = manager_a
+            else:
+                score_a = float(game["loser_score"])
+                score_b = float(game["winner_score"])
+                result = manager_b
+            manager_a_scores.append(score_a)
+            manager_b_scores.append(score_b)
+            results.append(result)
+
+        last_result = results[-1]
+        streak = 0
+        for result in reversed(results):
+            if result != last_result:
+                break
+            streak += 1
+        rows.append({
+            "manager_a": manager_a,
+            "manager_b": manager_b,
+            "games": len(games),
+            "manager_a_wins": sum(result == manager_a for result in results),
+            "manager_b_wins": sum(result == manager_b for result in results),
+            "ties": sum(result == "Tie" for result in results),
+            "manager_a_avg_score": round(sum(manager_a_scores) / len(games), 2),
+            "manager_b_avg_score": round(sum(manager_b_scores) / len(games), 2),
+            "avg_point_diff": round(
+                (sum(manager_a_scores) - sum(manager_b_scores)) / len(games), 2
+            ),
+            "playoff_meetings": int(games["is_playoff"].sum()),
+            "current_streak_manager": last_result,
+            "current_streak": streak,
+            "closest_margin": round(float(games["margin"].min()), 2),
+            "largest_margin": round(float(games["margin"].max()), 2),
+        })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ["games", "manager_a", "manager_b"],
+        ascending=[False, True, True],
+        ignore_index=True,
+    )
+
+
+def weekly_score_context_frame(
+    game_records: list[Mapping],
+    include_playoffs: bool = False,
+    min_valid_score: float = 5.0,
+) -> pd.DataFrame:
+    """Return one manager-week per row with same-week league scoring context."""
+    columns = [
+        "season", "week", "manager", "opponent", "score", "opponent_score",
+        "league_average", "league_median", "adjusted_score", "result",
+    ]
+    records = []
+    for record in game_records:
+        if bool(record.get("is_playoff")) and not include_playoffs:
+            continue
+        manager = str(record.get("username") or "").strip()
+        opponent = str(record.get("opp") or "").strip()
+        if not manager or manager in {"?", "—"}:
+            continue
+        try:
+            season = str(record.get("season"))
+            week = int(record.get("week") or 0)
+            score = float(record.get("score"))
+            opponent_score = float(record.get("opp_score"))
+        except (TypeError, ValueError):
+            continue
+        if score <= min_valid_score or opponent_score <= min_valid_score:
+            continue
+        records.append({
+            "season": season,
+            "week": week,
+            "manager": manager,
+            "opponent": opponent,
+            "score": score,
+            "opponent_score": opponent_score,
+        })
+    if not records:
+        return pd.DataFrame(columns=columns)
+
+    work = pd.DataFrame(records).drop_duplicates(
+        ["season", "week", "manager"], keep="first"
+    )
+    weekly = work.groupby(["season", "week"])["score"]
+    work["league_average"] = weekly.transform("mean")
+    work["league_median"] = weekly.transform("median")
+    work["adjusted_score"] = work["score"] - work["league_average"]
+    work["result"] = work.apply(
+        lambda row: (
+            "W" if row["score"] > row["opponent_score"]
+            else "L" if row["score"] < row["opponent_score"]
+            else "T"
+        ),
+        axis=1,
+    )
+    return work[columns].sort_values(
+        ["season", "week", "manager"], ignore_index=True
+    )
+
+
+def manager_performance_frame(
+    game_records: list[Mapping],
+    include_playoffs: bool = False,
+    min_valid_score: float = 5.0,
+) -> pd.DataFrame:
+    """Build regular-season manager performance with weekly league context."""
+    columns = [
+        "manager", "games", "wins", "losses", "ties", "win_pct",
+        "avg_score", "avg_above_league", "std_dev", "lucky_wins",
+        "unlucky_losses",
+    ]
+    records = []
+    for record in game_records:
+        if bool(record.get("is_playoff")) and not include_playoffs:
+            continue
+        manager = str(record.get("username") or "").strip()
+        if not manager or manager in {"?", "—"}:
+            continue
+        try:
+            season = str(record.get("season"))
+            week = int(record.get("week") or 0)
+            score = float(record.get("score"))
+            opponent_score = float(record.get("opp_score"))
+        except (TypeError, ValueError):
+            continue
+        if score <= min_valid_score or opponent_score <= min_valid_score:
+            continue
+        records.append({
+            "season": season,
+            "week": week,
+            "manager": manager,
+            "score": score,
+            "opponent_score": opponent_score,
+        })
+    if not records:
+        return pd.DataFrame(columns=columns)
+
+    work = pd.DataFrame(records).drop_duplicates(
+        ["season", "week", "manager"], keep="first"
+    )
+    weekly_means = work.groupby(["season", "week"])["score"].mean().to_dict()
+    work["league_average"] = work.apply(
+        lambda row: weekly_means[(row["season"], row["week"])], axis=1
+    )
+    work["adjusted_score"] = work["score"] - work["league_average"]
+    work["result"] = work.apply(
+        lambda row: (
+            "W" if row["score"] > row["opponent_score"]
+            else "L" if row["score"] < row["opponent_score"]
+            else "T"
+        ),
+        axis=1,
+    )
+
+    rows = []
+    for manager, games in work.groupby("manager", sort=True):
+        wins = int(games["result"].eq("W").sum())
+        losses = int(games["result"].eq("L").sum())
+        ties = int(games["result"].eq("T").sum())
+        game_count = len(games)
+        rows.append({
+            "manager": manager,
+            "games": game_count,
+            "wins": wins,
+            "losses": losses,
+            "ties": ties,
+            "win_pct": round((wins + 0.5 * ties) / game_count * 100, 1),
+            "avg_score": round(float(games["score"].mean()), 2),
+            "avg_above_league": round(float(games["adjusted_score"].mean()), 2),
+            "std_dev": round(float(games["score"].std()), 2) if game_count > 1 else 0.0,
+            "lucky_wins": int(
+                (games["result"].eq("W") & games["adjusted_score"].lt(0)).sum()
+            ),
+            "unlucky_losses": int(
+                (games["result"].eq("L") & games["adjusted_score"].gt(0)).sum()
+            ),
+        })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ["avg_above_league", "win_pct"],
+        ascending=[False, False],
+        ignore_index=True,
+    )
+
+
+def consistency_luck_frame(
+    game_records: list[Mapping],
+    min_valid_score: float = 5.0,
+) -> pd.DataFrame:
+    """Measure adjusted scoring volatility and schedule luck via all-play wins."""
+    columns = [
+        "manager", "games", "avg_score", "avg_above_league", "volatility",
+        "actual_wins", "expected_wins", "luck_delta", "actual_win_pct",
+        "expected_win_pct", "below_avg_wins", "above_avg_losses",
+    ]
+    records = []
+    for record in game_records:
+        if bool(record.get("is_playoff")):
+            continue
+        manager = str(record.get("username") or "").strip()
+        if not manager or manager in {"?", "—"}:
+            continue
+        try:
+            season = str(record.get("season"))
+            week = int(record.get("week") or 0)
+            score = float(record.get("score"))
+            opponent_score = float(record.get("opp_score"))
+        except (TypeError, ValueError):
+            continue
+        if score <= min_valid_score or opponent_score <= min_valid_score:
+            continue
+        records.append({
+            "season": season,
+            "week": week,
+            "manager": manager,
+            "score": score,
+            "opponent_score": opponent_score,
+        })
+    if not records:
+        return pd.DataFrame(columns=columns)
+
+    work = pd.DataFrame(records).drop_duplicates(
+        ["season", "week", "manager"], keep="first"
+    )
+    weekly_fields = {
+        key: group.set_index("manager")["score"].to_dict()
+        for key, group in work.groupby(["season", "week"])
+    }
+
+    expected_wins = []
+    league_averages = []
+    results = []
+    for _, row in work.iterrows():
+        field = weekly_fields[(row["season"], row["week"])]
+        league_average = sum(field.values()) / len(field)
+        comparisons = [
+            score for manager, score in field.items() if manager != row["manager"]
+        ]
+        if comparisons:
+            wins = sum(row["score"] > score for score in comparisons)
+            ties = sum(row["score"] == score for score in comparisons)
+            expected_win = (wins + 0.5 * ties) / len(comparisons)
+        else:
+            expected_win = 0.5
+        result = (
+            "W" if row["score"] > row["opponent_score"]
+            else "L" if row["score"] < row["opponent_score"]
+            else "T"
+        )
+        expected_wins.append(expected_win)
+        league_averages.append(league_average)
+        results.append(result)
+    work["expected_win"] = expected_wins
+    work["league_average"] = league_averages
+    work["adjusted_score"] = work["score"] - work["league_average"]
+    work["result"] = results
+    work["actual_win_value"] = work["result"].map({"W": 1.0, "L": 0.0, "T": 0.5})
+
+    rows = []
+    for manager, games in work.groupby("manager", sort=True):
+        game_count = len(games)
+        actual_wins = float(games["actual_win_value"].sum())
+        all_play_expected = float(games["expected_win"].sum())
+        rows.append({
+            "manager": manager,
+            "games": game_count,
+            "avg_score": round(float(games["score"].mean()), 2),
+            "avg_above_league": round(float(games["adjusted_score"].mean()), 2),
+            "volatility": (
+                round(float(games["adjusted_score"].std()), 2)
+                if game_count > 1 else 0.0
+            ),
+            "actual_wins": round(actual_wins, 2),
+            "expected_wins": round(all_play_expected, 2),
+            "luck_delta": round(actual_wins - all_play_expected, 2),
+            "actual_win_pct": round(actual_wins / game_count * 100, 1),
+            "expected_win_pct": round(all_play_expected / game_count * 100, 1),
+            "below_avg_wins": int(
+                (games["result"].eq("W") & games["adjusted_score"].lt(0)).sum()
+            ),
+            "above_avg_losses": int(
+                (games["result"].eq("L") & games["adjusted_score"].gt(0)).sum()
+            ),
+        })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ["avg_above_league", "luck_delta"],
+        ascending=[False, False],
+        ignore_index=True,
+    )
+
+
 def draft_pick_frame(seasons: Mapping) -> pd.DataFrame:
     """Normalize Sleeper draft-pick payloads across league seasons."""
     rows: list[dict] = []

@@ -12,7 +12,7 @@ The dashboard does not train, re-score, calibrate, or alter it.
   features. ADP is not a model input. Sleeper is not one of the 132 columns.
 - Frozen v6 2026 board snapshot:
   `projections_v2/independent_model/outputs/independent_half_ppr_points_2026_equal_hurdle_blend_v6.csv`
-  SHA-256 `2887cba971abd35bc3162906b3a057a3ef28b1bbf97f20e9f81615189f8114f7`.
+  SHA-256 `c26f128ea69980463ae4aa0fb7ac469954610b91cb53caae672dbebaff1d3477`.
 - Published universe: 180 rows (24 QB, 60 RB, 72 WR, and 24 TE). 2026 Sleeper
   coverage on that universe is 180/180.
 - Historical 2021-25, published mix: MAE 49.312, pairwise .710126, RMSE 63.090,
@@ -22,17 +22,18 @@ The dashboard does not train, re-score, calibrate, or alter it.
   RMSE 66.359, top-six 47/120. Beats ADP in 2023 only (1 of 6).
 - ADP on the same 2021-25 panel: pairwise .696530.
 - Published 2026 board CSV SHA-256:
-  `9d7da8f0a28e0ceb98f525fe93d54548d9fc1cd69173aa5c0eb646ada580e761`.
+  `f95549c01cdef2d8e1570d2926a2dffc93306ae5df8272186bafaf0bbf7255b2`.
 - Imported dashboard CSV SHA-256 (same bytes):
-  `9d7da8f0a28e0ceb98f525fe93d54548d9fc1cd69173aa5c0eb646ada580e761`.
+  `f95549c01cdef2d8e1570d2926a2dffc93306ae5df8272186bafaf0bbf7255b2`.
 - Independent v6 OOF SHA-256 (not the board CSV):
   `6a4c48f4cc10a4e65abe5d9f3b651a034210e37a8d809bd40ea4537fe6fd7a37`.
 
-The import was refreshed on 2026-08-13 when Joseph put the 25% Sleeper mix on
-the website and kept v6 as the independent model. This does not change the
-180-player universe or the daily Sleeper ADP overlay.
+Refreshed 2026-08-13: Ricky Pearsall removed (season-ending IR). Tre' Harris is
+the replacement WR72. Deebo Samuel is attached as SF RWR1. Independent current
+stays v6. Mix weights and the 2021-25 mix backtest are unchanged.
 
-Model Proj points and ranks are frozen until the planned dated early-September
-2026 public-information snapshot. The dashboard separately refreshes Sleeper ADP
-and Sleeper projection points daily over these exact 180 players, then recomputes
-live Sleeper ranks plus Sleeper Gap and Model Gap.
+Model Proj points and ranks stay on this board until the planned dated
+early-September 2026 public-information snapshot, except for explicit
+season-ending roster cuts Joseph asks for. The dashboard separately refreshes
+Sleeper ADP and Sleeper projection points daily over these exact 180 players,
+then recomputes live Sleeper ranks plus Sleeper Gap and Model Gap.

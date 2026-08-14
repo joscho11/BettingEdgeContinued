@@ -18,6 +18,7 @@ _SITE_PAGES = _HERE / "site_pages"
 sys.path.insert(0, str(_HERE))
 
 import page_league_history
+from fantasy import league_intelligence as league_intel
 
 
 def _render_page(tmp_path, module):
@@ -202,6 +203,358 @@ def test_league_history_caps_matchup_workers_without_network(monkeypatch):
         assert seen_workers[0] <= 6
     finally:
         page_league_history._fetch_sleeper_history.clear()
+
+
+def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
+    seasons = {}
+    for season in ("2023", "2024", "2025"):
+        seasons[season] = {
+            "draft_id": f"draft-{season}",
+            "draft_picks": [
+                {"pick_no": 1, "round": 1, "pick_in_round": 1, "draft_slot": 1,
+                 "picked_by": "u1", "player_id": f"rb-{season}",
+                 "metadata": {"first_name": "Early", "last_name": "Runner", "position": "RB"}},
+                {"pick_no": 2, "round": 1, "pick_in_round": 2, "draft_slot": 2,
+                 "picked_by": "u2", "player_id": f"wr-{season}",
+                 "metadata": {"first_name": "Early", "last_name": "Receiver", "position": "WR"}},
+                {"pick_no": 13, "round": 2, "pick_in_round": 1, "draft_slot": 2,
+                 "picked_by": "u2", "player_id": f"te-{season}",
+                 "metadata": {"first_name": "First", "last_name": "Tight End", "position": "TE"}},
+                {"pick_no": 25, "round": 3, "pick_in_round": 1, "draft_slot": 1,
+                 "picked_by": "u1", "player_id": f"qb-{season}",
+                 "metadata": {"first_name": "First", "last_name": "Quarterback", "position": "QB"}},
+                {"pick_no": 37, "round": 4, "pick_in_round": 1, "draft_slot": 1,
+                 "picked_by": "u1", "player_id": f"qb2-{season}",
+                 "metadata": {"first_name": "Backup", "last_name": "Quarterback", "position": "QB"}},
+                {"pick_no": 38, "round": 4, "pick_in_round": 2, "draft_slot": 2,
+                 "picked_by": "u2", "player_id": f"te2-{season}",
+                 "metadata": {"first_name": "Backup", "last_name": "Tight End", "position": "TE"}},
+            ],
+        }
+
+    picks = league_intel.draft_pick_frame(seasons)
+    managers = league_intel.manager_season_frame(picks)
+    construction = league_intel.roster_construction_frame(managers)
+    timing = league_intel.first_pick_timing_frame(picks)
+
+    assert len(picks) == 18
+    assert set(timing["position"]) == {"QB", "TE"}
+    assert set(timing[timing["position"] == "QB"]["round"]) == {3}
+    assert set(timing[timing["position"] == "TE"]["round"]) == {2}
+    assert construction["avg_qb"].eq(1).all()
+    assert construction["avg_te"].eq(1).all()
+    insights = league_intel.draft_insights(picks, managers, "u1")
+    assert any(item["title"] == "Your early-round fingerprint" for item in insights)
+    assert all({"finding", "meaning", "evidence", "confidence"} <= set(item) for item in insights)
+
+
+def test_league_history_defaults_to_draft_and_roster_insights():
+    assert page_league_history._LEAGUE_HISTORY_TABS[0] == "🧠 Draft & Roster Insights"
+    assert page_league_history._LEAGUE_HISTORY_TABS[1] == "🏆 All-Time Leaderboard"
+
+
+def test_manager_leaderboard_adjusts_scores_within_each_league_week():
+    seasons = {
+        "2024": {
+            "standings": [
+                {"username": "Alice", "wins": 2, "losses": 0, "playoff_finish": 1},
+                {"username": "Bob", "wins": 0, "losses": 2, "playoff_finish": 2},
+            ],
+            "champion": {"username": "Alice"},
+            "runner_up": {"username": "Bob"},
+        },
+        "2025": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 1, "playoff_finish": 2},
+                {"username": "Bob", "wins": 1, "losses": 1, "playoff_finish": 1},
+            ],
+            "champion": {"username": "Bob"},
+            "runner_up": {"username": "Alice"},
+        },
+    }
+    games = [
+        {"season": "2024", "week": 1, "username": "Alice", "score": 110, "is_playoff": False},
+        {"season": "2024", "week": 1, "username": "Bob", "score": 90, "is_playoff": False},
+        {"season": "2024", "week": 2, "username": "Alice", "score": 80, "is_playoff": False},
+        {"season": "2024", "week": 2, "username": "Bob", "score": 120, "is_playoff": False},
+        {"season": "2024", "week": 15, "username": "Alice", "score": 200, "is_playoff": True},
+    ]
+
+    leaders = league_intel.manager_leaderboard_frame(seasons, games).set_index("manager")
+    assert leaders.loc["Alice", "win_pct"] == 75.0
+    assert leaders.loc["Alice", "titles"] == 1
+    assert leaders.loc["Alice", "finals"] == 2
+    assert leaders.loc["Alice", "seasons"] == 2
+    assert leaders.loc["Alice", "avg_score"] == 95.0
+    assert leaders.loc["Alice", "avg_above_league"] == -5.0
+    assert leaders.loc["Bob", "avg_above_league"] == 5.0
+    assert leaders.loc["Alice", "games"] == 2
+
+
+def test_matchup_record_book_uses_weekly_all_play_for_luck():
+    games = [
+        {"season": "2025", "week": 1, "username": "Alice", "score": 110,
+         "opp": "Bob", "opp_score": 100, "won": True, "is_playoff": False},
+        {"season": "2025", "week": 1, "username": "Bob", "score": 100,
+         "opp": "Alice", "opp_score": 110, "won": False, "is_playoff": False},
+        {"season": "2025", "week": 1, "username": "Carol", "score": 150,
+         "opp": "Dan", "opp_score": 140, "won": True, "is_playoff": False},
+        {"season": "2025", "week": 1, "username": "Dan", "score": 140,
+         "opp": "Carol", "opp_score": 150, "won": False, "is_playoff": False},
+        {"season": "2025", "week": 2, "username": "Alice", "score": 4,
+         "opp": "Bob", "opp_score": 3, "won": True, "is_playoff": False},
+    ]
+
+    matchups = league_intel.matchup_record_frame(games)
+    assert len(matchups) == 2
+    alice = matchups.set_index("winner").loc["Alice"]
+    carol = matchups.set_index("winner").loc["Carol"]
+    assert alice["combined"] == 210
+    assert alice["margin"] == 10
+    assert alice["all_play_wins"] == 1
+    assert alice["all_play_opponents"] == 3
+    assert alice["all_play_win_pct"] == 33.3
+    assert carol["all_play_win_pct"] == 100.0
+
+
+def test_rivalry_summary_tracks_series_scoring_playoffs_and_streaks():
+    games = []
+    for season, week, alice_score, bob_score, playoff in (
+        ("2024", 1, 100, 90, False),
+        ("2024", 2, 100, 110, False),
+        ("2025", 15, 100, 120, True),
+    ):
+        games.extend([
+            {"season": season, "week": week, "username": "Alice",
+             "score": alice_score, "opp": "Bob", "opp_score": bob_score,
+             "won": alice_score > bob_score, "is_playoff": playoff},
+            {"season": season, "week": week, "username": "Bob",
+             "score": bob_score, "opp": "Alice", "opp_score": alice_score,
+             "won": bob_score > alice_score, "is_playoff": playoff},
+        ])
+
+    matchups = league_intel.matchup_record_frame(games)
+    rivalry = league_intel.rivalry_summary_frame(matchups).iloc[0]
+    assert rivalry["manager_a"] == "Alice"
+    assert rivalry["manager_b"] == "Bob"
+    assert rivalry["games"] == 3
+    assert rivalry["manager_a_wins"] == 1
+    assert rivalry["manager_b_wins"] == 2
+    assert rivalry["manager_a_avg_score"] == 100.0
+    assert rivalry["manager_b_avg_score"] == 106.67
+    assert rivalry["avg_point_diff"] == -6.67
+    assert rivalry["playoff_meetings"] == 1
+    assert rivalry["current_streak_manager"] == "Bob"
+    assert rivalry["current_streak"] == 2
+    assert rivalry["closest_margin"] == 10
+    assert rivalry["largest_margin"] == 20
+
+
+def test_manager_performance_uses_peer_week_context_and_excludes_playoffs():
+    games = []
+    weekly = {
+        1: {"Alice": (95, "Bob", 90), "Bob": (90, "Alice", 95),
+            "Carol": (130, "Dan", 85), "Dan": (85, "Carol", 130)},
+        2: {"Alice": (110, "Bob", 120), "Bob": (120, "Alice", 110),
+            "Carol": (90, "Dan", 80), "Dan": (80, "Carol", 90)},
+    }
+    for week, managers in weekly.items():
+        for manager, (score, opponent, opponent_score) in managers.items():
+            games.append({
+                "season": "2025", "week": week, "username": manager,
+                "score": score, "opp": opponent, "opp_score": opponent_score,
+                "won": score > opponent_score, "is_playoff": False,
+            })
+    games.extend([
+        {"season": "2025", "week": 15, "username": "Alice", "score": 200,
+         "opp": "Bob", "opp_score": 100, "won": True, "is_playoff": True},
+        {"season": "2025", "week": 15, "username": "Bob", "score": 100,
+         "opp": "Alice", "opp_score": 200, "won": False, "is_playoff": True},
+    ])
+
+    context = league_intel.weekly_score_context_frame(games)
+    assert len(context) == 8
+    alice_week_one = context[
+        context["manager"].eq("Alice") & context["week"].eq(1)
+    ].iloc[0]
+    alice_week_two = context[
+        context["manager"].eq("Alice") & context["week"].eq(2)
+    ].iloc[0]
+    assert alice_week_one["league_average"] == 100.0
+    assert alice_week_one["league_median"] == 92.5
+    assert alice_week_one["adjusted_score"] == -5.0
+    assert alice_week_two["league_average"] == 100.0
+    assert alice_week_two["league_median"] == 100.0
+    assert alice_week_two["adjusted_score"] == 10.0
+
+    performance = league_intel.manager_performance_frame(games).set_index("manager")
+    alice = performance.loc["Alice"]
+    assert alice["games"] == 2
+    assert alice["wins"] == 1
+    assert alice["losses"] == 1
+    assert alice["win_pct"] == 50.0
+    assert alice["avg_score"] == 102.5
+    assert alice["avg_above_league"] == 2.5
+    assert alice["std_dev"] == 10.61
+    assert alice["lucky_wins"] == 1
+    assert alice["unlucky_losses"] == 1
+
+    consistency = league_intel.consistency_luck_frame(games).set_index("manager")
+    alice_luck = consistency.loc["Alice"]
+    carol_luck = consistency.loc["Carol"]
+    assert alice_luck["games"] == 2
+    assert alice_luck["avg_above_league"] == 2.5
+    assert alice_luck["volatility"] == 10.61
+    assert alice_luck["actual_wins"] == 1.0
+    assert alice_luck["expected_wins"] == 1.33
+    assert alice_luck["luck_delta"] == -0.33
+    assert alice_luck["below_avg_wins"] == 1
+    assert alice_luck["above_avg_losses"] == 1
+    assert carol_luck["luck_delta"] == 0.67
+
+
+def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboard(tmp_path):
+    fixture = {
+        "league_name": "Test League",
+        "seasons": {
+            "2025": {
+                "league_id": "1255197436951932928",
+                "draft_id": "draft-2025",
+                "status": "complete",
+                "champion": {"username": "Alice", "team_name": "A Team"},
+                "runner_up": {"username": "Bob", "team_name": "B Team"},
+                "standings": [
+                    {
+                        "rank": 1, "roster_id": 1, "owner_id": "u1",
+                        "username": "Alice", "team_name": "A Team", "wins": 1,
+                        "losses": 0, "ties": 0, "fpts": 120.0,
+                        "fpts_against": 80.0, "playoff_finish": 1,
+                    },
+                    {
+                        "rank": 2, "roster_id": 2, "owner_id": "u2",
+                        "username": "Bob", "team_name": "B Team", "wins": 0,
+                        "losses": 1, "ties": 0, "fpts": 80.0,
+                        "fpts_against": 120.0, "playoff_finish": 2,
+                    },
+                ],
+                "matchups": [{
+                    "season": "2025", "week": 1, "is_playoff": False,
+                    "rid_a": "1", "rid_b": "2", "score_a": 120.0, "score_b": 80.0,
+                }],
+                "draft_picks": [],
+                "roster_entries": [],
+                "league_settings": {
+                    "total_rosters": 2, "roster_positions": [], "scoring_settings": {},
+                },
+            },
+        },
+    }
+    harness = tmp_path / "league_history_loaded.py"
+    harness.write_text(
+        f"import sys\nsys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "import page_league_history as p\n"
+        "p._OFFLINE = False\n"
+        f"p._fetch_sleeper_history = lambda _league_id: {fixture!r}\n"
+        "p._fetch_player_directory = lambda: {}\n"
+        "p.render()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness), default_timeout=180).run()
+    league_input = next(widget for widget in at.text_input if widget.key == "lh_league_id")
+    league_input.set_value("1255197436951932928")
+    next(button for button in at.button if button.label == "Load league history").click()
+    at.run()
+
+    assert not at.exception, at.exception
+    assert [tab.label for tab in at.tabs][:2] == [
+        "🧠 Draft & Roster Insights", "🏆 All-Time Leaderboard",
+    ]
+    assert len(at.get("plotly_chart")) >= 4
+    assert any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
+    assert any(metric.label == "🍀 Luckiest Win (All-Play)" for metric in at.metric)
+    assert any(metric.label == "Scoring vs League" for metric in at.metric)
+    assert any(metric.label == "Most Consistent" for metric in at.metric)
+    assert any(expander.label == "View complete manager records" for expander in at.expander)
+    assert {"lh_h2h_manager_a", "lh_h2h_manager_b"} <= {
+        widget.key for widget in at.selectbox
+    }
+    assert any(
+        expander.label == "View complete head-to-head record matrix"
+        for expander in at.expander
+    )
+    assert any(
+        expander.label == "View complete career season history"
+        for expander in at.expander
+    )
+    assert any(
+        expander.label == "View complete opponent breakdown"
+        for expander in at.expander
+    )
+    assert any(
+        expander.label == "View complete consistency and luck metrics"
+        for expander in at.expander
+    )
+    assert any(metric.label == "League Average" for metric in at.metric)
+    assert any(
+        expander.label == "View complete score trend data"
+        for expander in at.expander
+    )
+
+    season_filter = next(
+        widget for widget in at.selectbox if widget.key == "lh_season_filter"
+    )
+    season_filter.set_value("2025")
+    at.run()
+    assert not at.exception, at.exception
+    assert any(metric.label == "Scoring vs League" for metric in at.metric)
+    assert any(metric.label == "League Average" for metric in at.metric)
+
+
+def test_player_history_uses_four_week_filter_and_excludes_null_matchup_points():
+    entries = []
+    for week, matchup_id in ((1, 1), (2, 2), (3, 3), (18, None)):
+        entries.append({
+            "season": "2025", "week": week, "roster_id": 4, "matchup_id": matchup_id,
+            "players": ["p1", "p2", "p3"] if week <= 3 else ["p1", "p3"],
+            "starters": ["p1", "p3"] if week <= 2 else ["p3"],
+            "players_points": {
+                "p1": {1: 10, 2: 20, 3: 30, 18: 99}[week],
+                "p2": 4,
+                "p3": 5,
+            },
+        })
+    seasons = {
+        "2025": {
+            "draft_id": "draft-2025",
+            "standings": [{"roster_id": 4, "owner_id": "u1", "username": "Manager"}],
+            "draft_picks": [{
+                "pick_no": 88, "round": 8, "pick_in_round": 4, "draft_slot": 4,
+                "picked_by": "u1", "player_id": "p1",
+                "metadata": {"first_name": "Draft", "last_name": "Hit", "position": "QB"},
+            }],
+            "roster_entries": entries,
+        }
+    }
+    directory = {
+        "p1": {"full_name": "Draft Hit", "position": "QB"},
+        "p2": {"full_name": "Short Stay", "position": "WR"},
+        "p3": {"full_name": "Added Player", "position": "RB"},
+    }
+
+    weeks = league_intel.player_week_frame(seasons, directory)
+    summary = league_intel.player_season_summary(weeks, min_roster_weeks=4)
+    assert set(summary["player_id"]) == {"p1", "p3"}
+
+    p1 = summary.set_index("player_id").loc["p1"]
+    assert p1["roster_weeks"] == 4
+    assert p1["starts"] == 2
+    assert p1["lineup_points"] == 30
+    assert p1["roster_points"] == 60
+    assert p1["bench_points"] == 30
+
+    values = league_intel.value_frame(summary, league_intel.draft_pick_frame(seasons))
+    sources = values.set_index("player_id")["source"].to_dict()
+    assert sources == {"p1": "Drafted", "p3": "In-season addition"}
 
 
 if __name__ == "__main__":

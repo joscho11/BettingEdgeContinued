@@ -44,16 +44,17 @@ def test_default_is_newest_episode(tmp_path):
     newest = _newest()
     md = _md(at)
     assert newest["title"] in md
-    assert INTRO_VIDEO["title"] not in md
+    assert "Welcome to JoScho Analytics" not in md
     watch = [m for m in at.markdown if "Watch on TikTok" in str(m.value)]
     assert len(watch) == 1, "only the selected video should render a Watch link"
     assert newest["tiktok_url"] in str(watch[0].value)
 
 
-def test_picker_lists_intro_and_every_episode(tmp_path):
+def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
     at = _render(tmp_path)
     labels = [str(b.label) for b in at.button]
-    assert any(lbl.startswith("Start here") for lbl in labels)
+    assert not any("Start here" in lbl for lbl in labels)
+    assert INTRO_VIDEO is None
     for item in VIDEOS:
         if item.get("archived"):
             assert any(item["title"] in lbl for lbl in labels)
@@ -62,20 +63,6 @@ def test_picker_lists_intro_and_every_episode(tmp_path):
     breakdowns = [b for b in at.button if "Full breakdown" in str(b.label)
                   or "What is this?" in str(b.label)]
     assert len(breakdowns) == 1
-
-
-def test_start_here_loads_intro_and_keeps_one_embed(tmp_path):
-    at = _render(tmp_path)
-    at.button("fr_pick___intro__").click()
-    at.run()
-    assert not at.exception, at.exception
-    assert not at.error, [e.value for e in at.error]
-    md = _md(at)
-    assert INTRO_VIDEO["title"] in md
-    watch = [m for m in at.markdown if "Watch on TikTok" in str(m.value)]
-    assert len(watch) == 1
-    assert INTRO_VIDEO["tiktok_url"] in str(watch[0].value)
-    assert any("What is this?" in str(b.label) for b in at.button)
 
 
 def test_switching_episode_swaps_the_embed(tmp_path):

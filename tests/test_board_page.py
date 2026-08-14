@@ -311,6 +311,13 @@ def test_fernando_mendoza_team_override_is_identity_only():
     assert row["team"] == "LV"
 
 
+def test_deebo_samuel_team_override_is_sf():
+    import draft_board_2026 as board
+
+    row = board._load_board_2026().set_index("player_id").loc["00-0035719"]
+    assert row["team"] == "SF"
+
+
 @pytest.mark.skip(reason="Retired dashboard contract: V2 publishes immutable source values with no analyst overlay.")
 def test_overlay_audit_helper_and_caption_disclosure():
     """The on-page expander was removed at Joseph's request 2026-07-27. The programmatic

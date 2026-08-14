@@ -6,34 +6,18 @@ To add a video after posting it:
   2. Drop its in-depth breakdown as markdown in  video_breakdowns/<breakdown_file>.
 The `video_id` is the number at the end of the TikTok URL (.../video/<id>).
 
-ORDER DOES NOT MATTER HERE. film_room.py treats the intro as the Start here
-control and sorts episodes by `date`, newest first (default selection). This
-list stays append-only. `date` is ISO (YYYY-MM-DD) and is the publish
+ORDER DOES NOT MATTER HERE. film_room.py sorts episodes by `date`, newest first
+(default selection). This list stays append-only. `date` is ISO (YYYY-MM-DD) and is the publish
 date shown on the player; an entry without one still renders, it just carries no date line and
 sorts to the end.
 """
 
-# The channel intro, featured at the top of the tab as "what this is about".
-INTRO_VIDEO = {
-    "title": "Welcome to JoScho Analytics",
-    # Upload date of the CURRENT video, decoded from the TikTok id (id >> 32 is unix
-    # seconds). Earlier ids for this intro were superseded and deleted. The intro is pinned
-    # to the first card regardless of date, so this only feeds the displayed date line.
-    "date": "2026-07-08",
-    "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7660252294327307550",
-    "video_id": "7660252294327307550",
-    "blurb": (
-        "Model-backed sports analysis, not hot takes. Built by an ML engineer, with the code "
-        "public on GitHub. Watch a short, then open the deep dive the video couldn't fit."
-    ),
-    "about": (
-        "### 📺 About the Film Room\n\n"
-        "Every call here comes from a machine-learning model I built and run live. The code's "
-        "public on my GitHub, and I show you the reasoning, not just the pick. Each short gives "
-        "you the headline; the write-up next to it digs into the data the video couldn't fit: "
-        "New player and matchup breakdowns land here as I post them."
-    ),
-}
+# Optional channel intro. None until a replacement is posted. The old Welcome video
+# (id 7660252294327307550) is gone: it was outdated and its ATS figure was wrong.
+# To restore a Start here control, set this to a dict with title, date, tiktok_url,
+# video_id, and optional about/blurb/subtitle. film_room.py already knows how to
+# render it.
+INTRO_VIDEO = None
 
 # Player / topic videos. Each gets an embed + a click-to-open written breakdown.
 # `archived: True` + `archive_note` adds a compact "📼 Archived: why?" pop-out to the

@@ -3,10 +3,8 @@
 Kept out of app.py so adding a video is a data-only change (see video_content.py).
 
 Only the selected video mounts a TikTok iframe. Opening the page defaults to the
-newest episode. The channel intro is a separate Start here control, not mixed into
-the episode list. film_room.py still computes order: intro is pinned as Start here,
-episodes sort by publish date newest first. VIDEOS in video_content.py stays
-append-only.
+newest episode. An optional INTRO_VIDEO in video_content.py (currently None) would
+reappear as a Start here control. VIDEOS stays append-only.
 """
 import os
 from datetime import date as _date
@@ -72,11 +70,15 @@ def _render_published(item: dict) -> None:
     )
 
 
-def _intro_item() -> dict:
+def _intro_item() -> dict | None:
+    if not INTRO_VIDEO:
+        return None
     return {
         **INTRO_VIDEO,
         "slug": _INTRO_KEY,
-        "short_caption": "Start here: what the channel is about.",
+        "short_caption": INTRO_VIDEO.get(
+            "short_caption", "Start here: what the channel is about."
+        ),
     }
 
 
@@ -85,13 +87,15 @@ def _episodes() -> list:
     return sorted(VIDEOS, key=lambda v: v.get("date") or "", reverse=True)
 
 
-def _item_for(sel: str, intro: dict, episodes: list) -> dict:
-    if sel == _INTRO_KEY:
+def _item_for(sel: str, intro: dict | None, episodes: list) -> dict | None:
+    if intro is not None and sel == _INTRO_KEY:
         return intro
     for item in episodes:
         if item.get("slug") == sel:
             return item
-    return episodes[0] if episodes else intro
+    if episodes:
+        return episodes[0]
+    return intro
 
 
 def _load_breakdown(fname: str) -> str:
@@ -154,7 +158,10 @@ def _pick_button(label: str, slug: str, selected: str) -> None:
     )
 
 
-def _render_player(item: dict, open_breakdown) -> None:
+def _render_player(item: dict | None, open_breakdown) -> None:
+    if item is None:
+        st.caption("No videos in the Film Room yet.")
+        return
     _render_published(item)
     st.markdown(f"**{item['title']}**")
     caption = item.get("subtitle") or item.get("short_caption")
@@ -196,14 +203,15 @@ def render_film_room() -> None:
 
     intro = _intro_item()
     episodes = _episodes()
+    default = episodes[0]["slug"] if episodes else (_INTRO_KEY if intro else "")
     if _SEL_KEY not in st.session_state:
-        st.session_state[_SEL_KEY] = (
-            episodes[0]["slug"] if episodes else _INTRO_KEY
-        )
+        st.session_state[_SEL_KEY] = default
     selected = st.session_state[_SEL_KEY]
-    valid = {_INTRO_KEY, *(item["slug"] for item in episodes)}
+    valid = {item["slug"] for item in episodes}
+    if intro is not None:
+        valid.add(_INTRO_KEY)
     if selected not in valid:
-        selected = episodes[0]["slug"] if episodes else _INTRO_KEY
+        selected = default
         st.session_state[_SEL_KEY] = selected
     open_breakdown = _make_dialog()
 
@@ -212,13 +220,13 @@ def render_film_room() -> None:
     player, picker = st.columns([1.45, 1], vertical_alignment="top")
     with picker:
         with st.container(key="jsa-filmroom-picker"):
-            st.caption("Start here")
-            _pick_button(
-                intro["short_caption"],
-                _INTRO_KEY,
-                selected,
-            )
-            st.caption("Episodes")
+            if intro is not None:
+                st.caption("Start here")
+                _pick_button(
+                    intro["short_caption"],
+                    _INTRO_KEY,
+                    selected,
+                )
             for item in episodes:
                 label = item["title"]
                 if item.get("archived"):

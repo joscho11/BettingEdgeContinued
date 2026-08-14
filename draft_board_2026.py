@@ -48,7 +48,10 @@ ANALYST_PROJECTION_ADJUSTMENTS = (
 )
 # Dated roster corrections for board identity metadata only. These never alter a projection,
 # rank, gap, or model input.
-TEAM_OVERRIDES_2026 = {"MEN516487": "LV"}  # Fernando Mendoza — Raiders, 2026-08-12
+TEAM_OVERRIDES_2026 = {
+    "MEN516487": "LV",   # Fernando Mendoza, Raiders, 2026-08-12
+    "00-0035719": "SF",  # Deebo Samuel, re-signed, live Ourlads RWR1
+}
 # Descriptive talent artifacts (fantasy/talent/, provenance-stamped). NFL Talent scores players
 # with NFL history against NFL players at their own position; College Talent scores 2026 rookies
 # (all four positions) against past prospects who reached the NFL. Disjoint by construction
