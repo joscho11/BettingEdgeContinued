@@ -31,10 +31,10 @@ def _demo_notice():
     """Pre-season demo banner: this page shows past games until Week 1, and points
     visitors to the live Draft Board. Auto-hides once the season starts."""
     st.info(
-        "👋 **Heads up — Weekly Predictions is a demo until the 2026 season kicks "
+        "👋 **Heads up. Weekly Predictions is a demo until the 2026 season kicks "
         "off.** The games below are from 2025, shown so you can see how the model "
-        "works; live 2026 predictions start at Week 1. In the meantime, take a look "
-        "around the top nav — my **2026 Draft Board has frozen Model Proj and "
+        "works. Live 2026 predictions start at Week 1 (September 9). In the meantime, take a look "
+        "around the top nav. My **2026 Draft Board has frozen Model Proj and "
         "daily Sleeper market data**.")
     board = nav_registry.PAGES.get("draft-board")
     if board is not None:

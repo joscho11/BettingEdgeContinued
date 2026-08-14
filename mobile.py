@@ -136,26 +136,11 @@ details summary{
 .jsa-ff-head{ padding:7px 9px !important; }
 .jsa-ff-head span{ font-size:10px !important; letter-spacing:.2px !important; }
 
-/* ── 9b. Film Room card header — the ONE fixed-height container we release ─
-   film_room.py builds each card's title block with st.container(height=130) purely to
-   line the video embeds up ACROSS a row of three. On a phone the cards stack one per
-   row, so it aligns nothing and just leaves ~70px of dead space above every embed (and
-   would clip a title that wrapped). Let it size to its content instead.
-   SCOPED BY KEY, deliberately: this rule used to match ANY explicitly sized container
-   on the site, which would silently release a future scroll box that wanted its height.
-   film_room passes key="jsa-filmroom-card-<id>", which Streamlit renders as an
-   `st-key-…` class — the officially supported hook.
-   The height is carried by BOTH the layout wrapper and the vertical block inside it,
-   so releasing only one changes nothing, and Streamlit pins the size with
-   `flex: 0 0 130px` as well — in a flex column the basis IS the main size, so
-   releasing `height` alone would do nothing at all. */
-[class*="st-key-jsa-filmroom-card"],
-[class*="st-key-jsa-filmroom-card"] [data-testid="stVerticalBlock"][height]{
-  height:auto !important;
-  max-height:none !important;
-  overflow:visible !important;
-  flex:0 0 auto !important;
-}
+/* ── 9b. Film Room ───────────────────────────────────────────────────────
+   The 3-up embed grid is gone. Film Room is one player (left) plus a title
+   list (right). Streamlit already stacks those columns below 640px, player
+   first, so the video is on screen before the list. Picker tap targets and
+   wrapped labels are set in film_room.py (`jsa-filmroom-picker`). */
 
 /* ── 10. Metric tiles ─────────────────────────────────────────────────────
    min-height keeps a tile with a sub-line the same height as one without, so the

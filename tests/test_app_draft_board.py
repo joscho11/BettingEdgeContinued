@@ -105,6 +105,16 @@ def test_outside_market_sort_is_numeric_and_blanks_sink():
           f"blank talent cells sink both ways; default Model Proj on {len(outside)} rows")
 
 
+def test_missing_talent_renders_blank_not_none():
+    sys.path.insert(0, str(_HERE))
+    import draft_board_2026 as board
+
+    s = pd.Series([61.4, float("nan"), 50.0])
+    assert list(board._blank_missing_talent(s, decimals=0)) == ["61", "", "50"]
+    assert list(board._blank_missing_talent(s, decimals=1)) == ["61.4", "", "50.0"]
+
+
 if __name__ == "__main__":
     test_board_sort_is_numeric_and_sentinels_sink()
     test_outside_market_sort_is_numeric_and_blanks_sink()
+    test_missing_talent_renders_blank_not_none()

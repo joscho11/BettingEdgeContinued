@@ -1,0 +1,53 @@
+{
+  "generated_on": "2026-08-13",
+  "source": "fantasy_qb_te_draft_timing_study",
+  "source_hashes": {
+    "recommendations.csv": "D74708812F7067B6506388864F30F05917C34B27AD33697E04103AA081EA99D2",
+    "draft_picks.csv": "FB72CF6280C20824ADE3CF095D64DADA7F8338FFC2563481807EA86797C44564",
+    "league_seasons.csv": "1BC137EC2E7B8FA4685573E4A85DDD10DC142E9BBA6E66A4DCD5411EF63F8A93"
+  },
+  "comparable_draft_filter": {
+    "team_count": 12,
+    "draft_rounds": 14,
+    "scoring_type": "half_ppr",
+    "reception_points": 0.5,
+    "passing_td_points": 4.0,
+    "qb_start_slots": 1,
+    "superflex_slots": 0,
+    "te_start_slots_min": 1,
+    "complete_redraft_boards_only": true
+  },
+  "first_pick_market_medians": {
+    "2023": {
+      "drafts": 14,
+      "QB": 19.5,
+      "TE": 7.0
+    },
+    "2024": {
+      "drafts": 13,
+      "QB": 24.0,
+      "TE": 25.0
+    },
+    "2025": {
+      "drafts": 11,
+      "QB": 21.0,
+      "TE": 22.0
+    }
+  },
+  "timing_study": {
+    "QB": {
+      "supported_round_window": "12+",
+      "evidence_grade": "exploratory",
+      "n": 830,
+      "adjusted_points_zscore": 0.1166010824,
+      "top_6_rate": 0.5457831325
+    },
+    "TE": {
+      "supported_round_window": "10-11",
+      "evidence_grade": "moderate",
+      "n": 1692,
+      "adjusted_points_zscore": 0.0784229093,
+      "top_6_rate": 0.5310283688
+    }
+  }
+}

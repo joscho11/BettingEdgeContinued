@@ -6,9 +6,10 @@ To add a video after posting it:
   2. Drop its in-depth breakdown as markdown in  video_breakdowns/<breakdown_file>.
 The `video_id` is the number at the end of the TikTok URL (.../video/<id>).
 
-ORDER DOES NOT MATTER HERE. film_room.py pins the intro first and sorts the rest by `date`,
-newest first, so this list stays append-only. `date` is ISO (YYYY-MM-DD) and is the publish
-date shown on the card; an entry without one still renders, it just carries no date line and
+ORDER DOES NOT MATTER HERE. film_room.py treats the intro as the Start here
+control and sorts episodes by `date`, newest first (default selection). This
+list stays append-only. `date` is ISO (YYYY-MM-DD) and is the publish
+date shown on the player; an entry without one still renders, it just carries no date line and
 sorts to the end.
 """
 

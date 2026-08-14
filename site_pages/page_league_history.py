@@ -54,6 +54,13 @@ def _sleeper_get(url: str):
         return None
 
 
+@st.cache_data(ttl=86400, max_entries=1)
+def _fetch_player_directory() -> dict:
+    """Sleeper asks consumers to cache the large NFL player directory."""
+    payload = _sleeper_get("https://api.sleeper.app/v1/players/nfl")
+    return payload if isinstance(payload, dict) else {}
+
+
 @st.cache_data(ttl=3600, max_entries=_HISTORY_CACHE_ENTRIES)
 def _fetch_sleeper_history(start_league_id: str) -> dict:
     seasons = {}
@@ -79,6 +86,11 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
         users_raw   = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/users")   or []
         rosters_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/rosters")  or []
         bracket_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/winners_bracket") or []
+        draft_id    = str(info.get("draft_id") or "")
+        draft_picks = (
+            _sleeper_get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks") or []
+            if draft_id else []
+        )
 
         user_map = {
             u["user_id"]: {
@@ -120,6 +132,7 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
             fpts_ag  = s.get("fpts_against", 0) + s.get("fpts_against_decimal", 0) / 100
             standings.append({
                 "roster_id":     ro.get("roster_id"),
+                "owner_id":      owner_id,
                 "username":      u["username"],
                 "team_name":     u["team_name"],
                 "wins":          s.get("wins", 0),
@@ -161,6 +174,7 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
             _wk_data = dict(_pool.map(_fetch_wk, range(1, 19)))
 
         _matchups_season: list = []
+        _roster_entries_season: list = []
         for _wk in range(1, 19):
             _wk_raw = _wk_data.get(_wk)
             if not _wk_raw or not isinstance(_wk_raw, list):
@@ -170,6 +184,15 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
                 if not isinstance(_entry, dict):
                     continue
                 _mid = _entry.get("matchup_id")
+                _roster_entries_season.append({
+                    "season": yr,
+                    "week": _wk,
+                    "roster_id": _entry.get("roster_id"),
+                    "matchup_id": _mid,
+                    "players": list(_entry.get("players") or []),
+                    "starters": list(_entry.get("starters") or []),
+                    "players_points": dict(_entry.get("players_points") or {}),
+                })
                 if _mid is None:
                     continue
                 _grps.setdefault(_mid, []).append(_entry)
@@ -192,11 +215,19 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
 
         seasons[yr] = {
             "league_id": current_id,
+            "draft_id": draft_id,
             "status":    info.get("status"),
             "champion":  {"username": champ["username"], "team_name": champ.get("team_name", "")},
             "runner_up": {"username": ruup["username"],  "team_name": ruup.get("team_name", "")},
             "standings": standings,
             "matchups":  _matchups_season,
+            "draft_picks": draft_picks if isinstance(draft_picks, list) else [],
+            "roster_entries": _roster_entries_season,
+            "league_settings": {
+                "total_rosters": info.get("total_rosters"),
+                "roster_positions": list(info.get("roster_positions") or []),
+                "scoring_settings": dict(info.get("scoring_settings") or {}),
+            },
         }
 
         prev = info.get("previous_league_id")
@@ -305,13 +336,14 @@ def render():
             _h2h_managers = sorted(set(r["username"] for r in _filt_records)) if _season_filter != "All Time" else _all_managers
 
             # Sub-tabs
-            _lhA, _lhB, _lhC, _lhD, _lhE, _lhF = st.tabs([
+            _lhA, _lhB, _lhC, _lhD, _lhE, _lhF, _lhG = st.tabs([
                 "🏆 All-Time Records",
                 "🎖️ Hall of Fame",
                 "⚔️ Head-to-Head",
                 "📋 Report Cards",
                 "📊 Consistency & Luck",
                 "📈 Score Trends",
+                "🧠 Draft & Roster Insights",
             ])
 
             # ── Sub-tab A: All-Time Records ────────────────────────────────────
@@ -795,6 +827,14 @@ def render():
                         hovermode="x unified",
                     )
                     st.plotly_chart(_fig_trend, width="stretch")
+
+            # ── Sub-tab G: Draft & Roster Insights ────────────────────────────
+            with _lhG:
+                # Kept in a separate renderer so this already-large history page remains
+                # navigable and the analytics stay independently testable.
+                from league_insights_view import render as _render_league_insights
+
+                _render_league_insights(_lh, _season_filter, _fetch_player_directory)
 
 
 

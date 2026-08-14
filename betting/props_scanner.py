@@ -175,18 +175,19 @@ def _events_on(date_str: str):
 
 
 def available_cmd(args):
-    evs, hdr = _events_on(args.date)
+    evs, events_hdr = _events_on(args.date)
     if not evs:
         print(f"No events on {args.date}.")
         return
     e = evs[0]
-    data, hdr = oc.api_get(f"/sports/{oc.SPORT}/events/{e['id']}/odds/",
+    data, odds_hdr = oc.api_get(f"/sports/{oc.SPORT}/events/{e['id']}/odds/",
                            regions="us", markets=",".join(YARDAGE_MARKETS + ["player_anytime_td"]),
                            oddsFormat="decimal")
     found = sorted({mk["key"] for bk in data.get("bookmakers", []) for mk in bk.get("markets", [])})
     print(f"Prop markets posted for {e['away_team']} @ {e['home_team']} ({args.date}):")
     print(" ", found or "NONE yet (yardage props post within a few days of kickoff)")
-    print(f"quota: {hdr['remaining']} remaining, {hdr['used']} used")
+    print(f"quota: events {events_hdr['remaining']} remaining, "
+          f"odds {odds_hdr['remaining']} remaining, {odds_hdr['used']} used")
 
 
 def scan_cmd(args):

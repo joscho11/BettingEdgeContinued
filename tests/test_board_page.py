@@ -109,6 +109,9 @@ def test_full_v2_board_default_adp_ascending():
     # Sleeper projection availability comes from the current live market overlay, not legacy files.
     live = pd.read_csv(board.LIVE_OVERLAY)
     assert int(pd.isna(t["sleeper_proj"]).sum()) == int(live["sleeper_pts_half_ppr"].isna().sum())
+    talent = t["college_talent"].astype(str)
+    assert not talent.str.fullmatch("None").any(), "vets must not show the word None"
+    assert (t["college_talent"].astype(str) == "").any(), "vets should render as a blank cell"
 
     # COMPACT mode drops exactly the four detail columns and nothing else, same 180 rows,
     # same ADP-ascending order.

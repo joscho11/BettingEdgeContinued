@@ -34,6 +34,10 @@ def test_help_renders_offline_clean(tmp_path):
         "What inputs drive the 2026 Draft Board projections" in str(e.label)
         for e in at.expander
     )
+    assert any(
+        "What is the Season Totals (Beta) page?" in str(e.label)
+        for e in at.expander
+    )
     assert not any(
         "legacy season-projection models" in str(e.label)
         for e in at.expander
@@ -44,6 +48,7 @@ def test_help_site_org_and_paused_copy(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Season Totals (Beta)" in md
+    assert "does not beat the archived market consensus" in md
     assert "Coming soon" in md
     assert "currently uses mock data" not in md
     assert "roadmap for the 2026 season" not in md

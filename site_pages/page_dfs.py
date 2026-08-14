@@ -12,7 +12,7 @@ def render():
     st.divider()
 
     st.info(
-        "**Coming soon — launching with the 2026 NFL season.**\n\n"
+        "**Coming soon until 2026 Week 1 (September).**\n\n"
         "The DFS optimizer is currently in development. When live, this page will let you:\n\n"
         "- Browse this week's projected DraftKings points for every skill-position player\n"
         "- Upload your DraftKings salary CSV (exported from any NFL Classic contest)\n"

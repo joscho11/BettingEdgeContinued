@@ -138,8 +138,11 @@ def render():
             total=(_s_correct, 'count')
         ).reset_index()
         weekly['pct']      = (weekly['correct'] / weekly['total'] * 100).round(1)
-        weekly['record']   = weekly['correct'].astype(str) + '-' + (weekly['total'] - weekly['correct']).astype(str)
-        weekly['week_lbl'] = 'Week ' + weekly['week'].astype(str)
+        weekly['record']   = (
+            weekly['correct'].astype(int).astype(str) + '-' +
+            (weekly['total'] - weekly['correct']).astype(int).astype(str)
+        )
+        weekly['week_lbl'] = 'Week ' + weekly['week'].astype(int).astype(str)
 
         # Cumulative win %
         weekly['cum_correct'] = weekly['correct'].cumsum()

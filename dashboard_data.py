@@ -11,6 +11,7 @@ Predictions / Track Record all consume were moved here byte-identical from app.p
 """
 import glob
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -79,8 +80,12 @@ def _compute_hc_stats(acc_col: str, _df: pd.DataFrame) -> tuple:
                 if conf == 'HIGH':
                     hc_total += 1
                     hc_correct += int(float(r[acc_col]))
+        except (ValueError, KeyError, TypeError, OSError, IndexError, json.JSONDecodeError):
+            continue
         except Exception:
-            pass
+            logging.getLogger(__name__).exception(
+                "hc_stats skipped a malformed agent artifact: %s", af)
+            continue
     return hc_correct, hc_total
 
 

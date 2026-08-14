@@ -134,15 +134,14 @@ def render():
 
     if not proj_files:
         st.info(
-            "No fantasy projections found. "
-            f"Open `fantasy/predict_fantasy.ipynb`, set `TARGET_WEEK = {week}` and `TARGET_SEASON = {season}` "
-            f"in the Parameters cell, and run all cells to generate Week {week} projections."
+            "No weekly fantasy projections on file yet. They resume at 2026 Week 1. "
+            "Use the Week selector above to open a past week if one is listed."
         )
     elif (season, week) not in available:
         st.info(
-            f"No fantasy projections available for Season {season} · Week {week}. "
+            f"No fantasy projections for Season {season} · Week {week}. "
             f"Available weeks: {', '.join(f'W{w}' for (s, w) in sorted(available) if s == season) or 'none for this season'}. "
-            "Use the Week selector above to pick a week with projections, or run the fantasy notebook to generate them."
+            "Weekly projections resume at 2026 Week 1. Pick a listed week to preview a past slate."
         )
     else:
         proj_df = _load_proj_csv(available[(season, week)])

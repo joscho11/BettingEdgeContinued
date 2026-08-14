@@ -192,6 +192,15 @@ It shows a week by week bar chart of ATS win percentage, a cumulative trend line
 There's also a best and worst weeks section, a full season table, and a separate Over/Under model section showing how the totals picks performed.
         """)
 
+    with st.expander("What is the Season Totals (Beta) page?"):
+        st.markdown("""
+The Season Totals page is a pre-season projection of how many games each NFL team wins, plus a simulated range around that number.
+
+**It does not beat the archived market consensus.** Over a ten-season backtest it landed slightly further from each team's actual win count than that consensus did. There is no side, no odds, and no confidence tier. Gate C stays shut.
+
+Treat it as a published projection with an honest range, not a betting card. It lives in the Betting menu.
+        """)
+
     with st.expander("What is the Over/Under (Totals) model? (Experimental)"):
         st.markdown("""
 **Status: experimental — tracking only, not yet a confident pick.**
@@ -255,7 +264,7 @@ The page also carries four collapsed lists of **college players who are not in t
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-The Film Room page collects short, model-backed video breakdowns. Each TikTok short sits next to the full written analysis it's based on, newest first, with the channel intro pinned to the first slot. Click **📖 Full breakdown** under a video to open the deep dive the short couldn't fit.
+The Film Room page collects short, model-backed video breakdowns. Open the page and the newest episode is already loaded. Pick another title from the list to swap the player; only one TikTok embed is on the page at a time. The channel intro is a separate **Start here** control, not mixed into the episode list. Click **📖 Full breakdown** under the player to open the write-up the short couldn't fit.
 
 Some older videos predate my validation work and make calls I wouldn't make today. Those carry a **📼 Archived: why?** pop-out explaining what's changed; they stay up, unedited, as part of the record, and point you to what I publish now.
         """)

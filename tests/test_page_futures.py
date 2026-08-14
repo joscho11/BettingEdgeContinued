@@ -95,6 +95,12 @@ def _table(at):
 # --------------------------------------------------------------------------- renders
 
 
+def test_proj_wins_display_is_one_decimal():
+    src = _PAGE.read_text(encoding="utf-8")
+    assert '"Proj Wins": st.column_config.NumberColumn(format="%.1f"' in src, \
+        "Proj Wins must round on screen to one decimal; internals stay full precision"
+
+
 def test_page_renders_and_shows_the_projection_table():
     at = _run()
     df = _table(at)

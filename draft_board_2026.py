@@ -761,6 +761,19 @@ _ROW_NO_HELP = ("Row number in the board as currently sorted and filtered — a 
 # render far wider than its contents. Pinned columns get grow=0, so this width is exact
 # (and the counter stays put when the wide board scrolls sideways).
 _ROW_NO_WIDTH = 50
+_TALENT_KEYS = ("nfl_talent", "college_talent")
+
+
+def _blank_missing_talent(series: pd.Series, decimals: int) -> pd.Series:
+    """Display blanks for missing talent so Streamlit does not print the word None."""
+    def _one(v):
+        if pd.isna(v):
+            return ""
+        x = float(v)
+        if decimals == 0:
+            return str(int(round(x)))
+        return f"{x:.{decimals}f}"
+    return series.map(_one)
 
 
 def _column_config(active_sort_key: str | None = None, ascending: bool = True):
@@ -768,11 +781,15 @@ def _column_config(active_sort_key: str | None = None, ascending: bool = True):
     cfg = {_ROW_NO: st.column_config.NumberColumn("#", help=_ROW_NO_HELP, format="%d",
                                                   width=_ROW_NO_WIDTH, pinned=True)}
     for key, kind, label, help_, extra in COLUMN_META:
-        col = st.column_config.NumberColumn if kind == _NUM else st.column_config.TextColumn
         if key == active_sort_key:
             arrow = "↑" if ascending else "↓"
             label = f"{arrow} {label}"
             help_ = f"Current sort field ({'low to high' if ascending else 'high to low'}). {help_}"
+        if key in _TALENT_KEYS:
+            extra = {k: v for k, v in extra.items() if k != "format"}
+            cfg[key] = st.column_config.TextColumn(label, help=help_, **extra)
+            continue
+        col = st.column_config.NumberColumn if kind == _NUM else st.column_config.TextColumn
         cfg[key] = col(label, help=help_, **extra)
     return cfg
 
@@ -894,6 +911,10 @@ def _outside_column_config():
     cfg = {_ROW_NO: st.column_config.NumberColumn("#", help=_OUTSIDE_ROW_NO_HELP, format="%d",
                                                   width=_ROW_NO_WIDTH, pinned=True)}
     for key, kind, label, help_, extra in _OUTSIDE_COLUMN_META:
+        if key in _TALENT_KEYS:
+            extra = {k: v for k, v in extra.items() if k != "format"}
+            cfg[key] = st.column_config.TextColumn(label, help=help_, **extra)
+            continue
         col = st.column_config.NumberColumn if kind == _NUM else st.column_config.TextColumn
         cfg[key] = col(label, help=help_, **extra)
     return cfg
@@ -956,6 +977,9 @@ def _render_outside_market(board_size: int):
 
         display_view = view.copy()
         display_view.insert(0, _ROW_NO, range(1, len(display_view) + 1))
+        for _k in _TALENT_KEYS:
+            if _k in display_view.columns:
+                display_view[_k] = _blank_missing_talent(display_view[_k], decimals=1)
         st.dataframe(
             display_view[[_ROW_NO] + _OUTSIDE_DISPLAY_COLS],
             width="stretch", height=TABLE_HEIGHT, hide_index=True,
@@ -1054,6 +1078,9 @@ def render():
     # Numbered in the CURRENT sort/filter order — a reading aid, recomputed on every render.
     display_view = view.copy()
     display_view.insert(0, _ROW_NO, range(1, len(display_view) + 1))
+    for _k in _TALENT_KEYS:
+        if _k in display_view.columns:
+            display_view[_k] = _blank_missing_talent(display_view[_k], decimals=0)
     st.caption(_adp_caption())
     direction = "low to high" if ascending else "high to low"
     sort_note = (f"Sorted by **{sort_label}** ({direction}). The arrow and soft green tint mark "

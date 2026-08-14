@@ -278,7 +278,7 @@ def render():
                 format="%d", width=50, pinned=True,
                 help="Row number in this table as currently sorted. A counter to keep your "
                      "place, not a ranking."),
-            "Proj Wins": st.column_config.NumberColumn(format="%.2f", help=PROJ_HELP),
+            "Proj Wins": st.column_config.NumberColumn(format="%.1f", help=PROJ_HELP),
             "p10": st.column_config.NumberColumn(format="%.1f", help=P_HELP),
             "p25": st.column_config.NumberColumn(format="%.1f", help=P_HELP),
             "Median": st.column_config.NumberColumn(format="%.1f", help=MEDIAN_HELP),

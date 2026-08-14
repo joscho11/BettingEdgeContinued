@@ -68,7 +68,7 @@ The model does **not** beat the closing line, and I do not claim it does — an 
 
 The 2025 live sample (weeks 10 through 17, 117 graded games) reads 56.4% overall, HIGH 64.7% and MEDIUM 59.5% — but HIGH is only 11 of 17 graded picks there, far too few to separate from luck. Cite the walk-forward figure, not that one.
 
-The repo is the full system: ATS predictions, an experimental over/under model, weekly fantasy projections, a DFS lineup optimizer, an LLM agent that explains the model's read on each game, and a pre-season Draft Board and Rookie Board built on from-scratch season projections and descriptive talent scores.
+The repo is the full system: ATS predictions, an experimental over/under model, weekly fantasy projections, a DFS lineup optimizer, a paused LLM agent (disabled August 2026), and a pre-season Draft Board and Rookie Board built on from-scratch season projections and descriptive talent scores.
 
 ---
 
@@ -261,7 +261,7 @@ A Streamlit multipage site with a top nav in three groups. **Betting**: Weekly P
 - **Weekly Fantasy**: per-position projections with both projected and actual stat columns that fill in after games are played.
 - **DFS Optimizer**: DraftKings Classic lineup solver. The page is still Coming soon until Week 1; the optimizer code is in `fantasy/dfs/`.
 
-- **Film Room**: embedded TikToks from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel (the analytics content arm), each paired with a click-to-open written breakdown that digs into the data the short couldn't fit. The channel intro is featured at the top; player and matchup breakdowns land here as they're posted. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
+- **Film Room**: one embedded TikTok from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel at a time, picked from a title list, each with a click-to-open written breakdown. Newest episode is the default; the channel intro is a Start here control. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
 
 ### Automation
 
@@ -394,7 +394,7 @@ fantasy/
 memory/                                # Repo-specific engineering notes, the dated changelog
                                        #   (completed-work-log.md), and dated session logs
 .github/workflows/
-  weekly_predictions.yml               # Tue/Thu/Sun automation (spread, totals, agent)
+  weekly_predictions.yml               # Tue/Thu/Sun automation (spread, totals; agent paused)
   test.yml                             # Push/PR CI: features + calibration; seasonal/dashboard/talent +
                                        #   betting execution layer; deploy-parity on py3.12
   board_refresh.yml                    # Daily Sleeper market refresh for the Draft Board
