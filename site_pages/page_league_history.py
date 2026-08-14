@@ -37,6 +37,76 @@ _LEAGUE_HISTORY_TABS = (
     "📈 Score Trends",
 )
 
+# Rivalries color is semantic, not decoration. Classic = established (brand green),
+# Maximum Drama = close fights (rose), Fresh Blood = new pairings (sky). Score
+# bands on the slate use the same rose / gold / sky ramp. Locked matchups take
+# gold regardless of score. Full hairline borders only; no side stripes.
+_RIVALRY_MODE_SWATCH = {
+    "Classic Rivalries": ("#35D08A", "rgba(53,208,138,0.14)"),
+    "Maximum Drama": ("#FB7185", "rgba(251,113,133,0.16)"),
+    "Fresh Blood": ("#38BDF8", "rgba(56,189,248,0.14)"),
+}
+
+
+def _rivalry_score_swatch(score: float, locked: bool = False) -> tuple[str, str, str]:
+    """Return (ink, border, fill) for a rivalry-week card."""
+    if locked:
+        return "#FBBF24", "rgba(251,191,36,0.70)", "rgba(251,191,36,0.12)"
+    if score >= 70:
+        return "#FB7185", "rgba(251,113,133,0.55)", "rgba(251,113,133,0.12)"
+    if score >= 50:
+        return "#FBBF24", "rgba(251,191,36,0.50)", "rgba(251,191,36,0.10)"
+    return "#7DD3FC", "rgba(56,189,248,0.40)", "rgba(14,165,233,0.08)"
+
+
+def _rivalry_slate_card_html(row) -> str:
+    manager_a = _html.escape(str(row["manager_a"]))
+    manager_b = _html.escape(str(row["manager_b"]))
+    reason = _html.escape(str(row.get("reason") or ""))
+    locked = bool(row.get("locked"))
+    score = float(row["rivalry_score"])
+    ink, border, fill = _rivalry_score_swatch(score, locked)
+    lock_mark = " 🔒" if locked else ""
+    return (
+        "<div style='background:" + fill + ";border:1px solid " + border
+        + ";border-radius:12px;padding:14px 16px;margin:0 0 10px 0;'>"
+        "<div style='display:flex;justify-content:space-between;gap:16px;align-items:flex-start;'>"
+        "<div>"
+        "<div style='font-size:18px;font-weight:700;color:#E7ECF3;letter-spacing:-0.02em;'>"
+        + manager_a + " vs " + manager_b + lock_mark + "</div>"
+        "<div style='font-size:13px;color:#E7ECF3;margin-top:6px;line-height:1.45;'>"
+        + reason + "</div>"
+        "</div>"
+        "<div style='text-align:right;flex:0 0 auto;'>"
+        "<div style='font-size:11px;font-weight:700;letter-spacing:0.08em;color:"
+        + ink + ";'>RIVALRY SCORE</div>"
+        "<div style='font-size:28px;font-weight:800;color:" + ink
+        + ";font-variant-numeric:tabular-nums;line-height:1.1;'>"
+        + f"{score:.1f}" + "</div>"
+        "</div></div></div>"
+    )
+
+
+def _rivalry_score_legend_html() -> str:
+    chips = (
+        ("#FB7185", "rgba(251,113,133,0.16)", "70+ fit"),
+        ("#FBBF24", "rgba(251,191,36,0.16)", "50-69"),
+        ("#7DD3FC", "rgba(56,189,248,0.16)", "below 50"),
+        ("#FBBF24", "rgba(251,191,36,0.16)", "Locked"),
+    )
+    parts = []
+    for ink, fill, label in chips:
+        parts.append(
+            "<span style='display:inline-block;padding:3px 9px;border-radius:999px;"
+            "border:1px solid " + ink + ";background:" + fill + ";color:" + ink
+            + ";font-size:11px;font-weight:700;letter-spacing:0.04em;'>"
+            + label + "</span>"
+        )
+    return (
+        "<div style='display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px 0;'>"
+        + "".join(parts) + "</div>"
+    )
+
 
 def _league_id_error(raw_league_id: str) -> str | None:
     league_id = raw_league_id.strip()
@@ -1076,6 +1146,17 @@ def render():
                                 "underplayed opponents with similar historical results."
                             ),
                         )
+                        _mode_ink, _mode_fill = _RIVALRY_MODE_SWATCH.get(
+                            _rivalry_mode, ("#93A0B1", "rgba(147,160,177,0.12)")
+                        )
+                        st.markdown(
+                            "<div style='display:inline-block;margin:2px 0 8px 0;padding:4px 10px;"
+                            "border-radius:999px;background:" + _mode_fill
+                            + ";border:1px solid " + _mode_ink + ";color:" + _mode_ink
+                            + ";font-size:12px;font-weight:700;letter-spacing:0.04em;'>"
+                            + _html.escape(_rivalry_mode) + "</div>",
+                            unsafe_allow_html=True,
+                        )
                     with _builder_right:
                         _rivalry_history = st.selectbox(
                             "History window",
@@ -1209,7 +1290,13 @@ def render():
                         st.caption(
                             f"{_matchup_count} matchups for "
                             f"{len(_active_rivalry_managers)} current managers · "
-                            f"average score {_average_score}"
+                            f"average score {_average_score}. "
+                            "Rose is 70+ fit, gold is 50-69, sky is below 50. "
+                            "Locked matchups stay gold."
+                        )
+                        st.markdown(
+                            _rivalry_score_legend_html(),
+                            unsafe_allow_html=True,
                         )
 
                         for _, _slate_row in _rivalry_slate.iterrows():
@@ -1219,21 +1306,10 @@ def render():
                                     "the league currently has an odd number of managers."
                                 )
                                 continue
-                            with st.container(border=True):
-                                _matchup_copy, _score_copy = st.columns([4, 1])
-                                with _matchup_copy:
-                                    _lock_badge = " 🔒" if bool(_slate_row.get("locked")) else ""
-                                    st.markdown(
-                                        f"#### {_slate_row['manager_a']} vs "
-                                        f"{_slate_row['manager_b']}{_lock_badge}"
-                                    )
-                                    st.caption(str(_slate_row["reason"]))
-                                with _score_copy:
-                                    st.metric(
-                                        "Rivalry Score",
-                                        f"{float(_slate_row['rivalry_score']):.1f}/100",
-                                        border=False,
-                                    )
+                            st.markdown(
+                                _rivalry_slate_card_html(_slate_row),
+                                unsafe_allow_html=True,
+                            )
 
                 elif _rivalry_view == "Explore a Matchup":
                     _h2h_scope = _season_filter if _season_filter != "All Time" else "all-time"
@@ -1352,7 +1428,17 @@ def render():
                                 else f"{_streak_manager} · W{_streak_count}"
                             )
 
-                            st.markdown(f"#### {_manager_a} vs {_manager_b}")
+                            _series_ink = (
+                                "#93A0B1" if _series_leader == "Series tied"
+                                else "#35D08A"
+                            )
+                            st.markdown(
+                                "<div style='font-size:22px;font-weight:700;color:"
+                                + _series_ink + ";letter-spacing:-0.02em;margin:4px 0 12px 0;'>"
+                                + _html.escape(str(_manager_a)) + " vs "
+                                + _html.escape(str(_manager_b)) + "</div>",
+                                unsafe_allow_html=True,
+                            )
                             _r1, _r2, _r3, _r4 = st.columns(4)
                             with _r1:
                                 st.metric(
@@ -1531,7 +1617,9 @@ def render():
                     st.markdown("#### League Matrix")
                     st.caption(
                         f"Compare every completed series {_h2h_scope}. Includes playoffs; "
-                        "scores of 5 points or fewer are excluded."
+                        "scores of 5 points or fewer are excluded. "
+                        "Green means the row manager's win rate is higher. "
+                        "Rose means the column manager's is."
                     )
                     _h2h_matchups = _all_h2h_matchups
                     if _season_filter != "All Time":
@@ -1646,9 +1734,9 @@ def render():
                             zmax=50,
                             zmid=0,
                             colorscale=[
-                                [0, "#7f1d1d"],
-                                [0.5, "#1e293b"],
-                                [1, "#166534"],
+                                [0, "#9F1239"],
+                                [0.5, "#121821"],
+                                [1, "#15803D"],
                             ],
                             xgap=2,
                             ygap=2,

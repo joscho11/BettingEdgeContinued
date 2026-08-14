@@ -550,7 +550,7 @@ def rivalry_pair_score_frame(
                 playoff_word = "playoff meeting" if playoff_meetings == 1 else "playoff meetings"
                 details.append(f"{playoff_meetings} {playoff_word}")
             if abs(wins_a - wins_b) <= 1:
-                details.append(f"series {wins_a}–{wins_b}")
+                details.append(f"series {wins_a}-{wins_b}")
             if avg_margin is not None:
                 details.append(f"{avg_margin:.1f}-point average margin")
             if current_streak >= 2:

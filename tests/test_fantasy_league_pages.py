@@ -117,6 +117,28 @@ def test_league_history_rejects_implausible_ids_before_fetch():
     assert "does not look like" in page_league_history._league_id_error("123")
 
 
+def test_rivalry_score_swatch_bands_and_card_html():
+    locked = page_league_history._rivalry_score_swatch(12.0, locked=True)
+    assert locked[0] == "#FBBF24"
+    assert page_league_history._rivalry_score_swatch(70.0)[0] == "#FB7185"
+    assert page_league_history._rivalry_score_swatch(50.0)[0] == "#FBBF24"
+    assert page_league_history._rivalry_score_swatch(49.9)[0] == "#7DD3FC"
+    html = page_league_history._rivalry_slate_card_html({
+        "manager_a": "Alice",
+        "manager_b": "Bob",
+        "reason": "Playoff history",
+        "locked": False,
+        "rivalry_score": 71.2,
+    })
+    assert "RIVALRY SCORE" in html
+    assert "71.2" in html
+    assert "Alice vs Bob" in html
+    assert "border-left:" not in html
+    legend = page_league_history._rivalry_score_legend_html()
+    assert "70+ fit" in legend
+    assert "Locked" in legend
+
+
 def test_league_history_estimate_counts_linked_seasons(monkeypatch):
     leagues = {
         "current": {"season": "2026", "previous_league_id": "prior-1"},
@@ -592,6 +614,9 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert any(
         button.label == "Generate another slate" for button in at.button
     )
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "RIVALRY SCORE" in md
+    assert "70+ fit" in md
     assert not any(
         expander.label == "View complete head-to-head record matrix"
         for expander in at.expander
