@@ -563,6 +563,14 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert {"lh_h2h_manager_a", "lh_h2h_manager_b"} <= {
         widget.key for widget in at.selectbox
     }
+    alice_average = next(
+        metric for metric in at.metric if metric.label == "Alice Avg Score"
+    )
+    bob_average = next(
+        metric for metric in at.metric if metric.label == "Bob Avg Score"
+    )
+    assert alice_average.value == "120.0 pts"
+    assert bob_average.value == "80.0 pts"
     assert {"lh_rivalry_mode", "lh_rivalry_history"} <= {
         widget.key for widget in at.selectbox
     }

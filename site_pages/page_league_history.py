@@ -1312,28 +1312,35 @@ def render():
                             else f"{_streak_manager} · W{_streak_count}"
                         )
 
+                        st.markdown(f"#### {_manager_a} vs {_manager_b}")
                         _r1, _r2, _r3, _r4 = st.columns(4)
                         with _r1:
                             st.metric(
-                                "Series Leader", _series_leader,
-                                f"{_manager_a} {_a_wins}–{_b_wins} {_manager_b}"
-                                + (f" · {_ties} ties" if _ties else ""),
+                                "Series Record",
+                                f"{_a_wins}–{_b_wins}" + (f"–{_ties}T" if _ties else ""),
+                                (
+                                    "Series tied"
+                                    if _series_leader == "Series tied"
+                                    else f"{_series_leader} leads"
+                                ),
                                 delta_color="off", delta_arrow="off", border=True,
                             )
                         with _r2:
                             st.metric(
-                                "Average Score", f"{_a_avg:.1f} – {_b_avg:.1f}",
-                                f"{_manager_a} – {_manager_b}",
+                                f"{_manager_a} Avg Score", f"{_a_avg:.1f} pts",
+                                (
+                                    f"{_a_diff:+.2f} per meeting"
+                                    if _a_diff else "Even per meeting"
+                                ),
                                 delta_color="off", delta_arrow="off", border=True,
                             )
                         with _r3:
                             st.metric(
-                                "Average Point Edge",
+                                f"{_manager_b} Avg Score", f"{_b_avg:.1f} pts",
                                 (
-                                    f"{_point_edge_manager} +{abs(_a_diff):.2f}"
-                                    if _point_edge_manager else "Even"
+                                    f"{-_a_diff:+.2f} per meeting"
+                                    if _a_diff else "Even per meeting"
                                 ),
-                                "per meeting",
                                 delta_color="off", delta_arrow="off", border=True,
                             )
                         with _r4:
