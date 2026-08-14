@@ -30,7 +30,7 @@ _LEAGUE_HISTORY_TABS = (
     "🧠 Draft & Roster Insights",
     "🏆 All-Time Leaderboard",
     "🎖️ Hall of Fame",
-    "⚔️ Head-to-Head",
+    "⚔️ Rivalries",
     "📋 Report Cards",
     "📊 Consistency & Luck",
     "📈 Score Trends",
@@ -297,10 +297,18 @@ def render():
             )
 
             # Build cross-season helpers
+            from fantasy import league_intelligence as _league_intel
+
+            _identity_names = _league_intel.manager_identity_map(_lh["seasons"])
+            _identity_labels = _league_intel.manager_display_labels(_identity_names)
             _rid_to_user: dict = {}
+            _rid_to_owner: dict = {}
             for _yr0, _sd0 in _lh["seasons"].items():
                 for _row0 in _sd0["standings"]:
                     _rid_to_user[(_yr0, str(_row0["roster_id"]))] = _row0["username"]
+                    _owner0 = str(_row0.get("owner_id") or "").strip()
+                    if _owner0:
+                        _rid_to_owner[(_yr0, str(_row0["roster_id"]))] = _owner0
 
             _all_matchups = [
                 _m for _sd0 in _lh["seasons"].values()
@@ -310,8 +318,12 @@ def render():
             def _guser(_yr_g, _rid_g):
                 return _rid_to_user.get((_yr_g, _rid_g), "?")
 
+            def _gowner(_yr_g, _rid_g):
+                return _rid_to_owner.get((_yr_g, _rid_g), "")
+
             # Expand matchups into per-player game records (full, unfiltered)
             _game_records = []
+            _stable_h2h_records = []
             for _m0 in _all_matchups:
                 _ua0 = _guser(_m0["season"], _m0["rid_a"])
                 _ub0 = _guser(_m0["season"], _m0["rid_b"])
@@ -328,6 +340,36 @@ def render():
                      "username": _ub0, "score": _sb0, "won": _sb0 > _sa0,
                      "opp": _ua0, "opp_score": _sa0},
                 ]
+                _oa0 = _gowner(_m0["season"], _m0["rid_a"])
+                _ob0 = _gowner(_m0["season"], _m0["rid_b"])
+                _la0 = _identity_labels.get(_oa0)
+                _lb0 = _identity_labels.get(_ob0)
+                if _oa0 and _ob0 and _la0 and _lb0 and _oa0 != _ob0:
+                    _stable_h2h_records += [
+                        {"season": _m0["season"], "week": _m0["week"],
+                         "is_playoff": _m0["is_playoff"],
+                         "username": _la0, "score": _sa0, "won": _sa0 > _sb0,
+                         "opp": _lb0, "opp_score": _sb0},
+                        {"season": _m0["season"], "week": _m0["week"],
+                         "is_playoff": _m0["is_playoff"],
+                         "username": _lb0, "score": _sb0, "won": _sb0 > _sa0,
+                         "opp": _la0, "opp_score": _sa0},
+                    ]
+
+            _latest_season_key = max(
+                _lh["seasons"],
+                key=lambda value: (
+                    pd.to_numeric(value, errors="coerce")
+                    if pd.notna(pd.to_numeric(value, errors="coerce")) else -1
+                ),
+            )
+            _active_rivalry_managers = []
+            for _standing0 in _lh["seasons"][_latest_season_key].get("standings", []):
+                _active_owner0 = str(_standing0.get("owner_id") or "").strip()
+                _active_label0 = _identity_labels.get(_active_owner0)
+                if _active_label0 and _active_label0 not in _active_rivalry_managers:
+                    _active_rivalry_managers.append(_active_label0)
+            _active_rivalry_managers.sort()
 
             # Apply season filter
             if _season_filter == "All Time":
@@ -955,20 +997,217 @@ def render():
                             "favorable matchup timing."
                         )
 
-            # ── Sub-tab C: Head-to-Head ───────────────────────────────────────
+            # ── Sub-tab C: Rivalries ──────────────────────────────────────────
             with _lhC:
                 import plotly.graph_objects as go
 
                 from fantasy import league_intelligence as _league_intel
 
+                _all_h2h_matchups = _league_intel.matchup_record_frame(
+                    _stable_h2h_records
+                )
+
+                st.subheader("Rivalry Week Builder")
+                st.caption(
+                    "Generate a complete upcoming-season slate for the league's current "
+                    "managers. Scores describe historical rivalry fit; they are not predictions."
+                )
+
+                _builder_left, _builder_right = st.columns(2)
+                with _builder_left:
+                    _rivalry_mode = st.selectbox(
+                        "Slate style",
+                        list(_league_intel.RIVALRY_WEEK_MODES),
+                        key="lh_rivalry_mode",
+                        help=(
+                            "Classic rewards established series and playoff history; Maximum "
+                            "Drama emphasizes close, back-and-forth games; Fresh Blood favors "
+                            "underplayed opponents with similar historical results."
+                        ),
+                    )
+                with _builder_right:
+                    _rivalry_history = st.selectbox(
+                        "History window",
+                        ["All history", "Last 3 completed seasons"],
+                        key="lh_rivalry_history",
+                    )
+
+                _builder_matchups = _all_h2h_matchups.copy()
+                if (
+                    _rivalry_history == "Last 3 completed seasons"
+                    and not _builder_matchups.empty
+                ):
+                    _played_seasons = sorted(
+                        _builder_matchups["season"].astype(str).unique().tolist(),
+                        key=lambda value: (
+                            pd.to_numeric(value, errors="coerce")
+                            if pd.notna(pd.to_numeric(value, errors="coerce")) else -1
+                        ),
+                    )
+                    _recent_seasons = set(_played_seasons[-3:])
+                    _builder_matchups = _builder_matchups[
+                        _builder_matchups["season"].astype(str).isin(_recent_seasons)
+                    ].copy()
+
+                _builder_signature = "|".join([
+                    _lid,
+                    _rivalry_mode,
+                    _rivalry_history,
+                    *_active_rivalry_managers,
+                ])
+                if st.session_state.get("lh_rivalry_signature") != _builder_signature:
+                    st.session_state["lh_rivalry_signature"] = _builder_signature
+                    st.session_state["lh_rivalry_locked_pairs"] = []
+                    st.session_state["lh_rivalry_avoided_pairs"] = []
+                    st.session_state.pop("lh_rivalry_locked_choices", None)
+
+                _pair_scores = _league_intel.rivalry_pair_score_frame(
+                    _builder_matchups,
+                    _active_rivalry_managers,
+                    mode=_rivalry_mode,
+                )
+                _saved_locks = [
+                    tuple(pair)
+                    for pair in st.session_state.get("lh_rivalry_locked_pairs", [])
+                ]
+                _saved_avoids = [
+                    tuple(pair)
+                    for pair in st.session_state.get("lh_rivalry_avoided_pairs", [])
+                ]
+                _rivalry_slate = _league_intel.rivalry_week_slate_frame(
+                    _pair_scores,
+                    locked_pairs=_saved_locks,
+                    avoided_pairs=_saved_avoids,
+                )
+
+                _lock_lookup = {}
+                if not _rivalry_slate.empty:
+                    for _, _slate_row in _rivalry_slate.iterrows():
+                        if pd.isna(_slate_row.get("manager_b")):
+                            continue
+                        _slate_pair = tuple(sorted((
+                            str(_slate_row["manager_a"]),
+                            str(_slate_row["manager_b"]),
+                        )))
+                        _slate_label = f"{_slate_pair[0]} vs {_slate_pair[1]}"
+                        _lock_lookup[_slate_label] = _slate_pair
+
+                _selected_lock_labels = st.multiselect(
+                    "Lock matchups before generating another slate",
+                    list(_lock_lookup),
+                    key="lh_rivalry_locked_choices",
+                    disabled=not _lock_lookup,
+                )
+                _requested_locks = [
+                    _lock_lookup[label]
+                    for label in _selected_lock_labels
+                    if label in _lock_lookup
+                ]
+                _alternative_requested = st.button(
+                    "Generate another slate",
+                    key="lh_rivalry_regenerate",
+                    disabled=len(_active_rivalry_managers) < 4,
+                )
+                if _alternative_requested:
+                    _requested_lock_set = {
+                        tuple(sorted(pair)) for pair in _requested_locks
+                    }
+                    _new_avoid_set = {
+                        tuple(sorted(pair)) for pair in _saved_avoids
+                    }.difference(_requested_lock_set)
+                    for _, _slate_row in _rivalry_slate.iterrows():
+                        if pd.isna(_slate_row.get("manager_b")):
+                            continue
+                        _slate_pair = tuple(sorted((
+                            str(_slate_row["manager_a"]),
+                            str(_slate_row["manager_b"]),
+                        )))
+                        if _slate_pair not in _requested_lock_set:
+                            _new_avoid_set.add(_slate_pair)
+                    _new_avoids = sorted(_new_avoid_set)
+                    st.session_state["lh_rivalry_locked_pairs"] = [
+                        list(pair) for pair in _requested_locks
+                    ]
+                    st.session_state["lh_rivalry_avoided_pairs"] = [
+                        list(pair) for pair in _new_avoids
+                    ]
+                    _rivalry_slate = _league_intel.rivalry_week_slate_frame(
+                        _pair_scores,
+                        locked_pairs=_requested_locks,
+                        avoided_pairs=_new_avoids,
+                    )
+
+                if len(_active_rivalry_managers) < 2:
+                    st.info(
+                        "At least two current managers with stable Sleeper owner IDs are "
+                        "needed to build a rivalry slate."
+                    )
+                elif _rivalry_slate.empty:
+                    st.info("No rivalry slate is available for the current league yet.")
+                else:
+                    _scored_slate = pd.to_numeric(
+                        _rivalry_slate["rivalry_score"], errors="coerce"
+                    ).dropna()
+                    _summary1, _summary2, _summary3 = st.columns(3)
+                    with _summary1:
+                        st.metric(
+                            "Current Managers", len(_active_rivalry_managers),
+                            border=True,
+                        )
+                    with _summary2:
+                        st.metric(
+                            "Suggested Matchups",
+                            int(_rivalry_slate["manager_b"].notna().sum()),
+                            border=True,
+                        )
+                    with _summary3:
+                        st.metric(
+                            "Average Rivalry Score",
+                            f"{_scored_slate.mean():.1f}/100" if not _scored_slate.empty else "—",
+                            border=True,
+                        )
+
+                    for _, _slate_row in _rivalry_slate.iterrows():
+                        if pd.isna(_slate_row.get("manager_b")):
+                            st.warning(
+                                f"**{_slate_row['manager_a']}** has the open slot because "
+                                "the league currently has an odd number of managers."
+                            )
+                            continue
+                        with st.container(border=True):
+                            _matchup_copy, _score_copy = st.columns([4, 1])
+                            with _matchup_copy:
+                                _lock_badge = " 🔒" if bool(_slate_row.get("locked")) else ""
+                                st.markdown(
+                                    f"#### {_slate_row['manager_a']} vs "
+                                    f"{_slate_row['manager_b']}{_lock_badge}"
+                                )
+                                st.caption(str(_slate_row["reason"]))
+                            with _score_copy:
+                                st.metric(
+                                    "Rivalry Score",
+                                    f"{float(_slate_row['rivalry_score']):.1f}/100",
+                                    border=False,
+                                )
+
+                st.caption(
+                    "The builder always uses current managers and its own history window. "
+                    "The page-level Season filter applies to the matchup explorer below."
+                )
+                st.divider()
+
                 _h2h_scope = _season_filter if _season_filter != "All Time" else "all-time"
-                st.subheader("Head-to-Head Rivalries")
+                st.subheader("Matchup Explorer")
                 st.caption(
                     f"Explore an individual rivalry and the league-wide matchup landscape, "
                     f"{_h2h_scope}. Includes playoffs; scores of 5 points or fewer are excluded."
                 )
 
-                _h2h_matchups = _league_intel.matchup_record_frame(_filt_records)
+                _h2h_matchups = _all_h2h_matchups
+                if _season_filter != "All Time":
+                    _h2h_matchups = _h2h_matchups[
+                        _h2h_matchups["season"].astype(str).eq(str(_season_filter))
+                    ].copy()
                 _rivalries = _league_intel.rivalry_summary_frame(_h2h_matchups)
                 if _rivalries.empty:
                     st.info("No completed head-to-head matchups are available for this selection.")

@@ -6,13 +6,21 @@ for draft-room and manager-level roster analysis.
 """
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
+from functools import lru_cache
+from itertools import combinations
 
 import pandas as pd
 
 
 CORE_POSITIONS = ("QB", "RB", "WR", "TE")
 DEFAULT_MIN_ROSTER_WEEKS = 4
+RIVALRY_WEEK_MODES = (
+    "Classic Rivalries",
+    "Maximum Drama",
+    "Fresh Blood",
+)
 
 
 def _player_name(metadata: Mapping | None, player_id: str) -> str:
@@ -35,6 +43,31 @@ def manager_identity_map(seasons: Mapping) -> dict[str, str]:
             if user_id and username and username not in {"?", "—"}:
                 identities[user_id] = username
     return identities
+
+
+def manager_display_labels(identities: Mapping[str, str]) -> dict[str, str]:
+    """Return unique public labels while keeping stable Sleeper IDs internal.
+
+    Sleeper display names can change and are not guaranteed to be unique.  The
+    rivalry views aggregate on ``user_id`` first, then use the latest name.  A
+    short ID suffix is shown only when two active identities currently share a
+    display name.
+    """
+    clean = {
+        str(user_id): str(name or "").strip()
+        for user_id, name in identities.items()
+        if str(user_id).strip() and str(name or "").strip()
+    }
+    counts: dict[str, int] = {}
+    for name in clean.values():
+        counts[name] = counts.get(name, 0) + 1
+    return {
+        user_id: (
+            name if counts[name] == 1
+            else f"{name} ({user_id[-4:]})"
+        )
+        for user_id, name in clean.items()
+    }
 
 
 def manager_leaderboard_frame(
@@ -324,6 +357,340 @@ def rivalry_summary_frame(matchups: pd.DataFrame) -> pd.DataFrame:
         ascending=[False, True, True],
         ignore_index=True,
     )
+
+
+def rivalry_pair_score_frame(
+    matchups: pd.DataFrame,
+    active_managers: list[str] | tuple[str, ...],
+    mode: str = "Classic Rivalries",
+) -> pd.DataFrame:
+    """Score every possible active-manager pairing for a rivalry-week slate.
+
+    The score is descriptive and league-relative, not a learned probability.
+    Sample-size-sensitive inputs use conservative priors and familiarity
+    saturates, so one close game cannot outrank an established series merely by
+    producing a perfect small-sample win split.
+    """
+    if mode not in RIVALRY_WEEK_MODES:
+        raise ValueError(f"Unknown rivalry-week mode: {mode}")
+
+    columns = [
+        "manager_a", "manager_b", "rivalry_score", "games",
+        "manager_a_wins", "manager_b_wins", "ties", "avg_margin",
+        "close_games", "playoff_meetings", "latest_season",
+        "current_streak_manager", "current_streak", "manager_a_win_pct",
+        "manager_b_win_pct", "reason",
+    ]
+    managers = sorted({
+        str(manager).strip()
+        for manager in active_managers
+        if str(manager).strip()
+    })
+    if len(managers) < 2:
+        return pd.DataFrame(columns=columns)
+
+    required = {
+        "season", "week", "team_a", "team_b", "is_tie", "winner",
+        "margin", "is_playoff",
+    }
+    if matchups.empty:
+        history_work = pd.DataFrame(columns=sorted(required))
+    else:
+        missing = required.difference(matchups.columns)
+        if missing:
+            raise ValueError(f"Matchups missing rivalry fields: {sorted(missing)}")
+        history_work = matchups.copy()
+        history_work["team_a"] = history_work["team_a"].astype(str)
+        history_work["team_b"] = history_work["team_b"].astype(str)
+    work = history_work[
+        history_work["team_a"].isin(managers)
+        & history_work["team_b"].isin(managers)
+    ].copy()
+
+    if history_work.empty:
+        latest_season_value = None
+        league_margin = 15.0
+    else:
+        history_work["season_sort"] = pd.to_numeric(
+            history_work["season"], errors="coerce"
+        )
+        work["season_sort"] = pd.to_numeric(work["season"], errors="coerce")
+        latest_numeric = history_work["season_sort"].dropna()
+        latest_season_value = (
+            float(latest_numeric.max()) if not latest_numeric.empty else None
+        )
+        margins = pd.to_numeric(history_work["margin"], errors="coerce").dropna()
+        league_margin = max(float(margins.median()), 1.0) if not margins.empty else 15.0
+
+    # Overall result quality provides the secondary signal for Fresh Blood.
+    manager_points = {manager: 1.0 for manager in managers}
+    manager_games = {manager: 2.0 for manager in managers}
+    for _, game in history_work.iterrows():
+        team_a, team_b = str(game["team_a"]), str(game["team_b"])
+        if team_a in manager_games:
+            manager_games[team_a] += 1
+        if team_b in manager_games:
+            manager_games[team_b] += 1
+        if bool(game["is_tie"]):
+            if team_a in manager_points:
+                manager_points[team_a] += 0.5
+            if team_b in manager_points:
+                manager_points[team_b] += 0.5
+        else:
+            winner = str(game["winner"])
+            if winner in manager_points:
+                manager_points[winner] += 1.0
+    manager_strength = {
+        manager: manager_points[manager] / manager_games[manager]
+        for manager in managers
+    }
+
+    rows = []
+    for manager_a, manager_b in combinations(managers, 2):
+        if work.empty:
+            games = work.copy()
+        else:
+            games = work[
+                ((work["team_a"] == manager_a) & (work["team_b"] == manager_b))
+                | ((work["team_a"] == manager_b) & (work["team_b"] == manager_a))
+            ].sort_values(["season_sort", "week"], na_position="first")
+
+        meetings = len(games)
+        wins_a = int((games["winner"] == manager_a).sum()) if meetings else 0
+        wins_b = int((games["winner"] == manager_b).sum()) if meetings else 0
+        ties = int(games["is_tie"].sum()) if meetings else 0
+        playoff_meetings = int(games["is_playoff"].sum()) if meetings else 0
+        margins = pd.to_numeric(games.get("margin"), errors="coerce").dropna()
+        avg_margin = float(margins.mean()) if not margins.empty else None
+        close_games = int((margins <= 10).sum()) if not margins.empty else 0
+
+        # Two pseudo-games split evenly around .500 shrink tiny series toward
+        # uncertainty instead of declaring a one-game 1-0 result uncompetitive.
+        win_share_a = (wins_a + 0.5 * ties + 1.0) / (meetings + 2.0)
+        balance = max(0.0, 1.0 - 2.0 * abs(win_share_a - 0.5))
+        familiarity = 1.0 - math.exp(-meetings / 4.0)
+        novelty = math.exp(-meetings / 2.5)
+        closeness = (
+            1.0 / (1.0 + avg_margin / league_margin)
+            if avg_margin is not None else 0.5
+        )
+        stakes = 1.0 - math.exp(-playoff_meetings / 1.25)
+        strength_similarity = max(
+            0.0,
+            1.0 - abs(manager_strength[manager_a] - manager_strength[manager_b]),
+        )
+
+        result_sequence = [
+            str(winner) for winner in games.get("winner", pd.Series(dtype=str)).tolist()
+            if str(winner) in {manager_a, manager_b}
+        ]
+        switches = sum(
+            current != previous
+            for previous, current in zip(result_sequence, result_sequence[1:])
+        )
+        back_and_forth = (
+            switches / (len(result_sequence) - 1)
+            if len(result_sequence) > 1 else 0.5
+        )
+
+        current_streak_manager = None
+        current_streak = 0
+        if result_sequence:
+            current_streak_manager = result_sequence[-1]
+            for winner in reversed(result_sequence):
+                if winner != current_streak_manager:
+                    break
+                current_streak += 1
+
+        latest_season = None
+        recency = 0.0
+        if meetings:
+            season_values = pd.to_numeric(games["season"], errors="coerce").dropna()
+            if not season_values.empty:
+                latest_season = int(season_values.max())
+                if latest_season_value is not None:
+                    years_ago = max(0.0, latest_season_value - latest_season)
+                    recency = math.exp(-math.log(2.0) * years_ago / 2.0)
+            else:
+                latest_season = str(games.iloc[-1]["season"])
+                recency = 1.0
+
+        if mode == "Classic Rivalries":
+            raw_score = (
+                0.30 * familiarity + 0.20 * balance + 0.15 * closeness
+                + 0.20 * stakes + 0.10 * recency + 0.05 * back_and_forth
+            )
+        elif mode == "Maximum Drama":
+            raw_score = (
+                0.05 * familiarity + 0.20 * balance + 0.30 * closeness
+                + 0.20 * stakes + 0.10 * recency + 0.15 * back_and_forth
+            )
+        else:  # Fresh Blood
+            raw_score = (
+                0.45 * novelty + 0.35 * strength_similarity
+                + 0.10 * balance + 0.10 * closeness
+            )
+
+        strength_a = manager_strength[manager_a] * 100
+        strength_b = manager_strength[manager_b] * 100
+        if meetings == 0:
+            reason = (
+                "First recorded meeting · historical win rates "
+                f"{strength_a:.0f}% and {strength_b:.0f}%"
+            )
+        elif mode == "Fresh Blood":
+            meeting_word = "meeting" if meetings == 1 else "meetings"
+            reason = (
+                f"Only {meetings} prior {meeting_word} · historical win rates "
+                f"{strength_a:.0f}% and {strength_b:.0f}%"
+            )
+        else:
+            details = [f"{meetings} meetings"]
+            if playoff_meetings:
+                playoff_word = "playoff meeting" if playoff_meetings == 1 else "playoff meetings"
+                details.append(f"{playoff_meetings} {playoff_word}")
+            if abs(wins_a - wins_b) <= 1:
+                details.append(f"series {wins_a}–{wins_b}")
+            if avg_margin is not None:
+                details.append(f"{avg_margin:.1f}-point average margin")
+            if current_streak >= 2:
+                details.append(f"{current_streak_manager} has won {current_streak} straight")
+            reason = " · ".join(details[:4])
+
+        rows.append({
+            "manager_a": manager_a,
+            "manager_b": manager_b,
+            "rivalry_score": round(max(0.0, min(raw_score, 1.0)) * 100, 1),
+            "games": meetings,
+            "manager_a_wins": wins_a,
+            "manager_b_wins": wins_b,
+            "ties": ties,
+            "avg_margin": round(avg_margin, 2) if avg_margin is not None else None,
+            "close_games": close_games,
+            "playoff_meetings": playoff_meetings,
+            "latest_season": latest_season,
+            "current_streak_manager": current_streak_manager,
+            "current_streak": current_streak,
+            "manager_a_win_pct": round(strength_a, 1),
+            "manager_b_win_pct": round(strength_b, 1),
+            "reason": reason,
+        })
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ["rivalry_score", "manager_a", "manager_b"],
+        ascending=[False, True, True],
+        ignore_index=True,
+    )
+
+
+def rivalry_week_slate_frame(
+    pair_scores: pd.DataFrame,
+    locked_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
+    avoided_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
+) -> pd.DataFrame:
+    """Return the maximum-total-score disjoint slate, honoring valid locks.
+
+    This is an exact global optimizer.  It deliberately does not greedily take
+    the best remaining edge, which can strand the rest of the league with a
+    much weaker slate.  ``avoided_pairs`` powers deterministic alternatives;
+    those edges remain a last resort when the constraints leave no other slate.
+    """
+    if pair_scores.empty:
+        result = pair_scores.copy()
+        result["locked"] = pd.Series(dtype=bool)
+        return result
+
+    required = {"manager_a", "manager_b", "rivalry_score"}
+    missing = required.difference(pair_scores.columns)
+    if missing:
+        raise ValueError(f"Pair scores missing slate fields: {sorted(missing)}")
+
+    scores = pair_scores.copy()
+    scores["pair"] = scores.apply(
+        lambda row: tuple(sorted((str(row["manager_a"]), str(row["manager_b"])))),
+        axis=1,
+    )
+    row_lookup = {row["pair"]: row for _, row in scores.iterrows()}
+    managers = sorted({manager for pair in row_lookup for manager in pair})
+    locks = []
+    used: set[str] = set()
+    for raw_pair in locked_pairs:
+        pair = tuple(sorted(map(str, raw_pair)))
+        if len(pair) != 2 or pair not in row_lookup:
+            continue
+        if pair[0] in used or pair[1] in used:
+            raise ValueError("Locked rivalry matchups cannot share a manager")
+        locks.append(pair)
+        used.update(pair)
+    avoided = {tuple(sorted(map(str, pair))) for pair in avoided_pairs}
+
+    remaining = tuple(manager for manager in managers if manager not in used)
+    open_slot = "\x00OPEN_RIVALRY_SLOT"
+    if len(remaining) % 2:
+        remaining = tuple(sorted(remaining + (open_slot,)))
+
+    def _edge_value(a: str, b: str) -> float:
+        if open_slot in {a, b}:
+            return 0.0
+        pair = tuple(sorted((a, b)))
+        value = float(row_lookup[pair]["rivalry_score"])
+        return value - (1000.0 if pair in avoided else 0.0)
+
+    @lru_cache(maxsize=None)
+    def _solve(nodes: tuple[str, ...]) -> tuple[float, tuple[tuple[str, str], ...]]:
+        if not nodes:
+            return 0.0, ()
+        first = nodes[0]
+        best_value = -math.inf
+        best_pairs: tuple[tuple[str, str], ...] | None = None
+        for index in range(1, len(nodes)):
+            opponent = nodes[index]
+            rest = nodes[1:index] + nodes[index + 1:]
+            subtotal, subpairs = _solve(rest)
+            pair = tuple(sorted((first, opponent)))
+            candidate_pairs = tuple(sorted((pair,) + subpairs))
+            candidate_value = _edge_value(first, opponent) + subtotal
+            if (
+                candidate_value > best_value
+                or (
+                    math.isclose(candidate_value, best_value)
+                    and (best_pairs is None or candidate_pairs < best_pairs)
+                )
+            ):
+                best_value = candidate_value
+                best_pairs = candidate_pairs
+        return best_value, best_pairs or ()
+
+    _, optimized_pairs = _solve(remaining)
+    selected_rows = []
+    for pair in locks:
+        row = row_lookup[pair].drop(labels=["pair"]).to_dict()
+        row["locked"] = True
+        selected_rows.append(row)
+    for pair in optimized_pairs:
+        if open_slot in pair:
+            manager = pair[1] if pair[0] == open_slot else pair[0]
+            row = {column: None for column in pair_scores.columns}
+            row.update({
+                "manager_a": manager,
+                "manager_b": None,
+                "reason": "Open slot: the league has an odd number of active managers",
+                "locked": False,
+            })
+        else:
+            row = row_lookup[pair].drop(labels=["pair"]).to_dict()
+            row["locked"] = False
+        selected_rows.append(row)
+
+    result = pd.DataFrame(selected_rows)
+    if result.empty:
+        return result
+    result["_open"] = result["manager_b"].isna()
+    result["_score"] = pd.to_numeric(result["rivalry_score"], errors="coerce").fillna(-1)
+    return result.sort_values(
+        ["_open", "locked", "_score", "manager_a"],
+        ascending=[True, False, False, True],
+        ignore_index=True,
+    ).drop(columns=["_open", "_score"])
 
 
 def weekly_score_context_frame(

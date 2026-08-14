@@ -262,7 +262,7 @@ A Streamlit multipage site with a top nav in three groups. **Betting**: Weekly P
 - **DFS Optimizer**: DraftKings Classic lineup solver. The page is still Coming soon until Week 1; the optimizer code is in `fantasy/dfs/`.
 
 - **Film Room**: one embedded TikTok from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel at a time, picked from a title list, each with a click-to-open written breakdown. Newest episode is the default. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
-- **League History**: loads a public Sleeper league chain and presents records, matchups, manager report cards, draft-room tendencies, four-week-qualified player scoring, and descriptive draft-versus-production value charts. Transaction-level acquisition labels and player-season counts are tracked in [`docs/LEAGUE_HISTORY_BACKLOG.md`](docs/LEAGUE_HISTORY_BACKLOG.md).
+- **League History**: loads a public Sleeper league chain and presents records, matchups, manager report cards, draft-room tendencies, four-week-qualified player scoring, and descriptive draft-versus-production value charts. Its Rivalry Week Builder scores every current-manager pairing in three modes, globally optimizes a complete slate, explains each matchup, and supports locked alternatives. Transaction-level acquisition labels and player-season counts are tracked in [`docs/LEAGUE_HISTORY_BACKLOG.md`](docs/LEAGUE_HISTORY_BACKLOG.md).
 
 ### Automation
 

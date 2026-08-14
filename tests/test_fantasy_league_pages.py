@@ -350,6 +350,90 @@ def test_rivalry_summary_tracks_series_scoring_playoffs_and_streaks():
     assert rivalry["largest_margin"] == 20
 
 
+def test_rivalry_week_scores_modes_and_uses_stable_unique_labels():
+    identities = {"u1": "Alex", "u2": "Alex", "u3": "Casey", "u4": "Drew"}
+    labels = league_intel.manager_display_labels(identities)
+    assert labels["u1"] != labels["u2"]
+    assert labels["u3"] == "Casey"
+
+    games = []
+    for season, week, alex_score, casey_score, playoff in (
+        ("2023", 1, 101, 99, False),
+        ("2023", 15, 112, 115, True),
+        ("2024", 2, 120, 116, False),
+        ("2024", 16, 104, 108, True),
+        ("2025", 4, 130, 126, False),
+        ("2025", 8, 99, 101, False),
+    ):
+        games.extend([
+            {"season": season, "week": week, "username": labels["u1"],
+             "score": alex_score, "opp": labels["u3"], "opp_score": casey_score,
+             "won": alex_score > casey_score, "is_playoff": playoff},
+            {"season": season, "week": week, "username": labels["u3"],
+             "score": casey_score, "opp": labels["u1"], "opp_score": alex_score,
+             "won": casey_score > alex_score, "is_playoff": playoff},
+        ])
+
+    matchups = league_intel.matchup_record_frame(games)
+    managers = list(labels.values())
+    classic = league_intel.rivalry_pair_score_frame(
+        matchups, managers, "Classic Rivalries"
+    )
+    fresh = league_intel.rivalry_pair_score_frame(matchups, managers, "Fresh Blood")
+
+    established_pair = frozenset((labels["u1"], labels["u3"]))
+    classic_by_pair = {
+        frozenset((row["manager_a"], row["manager_b"])): row
+        for _, row in classic.iterrows()
+    }
+    fresh_by_pair = {
+        frozenset((row["manager_a"], row["manager_b"])): row
+        for _, row in fresh.iterrows()
+    }
+    assert len(classic) == 6
+    assert classic_by_pair[established_pair]["games"] == 6
+    assert classic_by_pair[established_pair]["playoff_meetings"] == 2
+    assert classic_by_pair[established_pair]["rivalry_score"] > classic[
+        classic["games"].eq(0)
+    ]["rivalry_score"].max()
+    assert fresh_by_pair[established_pair]["rivalry_score"] < fresh[
+        fresh["games"].eq(0)
+    ]["rivalry_score"].min()
+    assert "First recorded meeting" in fresh[fresh["games"].eq(0)].iloc[0]["reason"]
+
+
+def test_rivalry_week_slate_optimizes_globally_and_honors_locks():
+    # Greedy AB first would total only 101. The global optimum is AC + BD = 198.
+    scores = pd.DataFrame([
+        {"manager_a": "A", "manager_b": "B", "rivalry_score": 100.0, "reason": "AB"},
+        {"manager_a": "A", "manager_b": "C", "rivalry_score": 99.0, "reason": "AC"},
+        {"manager_a": "A", "manager_b": "D", "rivalry_score": 2.0, "reason": "AD"},
+        {"manager_a": "B", "manager_b": "C", "rivalry_score": 2.0, "reason": "BC"},
+        {"manager_a": "B", "manager_b": "D", "rivalry_score": 99.0, "reason": "BD"},
+        {"manager_a": "C", "manager_b": "D", "rivalry_score": 1.0, "reason": "CD"},
+    ])
+
+    slate = league_intel.rivalry_week_slate_frame(scores)
+    pairs = {
+        frozenset((row["manager_a"], row["manager_b"]))
+        for _, row in slate.iterrows()
+    }
+    assert pairs == {frozenset(("A", "C")), frozenset(("B", "D"))}
+    assert slate["rivalry_score"].sum() == 198.0
+
+    locked = league_intel.rivalry_week_slate_frame(
+        scores,
+        locked_pairs=[("A", "B")],
+        avoided_pairs=[("C", "D")],
+    )
+    locked_pairs = {
+        frozenset((row["manager_a"], row["manager_b"]))
+        for _, row in locked.iterrows()
+    }
+    assert locked_pairs == {frozenset(("A", "B")), frozenset(("C", "D"))}
+    assert bool(locked.loc[locked["reason"].eq("AB"), "locked"].iloc[0])
+
+
 def test_manager_performance_uses_peer_week_context_and_excludes_playoffs():
     games = []
     weekly = {
@@ -469,6 +553,7 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert [tab.label for tab in at.tabs][:2] == [
         "🧠 Draft & Roster Insights", "🏆 All-Time Leaderboard",
     ]
+    assert any(tab.label == "⚔️ Rivalries" for tab in at.tabs)
     assert len(at.get("plotly_chart")) >= 4
     assert any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
     assert any(metric.label == "🍀 Luckiest Win (All-Play)" for metric in at.metric)
@@ -478,6 +563,13 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert {"lh_h2h_manager_a", "lh_h2h_manager_b"} <= {
         widget.key for widget in at.selectbox
     }
+    assert {"lh_rivalry_mode", "lh_rivalry_history"} <= {
+        widget.key for widget in at.selectbox
+    }
+    assert any(
+        button.label == "Generate another slate" for button in at.button
+    )
+    assert any(metric.label == "Average Rivalry Score" for metric in at.metric)
     assert any(
         expander.label == "View complete head-to-head record matrix"
         for expander in at.expander
