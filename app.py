@@ -32,7 +32,23 @@ runtime_telemetry.begin()
 def _lazy_render(module_name: str):
     """Return a page callable that imports its implementation only when selected."""
     def render():
-        importlib.import_module(module_name).render()
+        was_loaded = module_name in sys.modules
+        module = importlib.import_module(module_name)
+        source_path = Path(module.__file__)
+        source_mtime = source_path.stat().st_mtime_ns
+
+        # Streamlit Cloud can sync a lazily imported page without restarting the
+        # Python process. Reload only when that page's source changed, so a live
+        # session cannot stay pinned to the previous deployment.
+        if (
+            was_loaded
+            and getattr(module, "__joscho_source_mtime_ns__", None)
+            != source_mtime
+        ):
+            module = importlib.reload(module)
+            source_mtime = source_path.stat().st_mtime_ns
+        module.__joscho_source_mtime_ns__ = source_mtime
+        module.render()
 
     render.__name__ = f"render_{module_name}"
     return render
