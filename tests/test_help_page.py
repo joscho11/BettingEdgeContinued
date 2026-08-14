@@ -40,6 +40,16 @@ def test_help_renders_offline_clean(tmp_path):
     )
 
 
+def test_help_site_org_and_paused_copy(tmp_path):
+    at = _render(tmp_path)
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Season Totals (Beta)" in md
+    assert "Coming soon" in md
+    assert "currently uses mock data" not in md
+    assert "roadmap for the 2026 season" not in md
+    assert "same automated pipeline that runs the betting predictions" not in md
+
+
 def test_help_interpolates_shared_stats_byte_identical(tmp_path):
     import dashboard_data
     df = dashboard_data.load_predictions()
@@ -56,5 +66,6 @@ if __name__ == "__main__":
     import tempfile
     with tempfile.TemporaryDirectory() as d:
         test_help_renders_offline_clean(Path(d))
+        test_help_site_org_and_paused_copy(Path(d))
         test_help_interpolates_shared_stats_byte_identical(Path(d))
     print("OK  Help page renders clean; shared stats interpolate byte-identical")

@@ -264,7 +264,7 @@ def render():
 
             ct1, ct2, ct3 = st.columns(3)
             ct1.metric("HIGH Tier",   f"{_ch_c}/{_ch_t}", f"{_ch_pct}%",
-                       help="All 3 models agree + Ensemble edge ≥3 pts. Highest expected accuracy.")
+                       help="All 3 models agree + Ensemble edge ≥3 pts.")
             ct2.metric("MEDIUM Tier", f"{_cm_c}/{_cm_t}", f"{_cm_pct}%",
                        help="All 3 models agree + Ensemble edge 1–3 pts.")
             ct3.metric("PASS Tier",   f"{_cp_c}/{_cp_t}", f"{_cp_pct}%",
@@ -333,8 +333,12 @@ def render():
             losses = int(len(graded) - wins)
             return wins * 100 - losses * 110, wins, losses
 
-        _high_sub = season_df[season_df[_s_edge].abs() >= 3]
-        _med_or_high_sub = season_df[season_df[_s_edge].abs() >= 1]
+        if _has_ct:
+            _high_sub = season_df[season_df['consensus_tier'] == 'HIGH']
+            _med_or_high_sub = season_df[season_df['consensus_tier'].isin(['HIGH', 'MEDIUM'])]
+        else:
+            _high_sub = season_df[season_df[_s_edge].abs() >= 3]
+            _med_or_high_sub = season_df[season_df[_s_edge].abs() >= 1]
         _profit_high, _h_w, _h_l = _units_profit(_high_sub)
         _profit_hm,   _hm_w, _hm_l = _units_profit(_med_or_high_sub)
         _profit_all,  _a_w, _a_l = _units_profit(season_df)

@@ -47,6 +47,14 @@ def test_track_record_renders_and_owns_controls(tmp_path):
         "Track Record must not carry Weekly Predictions' controls"
 
 
+def test_weekly_predictions_hides_paused_agent_chrome(tmp_path):
+    at = _render_page(tmp_path, "page_weekly_predictions")
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Agent Confidence:" not in md
+    assert "Matchup Analysis" not in md
+    assert "Model Consensus:" in md
+
+
 def test_ats_blurb_lives_on_the_betting_pages(tmp_path):
     for module in ("page_weekly_predictions", "page_track_record"):
         at = _render_page(tmp_path, module)
@@ -60,5 +68,6 @@ if __name__ == "__main__":
         p = Path(d)
         test_weekly_predictions_renders_and_owns_controls(p)
         test_track_record_renders_and_owns_controls(p)
+        test_weekly_predictions_hides_paused_agent_chrome(p)
         test_ats_blurb_lives_on_the_betting_pages(p)
     print("OK  betting pages: render clean, own their controls, ATS blurb present")

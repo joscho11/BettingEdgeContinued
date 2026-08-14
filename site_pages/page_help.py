@@ -130,11 +130,11 @@ work, not a description of an input to my model.
         st.markdown("""
 Everything lives in the top navigation bar, grouped into three menus:
 
-- **Betting** — Weekly Predictions (the page you land on) and Track Record.
-- **Fantasy** — Draft Board, Rookie Board, Weekly Fantasy, and DFS Optimizer.
-- **More** — Film Room, League History, and this Help & Guide.
+- **Betting**: Weekly Predictions (the page you land on), Track Record, and Season Totals (Beta).
+- **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, and DFS Optimizer.
+- **More**: Film Room, League History, and this Help & Guide.
 
-The site opens on **Weekly Predictions** every time. There's no sidebar — each page carries its own controls (like the Season, Week, and Min Edge pickers) right at the top.
+The site opens on **Weekly Predictions** every time. There is no sidebar. Each page carries its own controls (like the Season, Week, and Min Edge pickers) right at the top.
         """)
 
     with st.expander("How do I read the game cards?"):
@@ -154,15 +154,11 @@ After results are in, each card will show either WIN or LOSS based on whether th
 
     with st.expander("What do the agent confidence colors mean?"):
         st.markdown("""
-The colored button on each game card tells you how confident the AI agent is after analyzing that matchup.
+**Paused as of August 2026.** The colored High / Medium / Skip buttons are not on the game cards right now. The agent's line-movement tool never had a real market feed, so I disabled the weekly agent run and took the cached week down.
 
-🟢 **High** means the model edge is strong and outside signals like injuries and historical matchup data point the same direction. These are the games worth prioritizing.
+What you see on Weekly Predictions is **Model Consensus** (HIGH / MED / PASS): whether the three spread models agree on a side, plus how large the ensemble edge is. That is the live filter.
 
-🟡 **Medium** means there's edge but something is giving mixed signals — an injury that could swing things, or a matchup history that cuts the other way. Worth considering but not a lock.
-
-🔴 **Skip** means the agent is recommending you pass on this game. The edge is too small, signals are conflicting, or there's too much uncertainty. Not every game is worth betting.
-
-Click the Matchup Analysis button on any card to read the full reasoning.
+The expander "What is the LLM agent and what does it do?" has the full pause note. When an approved agent artifact is present again, High means the model edge is strong and outside signals lined up, Medium means mixed signals, and Skip means pass.
         """)
 
     with st.expander("What is the Min Edge filter?"):
@@ -224,9 +220,9 @@ See the Fantasy Projections section below for more detail on how the models work
 
     with st.expander("What is the DFS Optimizer page?"):
         st.markdown("""
-The DFS Optimizer page is a DraftKings NFL Classic lineup optimizer launching with the 2026 season.
+The DFS Optimizer page is a DraftKings NFL Classic lineup optimizer. It is **Coming soon** until 2026 Week 1 (September).
 
-Upload your DraftKings salary CSV and the optimizer generates the highest-projected legal 9-player lineup under the $50,000 salary cap. See the DFS Optimizer section below for a full breakdown.
+The page currently shows that notice, not an upload box. When it is live, you will upload a DraftKings salary CSV and get the highest-projected legal 9-player lineup under the $50,000 salary cap. See the DFS Optimizer section below for how the solver works.
         """)
 
     with st.expander("What is the Draft Board page?"):
@@ -357,9 +353,9 @@ This matters for fantasy because players on efficient offenses tend to see more 
 
     with st.expander("How often do fantasy projections update?"):
         st.markdown("""
-Fantasy projections are generated each week as part of the same automated pipeline that runs the betting predictions.
+Fantasy projections are generated separately from the weekly betting GitHub Action. That job only papermills the spread and totals notebooks. Weekly fantasy is not on that Tuesday cron yet.
 
-The projection file for each week is saved once and doesn't change after that — it reflects the injury and depth chart data available at the time it was run. Actual stats fill in automatically after each game is played, pulling live from nflreadpy and caching for 1 hour.
+The projection file for each week is saved once and does not change after that. It reflects the injury and depth chart data available at the time it was run. Actual stats fill in automatically after each game is played, pulling live from nflreadpy and caching for 1 hour.
 
 If you're looking at a past week, the actuals shown are the real NFL stats for that game.
         """)
@@ -404,18 +400,18 @@ The full write-up covering every design choice, the admission gates, and where i
 
     with st.expander("What is the DFS Optimizer?"):
         st.markdown("""
-The DFS Optimizer page is a DraftKings NFL Classic lineup optimizer launching with the 2026 season.
+**Coming soon** until 2026 Week 1. The page is not live yet. This is how it will work when it is.
 
-It takes this site's weekly fantasy projections and solves for the highest-projected legal lineup under the $50,000 salary cap using an integer linear program. The optimizer fills all 9 roster slots — QB, 2 RB, 3 WR, TE, FLEX, DST — subject to DraftKings' constraints.
+It will take this site's weekly fantasy projections and solve for the highest-projected legal lineup under the $50,000 salary cap using an integer linear program. The optimizer fills all 9 roster slots (QB, 2 RB, 3 WR, TE, FLEX, DST) subject to DraftKings' constraints.
 
-The workflow each week is:
+The planned weekly workflow:
 1. Download your DraftKings salary CSV from any NFL Classic contest lobby
 2. Upload it in the DFS Optimizer page
 3. The optimizer fuzzy-matches DK player names to my projected points and solves the lineup
 4. Lock or exclude specific players and re-run if you want to tweak it
 5. Download the finished lineup ready for DraftKings import
 
-Note that DST currently uses DraftKings' season average since there is no team-defense projection model yet. That's listed as a known limitation on that page.
+DST will use DraftKings' season average until there is a team-defense projection model. That limitation will be listed on the page.
         """)
 
     with st.expander("How does the optimizer actually work?"):
@@ -571,7 +567,7 @@ The model pulls play-by-play and schedule data from nflreadpy going back to 1999
 
 The All-Pro data is a custom CSV covering selections from 1997 to 2025. It's used as a proxy for roster talent: players are weighted over a 3-year lookback (4/2/1) so recent selections matter more. This gets updated manually each January.
 
-The agent's line-movement tool currently uses mock data for demonstration; wiring in a live odds API is on the roadmap for the 2026 season. Injury data, by contrast, is real — pulled live from nflreadpy — both in the model's features and in the agent's injury tool.
+Injury data is real, pulled live from nflreadpy, and feeds the model's All-Pro injury impact. The LLM agent is paused (August 2026). Its line-movement tool used hardcoded example values, so that analysis is not on the site.
         """)
 
     with st.expander("Is this financial advice?"):

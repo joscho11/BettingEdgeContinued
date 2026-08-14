@@ -226,7 +226,7 @@ def snapshot_cmd(args) -> None:
         if key not in lines:
             unmatched += 1
             continue
-        # pick_line is the CLV baseline (line WHEN you picked) — first write wins so a
+        # pick_line is the CLV baseline (line WHEN you picked). First write wins so a
         # re-run doesn't stomp it; closing_line is always refreshed to the latest.
         if (col == "pick_line" and pd.notna(df.at[i, "pick_line"])
                 and not getattr(args, "force", False)):   # R32 (review L-15)

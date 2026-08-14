@@ -147,18 +147,20 @@ def render():
     cached          = load_agent_analysis(week, season)
     game_analysis   = cached.get('game_analysis',   {}) if cached else {}
     game_confidence = cached.get('game_confidence', {}) if cached else {}
+    _show_agent     = bool(cached and (game_analysis or game_confidence))
 
-    st.markdown("""
-        <div class='jsa-legend' style='display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap;'>
-            <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Agent Confidence:</span>
-            <span style='font-size:12px;background:#1a3a1a;border:1px solid #00c853;
-                        border-radius:4px;padding:2px 8px;color:#00c853;'>🟢 High</span>
-            <span style='font-size:12px;background:#3a3a1a;border:1px solid #ffd600;
-                        border-radius:4px;padding:2px 8px;color:#ffd600;'>🟡 Medium</span>
-            <span style='font-size:12px;background:#3a1a1a;border:1px solid #ff5252;
-                        border-radius:4px;padding:2px 8px;color:#ff5252;'>🔴 Skip</span>
-        </div>
-    """, unsafe_allow_html=True)
+    if _show_agent:
+        st.markdown("""
+            <div class='jsa-legend' style='display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap;'>
+                <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Agent Confidence:</span>
+                <span style='font-size:12px;background:#1a3a1a;border:1px solid #00c853;
+                            border-radius:4px;padding:2px 8px;color:#00c853;'>🟢 High</span>
+                <span style='font-size:12px;background:#3a3a1a;border:1px solid #ffd600;
+                            border-radius:4px;padding:2px 8px;color:#ffd600;'>🟡 Medium</span>
+                <span style='font-size:12px;background:#3a1a1a;border:1px solid #ff5252;
+                            border-radius:4px;padding:2px 8px;color:#ff5252;'>🔴 Skip</span>
+            </div>
+        """, unsafe_allow_html=True)
 
     _has_consensus_col = 'consensus_tier' in week_df.columns and week_df['consensus_tier'].notna().any()
     if _has_consensus_col:
@@ -362,47 +364,47 @@ def render():
                 b2.markdown(stat_box(bot_predicted, is_rec=bot_is_rec), unsafe_allow_html=True)
                 b4.markdown(bet_box(bot_team, rec_color) if bot_is_rec else empty_box(), unsafe_allow_html=True)
 
-                game_key  = f"{home}_{away}"
-                game_text = game_analysis.get(game_key, None)
+                if _show_agent:
+                    game_key  = f"{home}_{away}"
+                    game_text = game_analysis.get(game_key, None)
 
-                # Determine confidence color
-                if game_text:
-                    if '🟢' in game_text:
-                        btn_color = "#00c853"
-                        btn_bg    = "#1a3a1a"
-                        btn_label = "🟢 Matchup Analysis"
-                    elif '🟡' in game_text:
-                        btn_color = "#ffd600"
-                        btn_bg    = "#3a3a1a"
-                        btn_label = "🟡 Matchup Analysis"
-                    elif '🔴' in game_text or 'SKIP' in game_text.upper() or 'PASS' in game_text.upper():
-                        btn_color = "#ff5252"
-                        btn_bg    = "#3a1a1a"
-                        btn_label = "🔴 Matchup Analysis"
+                    if game_text:
+                        if '🟢' in game_text:
+                            btn_color = "#00c853"
+                            btn_bg    = "#1a3a1a"
+                            btn_label = "🟢 Matchup Analysis"
+                        elif '🟡' in game_text:
+                            btn_color = "#ffd600"
+                            btn_bg    = "#3a3a1a"
+                            btn_label = "🟡 Matchup Analysis"
+                        elif '🔴' in game_text or 'SKIP' in game_text.upper() or 'PASS' in game_text.upper():
+                            btn_color = "#ff5252"
+                            btn_bg    = "#3a1a1a"
+                            btn_label = "🔴 Matchup Analysis"
+                        else:
+                            btn_color = "#ff5252"
+                            btn_bg    = "#3a1a1a"
+                            btn_label = "🔴 Matchup Analysis"
                     else:
-                        btn_color = "#ff5252"
-                        btn_bg    = "#3a1a1a"
-                        btn_label = "🔴 Matchup Analysis"
-                else:
-                    btn_color = "#aaaaaa"
-                    btn_bg    = "#1e1e1e"
-                    btn_label = "⚪ Matchup Analysis"
+                        btn_color = "#aaaaaa"
+                        btn_bg    = "#1e1e1e"
+                        btn_label = "⚪ Matchup Analysis"
 
-                content_html = (
-                    _md_to_html(game_text) if game_text
-                    else "<em style='color:#888'>No analysis yet. Run the notebook to generate.</em>"
-                )
-
-                col_btn, _ = st.columns([1, 3])
-                with col_btn:
-                    st.markdown(
-                        f"<details style='--conf-color:{btn_color};"
-                        f"--conf-bg:{btn_bg};--conf-border:{btn_color}'>"
-                        f"<summary>{btn_label}</summary>"
-                        f"<div>{content_html}</div>"
-                        f"</details>",
-                        unsafe_allow_html=True
+                    content_html = (
+                        _md_to_html(game_text) if game_text
+                        else "<em style='color:#888'>No analysis yet. Run the notebook to generate.</em>"
                     )
+
+                    col_btn, _ = st.columns([1, 3])
+                    with col_btn:
+                        st.markdown(
+                            f"<details style='--conf-color:{btn_color};"
+                            f"--conf-bg:{btn_bg};--conf-border:{btn_color}'>"
+                            f"<summary>{btn_label}</summary>"
+                            f"<div>{content_html}</div>"
+                            f"</details>",
+                            unsafe_allow_html=True
+                        )
 
                 # ── Totals badge (below matchup analysis) ────────────────────────────
                 _tot_row = _totals_lookup.get(row.get('game_id'))
@@ -438,7 +440,7 @@ def render():
                 st.divider()
 
     # ── Agent vs Model Evaluation ─────────────────────────────────────────────
-    if cached and game_analysis:
+    if _show_agent and game_analysis:
         st.divider()
         st.subheader(f"📊 Week {week}: Agent vs Model")
 

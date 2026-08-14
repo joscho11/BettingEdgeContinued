@@ -245,19 +245,21 @@ An integer-linear-program optimizer for DraftKings NFL Classic, using the weekly
 
 ### LLM Agent
 
-A LlamaIndex ReActAgent with 5 tools (predictions, live injuries, line movement, head-to-head history, confidence analysis). The model gives a number, the agent gives the narrative: it reasons through each game and flags when sharp money or an injury cuts against the model's pick. It is not there to override the model, it is the qualitative sanity check a raw number cannot give you. Output is cached per week and shown as confidence overlays in the dashboard.
+**Paused as of August 2026.** A LlamaIndex ReActAgent was built with tools for predictions, live injuries, head-to-head history, and confidence analysis. Its line-movement tool never had a real market feed (hardcoded example values), so the weekly agent run is disabled and the one cached week is quarantined. The site refuses to render any agent artifact that cannot prove where its market claims came from. Re-enabling needs a real odds adapter.
 
 ### Dashboard
 
-A Streamlit multipage site with a top nav in three groups — **Betting**: Weekly Predictions, Track Record · **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, DFS Optimizer · **More**: Film Room, League History, Help & Guide.
+A Streamlit multipage site with a top nav in three groups. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, DFS Optimizer. **More**: Film Room, League History, Help & Guide.
 
 - **Draft Board**: my pre-season board for the independent model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Model Proj is 75% independent v6 and 25% Sleeper's published projection. Sleeper ADP and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. Model Proj points and ranks remain frozen until the planned early-September snapshot. The mix is backtested on 2021-2025 and **not** live-validated. Its first live test is 2026. On that backtest it beat ADP ordering in 5 of 6 seasons. Independent v6 alone did not. The gaps are neutral rank differences shown for context, not calls about any player.
 
-- **Rookie Board**: a per-position hit-probability score for drafted rookies, beside the rookie season-total projections (RB, WR and TE — the QB rookie arm was built and held as too thin), a College Talent score, and college/athletic percentiles. Backtested, not live-validated: at this sample college production and athletic testing added no measured edge beyond draft capital.
+- **Rookie Board**: a per-position hit-probability score for drafted rookies, beside the rookie season-total projections (RB, WR and TE; the QB rookie arm was built and held as too thin), a College Talent score, and college/athletic percentiles. Backtested, not live-validated: at this sample college production and athletic testing added no measured edge beyond draft capital.
 
-- **Weekly Predictions**: game cards with edge, confidence tier, and expandable agent reasoning. Games where the experimental totals model says UNDER show a dashed amber badge below the spread card.
+- **Weekly Predictions**: game cards with ensemble edge and model-consensus HIGH/MED/PASS tiers. Agent-confidence overlays are paused. Games where the experimental totals model says UNDER show a dashed amber badge below the spread card.
 - **Track Record**: ATS record by tier and week, profit at standard odds, longest streaks, and a separate over/under section flagged as tracking-only.
+- **Season Totals (Beta)**: pre-season team win projections with a simulated range. The page states plainly that the model does not beat the archived market consensus.
 - **Weekly Fantasy**: per-position projections with both projected and actual stat columns that fill in after games are played.
+- **DFS Optimizer**: DraftKings Classic lineup solver. The page is still Coming soon until Week 1; the optimizer code is in `fantasy/dfs/`.
 
 - **Film Room**: embedded TikToks from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel (the analytics content arm), each paired with a click-to-open written breakdown that digs into the data the short couldn't fit. The channel intro is featured at the top; player and matchup breakdowns land here as they're posted. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
 
@@ -269,11 +271,11 @@ Two GitHub Actions workflows.
 
 | Time | Action |
 |------|--------|
-| Tuesday 9am ET | Previous week graded, new week predicted (spread, totals, and the LLM agent) |
+| Tuesday 9am ET | Previous week graded, new week predicted (spread and totals) |
 | Thursday 9pm ET | Predictions refreshed with injury reports |
 | Sunday 9am ET | Final predictions locked |
 
-The agent only runs on Tuesday (it costs API calls) and is allowed to fail without blocking the tracker commit.
+The LLM agent step is commented out (paused August 2026). The job stages only the two tracker CSVs.
 
 **`test.yml`** runs on every push and PR to `main`, in three jobs: a `features` job runs the `features.py` contract tests (including an order-hash check that catches feature-list changes which would silently alter the trained models) plus the calibration tests; a `pytests` job runs the seasonal, dashboard and talent suites plus the betting execution layer; and a `deploy-parity` job re-runs everything on Python 3.12 against the exact package set Streamlit Cloud installs, so a resolver conflict fails here instead of on the live site. Catches regressions in seconds instead of on the next cron.
 
@@ -312,15 +314,16 @@ Best week: 9 of 14 (Week 14, 64.3%). These are encouraging but it is a small liv
 ## Repo Structure
 
 ```
-app.py                                 # Multipage entry point (st.navigation, 9 pages, top nav)
+app.py                                 # Multipage entry point (st.navigation, 10 pages, top nav)
 site_pages/                            # One module per page (draft_board, rookie_board, weekly_predictions,
-  page_*.py                            #   weekly_fantasy, dfs, track_record, film_room, league_history, help)
+  page_*.py                            #   weekly_fantasy, dfs, track_record, film_room, league_history, help,
+                                       #   futures/season-totals)
   page_common.py                       # Shared page scaffolding
 tests/                                 # Dashboard + board suites; conftest.py puts the repo root on sys.path
 nav_registry.py                        # Cross-link registry, populated before nav.run()
 dashboard_chrome.py / dashboard_data.py   # Shared chrome and data loaders
 dashboard_utils.py                     # Streamlit-free dashboard helpers (testable; metric_card, loaders, etc.)
-draft_board_2026.py                    # Draft Board renderer (frozen V2 model source + daily Sleeper overlay +
+draft_board_2026.py                    # Draft Board renderer (frozen Model Proj + daily Sleeper overlay +
                                        #   fantasy/talent scores)
 film_room.py                           # Film Room renderer (embedded TikToks + breakdown popups)
 video_content.py                       # Registry of published videos (embed ids + breakdown files)

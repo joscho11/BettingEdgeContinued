@@ -206,7 +206,8 @@ def test_help_page_no_longer_claims_market_inputs():
     src = (_HERE / "site_pages" / "page_help.py").read_text(encoding="utf-8")
     banned = ["sharp money likes that team", "sharp money is going the other way",
               "line movement data,", "Maybe sharp money is split",
-              "the agent will flag it in the matchup analysis"]
+              "the agent will flag it in the matchup analysis",
+              "currently uses mock data", "roadmap for the 2026 season"]
     hits = [b for b in banned if b in src]
     assert hits == [], f"help page still claims market inputs: {hits}"
     assert "don't have sharp-money" in src, "the explicit disclaimer is missing"
