@@ -452,7 +452,7 @@ Projections are converted to full DraftKings Classic scoring (full PPR, mileston
         st.markdown("""
 The League History page pulls your Sleeper fantasy league's historical data and displays it in one place.
 
-Enter your Sleeper league ID (found in your league's URL: `sleeper.com/leagues/{ID}/league`) and the page loads standings, matchup results, and season-by-season records for every manager in the league.
+Enter your Sleeper league ID (found in your league's URL: `sleeper.com/leagues/{ID}/league`) and the page loads standings, matchup results, and season-by-season records for every manager in the league. After you select Load, the progress message counts the linked seasons, shows a calibrated time range, and displays elapsed time while the weekly matchup requests run.
 
 You can filter by season or view all-time records across every year your league has existed. It's useful for settling debates about who's actually been the best manager historically versus just the most recent champion.
 

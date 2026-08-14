@@ -26,6 +26,7 @@ _MAX_LEAGUE_ID_DIGITS = 20
 _SLEEPER_GET_CACHE_ENTRIES = 128
 _HISTORY_CACHE_ENTRIES = 8
 _MATCHUP_FETCH_WORKERS = 6
+_MAX_HISTORY_SEASONS = 10
 _LEAGUE_HISTORY_TABS = (
     "🧠 Draft & Roster Insights",
     "🏆 All-Time Leaderboard",
@@ -63,6 +64,31 @@ def _sleeper_get(url: str):
         return None
 
 
+@st.cache_data(ttl=3600, max_entries=_HISTORY_CACHE_ENTRIES)
+def _league_history_season_count(start_league_id: str) -> int:
+    """Count the linked Sleeper seasons before the heavier weekly pulls begin."""
+    current_id = start_league_id.strip()
+    seen = set()
+    season_count = 0
+    while current_id and current_id not in {"0", ""} and current_id not in seen:
+        if len(seen) >= _MAX_HISTORY_SEASONS:
+            break
+        seen.add(current_id)
+        info = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}")
+        if not info or not isinstance(info, dict) or not info.get("season"):
+            break
+        season_count += 1
+        previous_id = info.get("previous_league_id")
+        current_id = previous_id if previous_id and previous_id != "0" else ""
+    return season_count
+
+
+def _history_load_estimate(season_count: int) -> tuple[int, int]:
+    """Return a conservative first-load range calibrated to the public fetch path."""
+    seasons = max(1, min(int(season_count or 1), _MAX_HISTORY_SEASONS))
+    return max(5, seasons * 2), max(10, seasons * 4)
+
+
 @st.cache_data(ttl=86400, max_entries=1)
 def _fetch_player_directory() -> dict:
     """Sleeper asks consumers to cache the large NFL player directory."""
@@ -78,7 +104,7 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
     seen        = set()
 
     while current_id and current_id not in ("0", "") and current_id not in seen:
-        if len(seen) >= 10:
+        if len(seen) >= _MAX_HISTORY_SEASONS:
             break
         seen.add(current_id)
 
@@ -280,7 +306,18 @@ def render():
         st.info("League history needs a live connection to Sleeper and is "
                 "unavailable offline.")
     else:
-        with st.spinner("Loading league history from Sleeper…"):
+        with st.spinner("Checking linked Sleeper seasons…"):
+            _linked_seasons = _league_history_season_count(_lid)
+        if _linked_seasons:
+            _estimate_low, _estimate_high = _history_load_estimate(_linked_seasons)
+            _season_word = "season" if _linked_seasons == 1 else "seasons"
+            _loading_copy = (
+                f"Loading {_linked_seasons} {_season_word} from Sleeper… "
+                f"estimated {_estimate_low}–{_estimate_high} seconds."
+            )
+        else:
+            _loading_copy = "Loading league history from Sleeper… usually under a minute."
+        with st.spinner(_loading_copy, show_time=True):
             _lh = _fetch_sleeper_history(_lid)
 
         if not _lh["seasons"]:

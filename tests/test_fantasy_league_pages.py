@@ -117,6 +117,26 @@ def test_league_history_rejects_implausible_ids_before_fetch():
     assert "does not look like" in page_league_history._league_id_error("123")
 
 
+def test_league_history_estimate_counts_linked_seasons(monkeypatch):
+    leagues = {
+        "current": {"season": "2026", "previous_league_id": "prior-1"},
+        "prior-1": {"season": "2025", "previous_league_id": "prior-2"},
+        "prior-2": {"season": "2024", "previous_league_id": "0"},
+    }
+
+    def _fake_get(url):
+        return leagues.get(url.rsplit("/", 1)[-1])
+
+    monkeypatch.setattr(page_league_history, "_sleeper_get", _fake_get)
+    page_league_history._league_history_season_count.clear()
+    try:
+        assert page_league_history._league_history_season_count("current") == 3
+        assert page_league_history._history_load_estimate(3) == (6, 12)
+        assert page_league_history._history_load_estimate(99) == (20, 40)
+    finally:
+        page_league_history._league_history_season_count.clear()
+
+
 def test_rookie_board_excludes_direct_pff_fields_and_explains_availability(tmp_path):
     """The public Rookie Board excludes direct PFF data and explains blank projections."""
     at = _render_page(tmp_path, "page_rookie_board")
@@ -539,6 +559,7 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         "import page_league_history as p\n"
         "p._OFFLINE = False\n"
         f"p._fetch_sleeper_history = lambda _league_id: {fixture!r}\n"
+        "p._league_history_season_count = lambda _league_id: 1\n"
         "p._fetch_player_directory = lambda: {}\n"
         "p.render()\n",
         encoding="utf-8",
