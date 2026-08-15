@@ -227,6 +227,75 @@ def _lh_plotly(fig) -> None:
     )
 
 
+def _schedule_luck_figure(cl_df):
+    """Horizontal luck bars whose outside labels stay off the x-axis title.
+
+    On a phone the plot is ~170px once a 165px right gutter is reserved, and the
+    old one-line x-axis title is wider than that, so it ran into the bar labels.
+    Short labels plus a wrapped title keep each in its own band on phone and desktop.
+    """
+    import plotly.graph_objects as go
+
+    luck_sorted = cl_df.sort_values("luck_delta", ascending=True).copy()
+    luck_text = [
+        f"{actual:.1f} / {expected:.1f}"
+        for actual, expected in zip(
+            luck_sorted["actual_wins"], luck_sorted["expected_wins"]
+        )
+    ]
+    fig = go.Figure(go.Bar(
+        x=luck_sorted["luck_delta"],
+        y=luck_sorted["manager"],
+        orientation="h",
+        text=luck_text,
+        textposition="outside",
+        textfont={"size": 11},
+        cliponaxis=False,
+        marker={
+            "color": [
+                "#34d399" if value >= 0 else "#fb7185"
+                for value in luck_sorted["luck_delta"]
+            ],
+            "line": {"color": "rgba(255,255,255,0.45)", "width": 1},
+        },
+        customdata=luck_sorted[[
+            "actual_win_pct", "expected_win_pct", "below_avg_wins",
+            "above_avg_losses", "games",
+        ]],
+        hovertemplate=(
+            "<b>%{y}</b><br>Wins vs expected: %{x:+.2f}<br>"
+            "Actual win rate: %{customdata[0]:.1f}%<br>"
+            "All-play expected rate: %{customdata[1]:.1f}%<br>"
+            "Below-average wins: %{customdata[2]}<br>"
+            "Above-average losses: %{customdata[3]}<br>"
+            "Games: %{customdata[4]}<extra></extra>"
+        ),
+    ))
+    luck_span = max(1.0, float(luck_sorted["luck_delta"].abs().max()) * 1.3)
+    fig.add_vline(x=0, line_color="#94a3b8", line_width=1)
+    fig.update_layout(
+        title="Schedule Luck: Actual Wins Minus All-Play Expected Wins",
+        height=max(430, 40 * len(luck_sorted) + 120),
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(15,23,42,0.36)",
+        margin={"l": 25, "r": 96, "t": 70, "b": 84},
+        showlegend=False,
+        xaxis={
+            "title": {
+                "text": "Wins vs<br>expected",
+                "standoff": 18,
+                "font": {"size": 12},
+            },
+            "range": [-luck_span, luck_span],
+            "automargin": True,
+            "gridcolor": "rgba(148,163,184,0.16)",
+        },
+        yaxis={"title": "", "automargin": True},
+    )
+    return fig
+
+
 def _league_id_error(raw_league_id: str) -> str | None:
     league_id = raw_league_id.strip()
     if not league_id:
@@ -805,20 +874,21 @@ def render():
                         ("Most Points", _point_names, _point_delta,
                          "No scores yet", None),
                     ]
-                    _metric_cols = st.columns(len(_cards))
-                    for _col, (_label, _names, _delta, _empty, _empty_delta) in zip(
-                        _metric_cols, _cards,
-                    ):
-                        with _col:
-                            _leaderboard_metric(
-                                _label, _names, _delta,
-                                empty_value=_empty, empty_delta=_empty_delta,
-                                flip_at=3 if _label in {
-                                    "Most Titles",
-                                    "Most Finals Appearances",
-                                    "Longest Active Playoff Streak",
-                                } else None,
-                            )
+                    with st.container(key="jsa-lh-leaderboard-cards"):
+                        _metric_cols = st.columns(len(_cards))
+                        for _col, (_label, _names, _delta, _empty, _empty_delta) in zip(
+                            _metric_cols, _cards,
+                        ):
+                            with _col:
+                                _leaderboard_metric(
+                                    _label, _names, _delta,
+                                    empty_value=_empty, empty_delta=_empty_delta,
+                                    flip_at=3 if _label in {
+                                        "Most Titles",
+                                        "Most Finals Appearances",
+                                        "Longest Active Playoff Streak",
+                                    } else None,
+                                )
                     _caption_parts = []
                     for _tie_label, _tie_names in (
                         ("Most Titles", _title_names),
@@ -905,7 +975,7 @@ def render():
                                 "zeroline": False,
                             },
                         )
-                        _lh_plotly(_fig_map)
+                        page_common.plotly_labeled_scatter(_fig_map, slug="leaderboard-map")
 
                         def _names(_frame):
                             return ", ".join(_frame.sort_values(
@@ -1274,7 +1344,7 @@ def render():
                             },
                             legend={"title": "Season", "orientation": "h", "y": -0.18},
                         )
-                        _lh_plotly(_fig_chaos)
+                        page_common.plotly_labeled_scatter(_fig_chaos, slug="hof-chaos")
 
                         _shootout_type = (
                             "a true shootout—both teams contributed to the record total"
@@ -2552,7 +2622,7 @@ def render():
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                     )
-                    _lh_plotly(_fig_consistency)
+                    page_common.plotly_labeled_scatter(_fig_consistency, slug="consistency")
 
                     _top_scorer = _cl_df.loc[_cl_df["avg_above_league"].idxmax()]
                     _above_average = _eligible_cl[_eligible_cl["avg_above_league"].gt(0)]
@@ -2581,58 +2651,7 @@ def render():
                         f"{_consistency_caveat} The upper-right area is the ideal combination: strong and steady."
                     )
 
-                    _luck_sorted = _cl_df.sort_values("luck_delta", ascending=True).copy()
-                    _luck_text = [
-                        f"{actual:.1f} actual / {expected:.1f} expected"
-                        for actual, expected in zip(
-                            _luck_sorted["actual_wins"], _luck_sorted["expected_wins"]
-                        )
-                    ]
-                    _fig_luck = go.Figure(go.Bar(
-                        x=_luck_sorted["luck_delta"],
-                        y=_luck_sorted["manager"],
-                        orientation="h",
-                        text=_luck_text,
-                        textposition="outside",
-                        cliponaxis=False,
-                        marker={
-                            "color": [
-                                "#34d399" if value >= 0 else "#fb7185"
-                                for value in _luck_sorted["luck_delta"]
-                            ],
-                            "line": {"color": "rgba(255,255,255,0.45)", "width": 1},
-                        },
-                        customdata=_luck_sorted[[
-                            "actual_win_pct", "expected_win_pct", "below_avg_wins",
-                            "above_avg_losses", "games",
-                        ]],
-                        hovertemplate=(
-                            "<b>%{y}</b><br>Wins vs expected: %{x:+.2f}<br>"
-                            "Actual win rate: %{customdata[0]:.1f}%<br>"
-                            "All-play expected rate: %{customdata[1]:.1f}%<br>"
-                            "Below-average wins: %{customdata[2]}<br>"
-                            "Above-average losses: %{customdata[3]}<br>"
-                            "Games: %{customdata[4]}<extra></extra>"
-                        ),
-                    ))
-                    _luck_span = max(1.0, float(_luck_sorted["luck_delta"].abs().max()) * 1.3)
-                    _fig_luck.add_vline(x=0, line_color="#94a3b8", line_width=1)
-                    _fig_luck.update_layout(
-                        title="Schedule Luck: Actual Wins Minus All-Play Expected Wins",
-                        height=max(430, 40 * len(_luck_sorted) + 120),
-                        template="plotly_dark",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(15,23,42,0.36)",
-                        margin={"l": 25, "r": 165, "t": 70, "b": 55},
-                        showlegend=False,
-                        xaxis={
-                            "title": "Actual Wins − Expected Wins",
-                            "range": [-_luck_span, _luck_span],
-                            "gridcolor": "rgba(148,163,184,0.16)",
-                        },
-                        yaxis={"title": "", "automargin": True},
-                    )
-                    _lh_plotly(_fig_luck)
+                    _lh_plotly(_schedule_luck_figure(_cl_df))
 
                     _most_aligned = _cl_df.loc[_cl_df["luck_delta"].abs().idxmin()]
                     _fortunate_meaning = (

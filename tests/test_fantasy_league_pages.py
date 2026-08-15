@@ -19,6 +19,7 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_SITE_PAGES))
 
 import page_league_history
+import page_common
 from fantasy import league_intelligence as league_intel
 
 
@@ -147,6 +148,11 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "white-space:normal" in css.replace(" ", "")
     assert "overflow-wrap:anywhere" in css.replace(" ", "")
     assert "text-overflow:ellipsis" not in css
+    assert "::-webkit-scrollbar-thumb" in css
+    assert "st-key-jsa-lh-leaderboard-cards" in css
+    assert "st-key-jsa-scatter-desktop" in css
+    assert "st-key-jsa-scatter-phone" in css
+    assert "scrollbar-width:none" not in css.replace(" ", "")
 
 
 def test_league_history_estimate_counts_linked_seasons(monkeypatch):
@@ -761,6 +767,45 @@ def test_manager_performance_uses_peer_week_context_and_excludes_playoffs():
     assert alice_luck["below_avg_wins"] == 1
     assert alice_luck["above_avg_losses"] == 1
     assert carol_luck["luck_delta"] == 0.67
+
+
+def test_unlabeled_scatter_copy_keeps_hover_text_and_drops_on_chart_names():
+    import plotly.graph_objects as go
+
+    fig = go.Figure(go.Scatter(
+        x=[50, 60], y=[1.0, -0.5],
+        text=["Alice", "Bob"],
+        mode="markers+text",
+    ))
+    fig.add_trace(go.Scatter(x=[40], y=[0], mode="markers", name="plain"))
+    phone = page_common.unlabeled_scatter_copy(fig)
+    assert phone.data[0].mode == "markers"
+    assert list(phone.data[0].text) == ["Alice", "Bob"]
+    assert phone.data[1].mode == "markers"
+    assert fig.data[0].mode == "markers+text"
+
+
+def test_schedule_luck_chart_keeps_bar_labels_off_the_axis_title():
+    """Phone overlap: a one-line x-axis title ran into outside bar labels."""
+    fig = page_league_history._schedule_luck_figure(pd.DataFrame({
+        "manager": ["LongManagerName", "Bo"],
+        "luck_delta": [-1.25, 1.40],
+        "actual_wins": [8.0, 12.0],
+        "expected_wins": [9.25, 10.60],
+        "actual_win_pct": [50.0, 75.0],
+        "expected_win_pct": [57.8, 66.3],
+        "below_avg_wins": [1, 2],
+        "above_avg_losses": [2, 0],
+        "games": [16, 16],
+    }))
+    labels = list(fig.data[0].text)
+    assert labels == ["8.0 / 9.2", "12.0 / 10.6"]
+    assert all("actual" not in label.lower() for label in labels)
+    axis_title = fig.layout.xaxis.title.text
+    assert "<br>" in axis_title
+    assert fig.layout.margin.r <= 110
+    assert fig.layout.margin.b >= 80
+    assert fig.layout.xaxis.automargin is True
 
 
 def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboard(tmp_path):

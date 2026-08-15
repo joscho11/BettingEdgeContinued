@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from fantasy import league_intelligence as li
+import page_common
 
 
 _HERE = Path(__file__).resolve().parents[1]
@@ -96,6 +97,10 @@ def _chart(fig: go.Figure) -> None:
         width="stretch",
         config={"displayModeBar": False, "scrollZoom": False},
     )
+
+
+def _chart_labeled(fig: go.Figure, *, slug: str) -> None:
+    page_common.plotly_labeled_scatter(fig, slug=slug)
 
 
 def _sorted_seasons(seasons: dict) -> list[str]:
@@ -898,7 +903,7 @@ def _render_faab_charts(
     )
 
     if show_paid:
-        _chart(_paid_production_chart(producers, manager_name, 420))
+        _chart_labeled(_paid_production_chart(producers, manager_name, 420), slug="faab-paid")
         scatter_note = (
             f"Every completed bid of ${li.FAAB_PAID_MIN} or more that produced starting-lineup "
             "points, including players you later dropped. No roster-week minimum. "
@@ -1009,7 +1014,7 @@ def _render_values(
         _dark_layout(draft_fig, height=520, title=f"{manager_name}'s draft cost versus realized production")
         draft_fig.update_xaxes(title="Draft round", dtick=1, autorange="reversed")
         draft_fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
-        _chart(draft_fig)
+        _chart_labeled(draft_fig, slug="draft-value")
         late = drafted[drafted["round"].ge(6)].sort_values("lineup_points", ascending=False)
         if not late.empty:
             hit = late.iloc[0]

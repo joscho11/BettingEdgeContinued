@@ -104,3 +104,28 @@ def reload_if_stale(module):
         module = importlib.reload(module)
     module.__joscho_source_mtime_ns__ = mtime
     return module
+
+
+_PLOTLY_TOUCH = {"displayModeBar": False, "scrollZoom": False}
+
+
+def unlabeled_scatter_copy(fig):
+    """Keep hover text, drop on-chart labels. Phone copy of a labeled scatter."""
+    import plotly.graph_objects as go
+
+    phone = go.Figure(fig.to_dict())
+    for trace in phone.data:
+        mode = str(getattr(trace, "mode", None) or "")
+        if "text" not in mode.split("+"):
+            continue
+        kept = [part for part in mode.split("+") if part != "text"]
+        trace.mode = "+".join(kept) if kept else "markers"
+    return phone
+
+
+def plotly_labeled_scatter(fig, *, slug: str) -> None:
+    """Desktop keeps names. Phone is dots only. CSS shows one copy."""
+    with st.container(key=f"jsa-scatter-desktop-{slug}"):
+        st.plotly_chart(fig, width="stretch", config=_PLOTLY_TOUCH)
+    with st.container(key=f"jsa-scatter-phone-{slug}"):
+        st.plotly_chart(unlabeled_scatter_copy(fig), width="stretch", config=_PLOTLY_TOUCH)

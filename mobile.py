@@ -7,9 +7,9 @@ injection point (the original arrangement) lost to it and needed !important on e
 header rule to claw the win back. The !important that remains in this file is beating
 Streamlit's own emotion classes, never our header.
 
-Everything here lives inside `@media (max-width:640px)` — exactly Streamlit's own
-column-stacking breakpoint (`theme.breakpoints.columns`, verified in the shipped bundle).
-Above 640px this file changes nothing.
+Everything here lives inside `@media (max-width:640px)` except the labeled-scatter
+swap: a `min-width:641px` rule hides the unlabeled phone copy so desktop never
+shows two charts. Above 640px that is the only rule that fires.
 
 SCOPE: page CONTENT only. Every header/nav rule — bar insets, brand and tip-jar sizing
 and wrapping, the drawer trigger's tap target, drawer row heights, the collapse control,
@@ -34,10 +34,12 @@ What it fixes, measured on a 390x844 phone viewport before the change:
      only those rows, so every other stacked layout keeps stacking.
   3. Metric tiles ran 4-deep down the page; they now sit 2-up. Native metric
      values wrap on phones so player and manager names are not ellipsized.
+     League History All-Time Leaderboard cards stay paired and equal-height.
   4. Chart annotations, the analyst-note grid, tap targets, table height and type scale
      (see the individual sections below).
-  5. League History: rivalry cards stacked, inner tabs stay swipeable, radios wrap,
+  5. League History: rivalry cards stacked, tabs show a drag bar, radios wrap,
      Plotly does not steal vertical scroll, the Load button is full-width.
+     Labeled scatters drop on-chart names on phones (tap the point). Desktop keeps names.
 
 `:has()` rules are kept in their own blocks on purpose: one unsupported selector
 invalidates an entire selector list, so a browser without :has() must degrade to
@@ -92,13 +94,28 @@ details summary{
 /* Streamlit's own `⋮` is deliberately left at its native 28px: growing it pushes its
    box under the tip jar, and it is app chrome rather than site navigation. */
 
-/* ── 5. Tabs: 4-6 tabs overflow a phone. Let them scroll, quietly. ───────── */
+/* ── 5. Tabs: 4-6 tabs overflow a phone. Show a drag bar so swipe is obvious. */
 .stTabs [data-baseweb="tab-list"]{
   overflow-x:auto !important;
-  scrollbar-width:none;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(231,236,243,.55) rgba(255,255,255,.14);
   -webkit-overflow-scrolling:touch;
+  touch-action:pan-x;
+  padding-bottom:.55rem !important;
 }
-.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar{ display:none; }
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar{
+  display:block !important;
+  height:6px !important;
+  background:transparent;
+}
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.14);
+  border-radius:99px;
+}
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb{
+  background:rgba(231,236,243,.55);
+  border-radius:99px;
+}
 .stTabs [data-baseweb="tab"]{ padding-left:.7rem !important; padding-right:.7rem !important; }
 
 /* ── 6. Charts ────────────────────────────────────────────────────────────
@@ -221,6 +238,9 @@ details summary{
 [data-testid="stFormSubmitButton"] button{
   min-height:2.75rem !important;
 }
+[class*="st-key-jsa-scatter-desktop"]{
+  display:none !important;
+}
 [data-testid="stPlotlyChart"]{
   max-width:100% !important;
   overflow-x:auto !important;
@@ -287,6 +307,45 @@ details summary{
   }
 }
 
+/* 10b. All-Time Leaderboard scorecards: five cards, so the last one must not
+   stretch full-width. Equal-height pairs, reserved label band, delta at the bottom. */
+@media (max-width: 640px){
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
+    align-items:stretch !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
+    flex:0 0 calc(50% - .225rem) !important;
+    max-width:calc(50% - .225rem) !important;
+    display:flex !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"]{
+    width:100% !important;
+    height:100% !important;
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"]{
+    flex:1 1 auto !important;
+    height:100% !important;
+    min-height:8.25rem !important;
+    display:flex !important;
+    flex-direction:column !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div{
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+    height:100% !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricLabel"]{
+    min-height:2.6rem !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
+    margin-top:auto !important;
+  }
+}
+
 /* 7a. Long tables. The shared TABLE_HEIGHT is 735px — 87% of an 844px phone screen,
    so a table became a full-screen scroll trap you had to fight past to reach the rest
    of the page. max-height (not height) caps the tall ones at ~26rem while leaving the
@@ -317,16 +376,19 @@ details summary{
 }
 
 
+/* Labeled scatters: hide the unlabeled phone copy on desktop. Paired with the
+   max-width 640 hide of the named copy inside the phones block above. */
+@media (min-width: 641px){
+  [class*="st-key-jsa-scatter-phone"]{ display:none !important; }
+}
+
 /* Narrow phones (<=400px) are handled entirely in render_header alongside the rest of
    the header contract — see the note at section 1. */
 
 
-/* 641px-767px needs nothing from THIS file. Streamlit still serves the nav from the
-   drawer there, but the header keeps its desktop 11rem left padding, so the `»` lands
-   at x~194 — well clear of the brand — and columns do not stack until 640px. The two
-   things that WERE broken in that band, the tip-jar/`⋮` overlap and the drawer
-   swallowing taps, are both fixed in render_header (right inset + z-index) because they
-   are equally broken on desktop; fixing them here would have left desktop untouched. */
+/* 641px-767px: the unlabeled scatter copy stays hidden (rule above). Nothing else
+   in this file applies there. Streamlit still serves the nav from the drawer, but
+   the header keeps its desktop 11rem left padding, so the `»` lands at x~194. */
 </style>
 """
 
