@@ -329,16 +329,16 @@ details summary{
   [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-hdr){
     display:grid !important;
     flex-wrap:unset !important;
-    align-items:stretch !important;
+    align-items:center !important;
     gap:.35rem !important;
     grid-template-columns: var(--jsa-gc-cols) !important;
   }
-  [class*="st-key-jsa-gc"] [data-testid="stColumn"],
-  [class*="st-key-jsa-gc"] [data-testid="stElementContainer"]{
+  [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-stat) [data-testid="stColumn"],
+  [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-hdr) [data-testid="stColumn"]{
     min-width:0 !important;
-    max-width:100% !important;
+    max-width:none !important;
     width:auto !important;
-    overflow:hidden !important;
+    overflow:visible !important;
     padding:0 !important;
     box-sizing:border-box !important;
   }
@@ -351,22 +351,29 @@ details summary{
   }
   .jsa-gc-hdr{
     letter-spacing:0 !important;
-    overflow:hidden !important;
+    overflow:visible !important;
+    white-space:normal !important;
   }
   .jsa-gc-stat{
     box-sizing:border-box !important;
     width:100% !important;
     min-width:0 !important;
-    overflow:hidden !important;
+    overflow:visible !important;
   }
   .jsa-gc-team{
-    white-space:nowrap !important;
-    overflow:hidden !important;
+    white-space:normal !important;
+    overflow:visible !important;
     height:auto !important;
     min-height:32px !important;
     display:flex !important;
     align-items:center !important;
     padding-top:0 !important;
+    overflow-wrap:anywhere !important;
+  }
+  .jsa-gc-meta{
+    overflow:visible !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
   }
 }
 
@@ -385,19 +392,65 @@ details summary{
 /* 10a. Metric tiles two-up instead of a four-deep stack. Rows that also carry a
    dataframe are excluded — those columns need the full width. */
 @media (max-width: 640px){
-  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard),
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard){
+    display:grid !important;
+    flex-wrap:unset !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    grid-auto-rows:1fr !important;
+    align-items:stretch !important;
+    gap:.45rem !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) > [data-testid="stColumn"]{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    padding:0 !important;
+    display:flex !important;
+    flex-direction:column !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) [data-testid="stVerticalBlock"],
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) [data-testid="stElementContainer"],
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) [data-testid="stMarkdownContainer"],
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) [data-testid="stMarkdownContainer"] p{
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+    height:auto !important;
+    overflow:visible !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) .jsa-mcard{
+    flex:1 1 auto !important;
+    min-height:100% !important;
+    height:auto !important;
+    overflow:visible !important;
+    display:flex !important;
+    flex-direction:column !important;
+    box-sizing:border-box !important;
+    margin-bottom:0 !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) .jsa-mcard-label,
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) .jsa-mcard-value,
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) .jsa-mcard-sub{
+    overflow:visible !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) .jsa-mcard-sub{
+    margin-top:auto !important;
+  }
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]):not(:has([data-testid="stDataFrame"])){
     flex-wrap:wrap !important;
     gap:.45rem !important;
   }
-  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) > [data-testid="stColumn"],
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]):not(:has([data-testid="stDataFrame"])) > [data-testid="stColumn"]{
     min-width:calc(50% - .225rem) !important;
-    max-width:calc(50% - .225rem) !important;
-    width:auto !important;
     flex:1 1 calc(50% - .225rem) !important;
-    overflow:hidden !important;
-    box-sizing:border-box !important;
+    overflow:visible !important;
   }
 }
 
@@ -586,22 +639,26 @@ details summary{
     flex:none !important;
     padding:0 !important;
     display:flex !important;
+    flex-direction:column !important;
     align-items:stretch !important;
-    overflow:hidden !important;
+    overflow:visible !important;
     box-sizing:border-box !important;
   }
-  [class*="st-key-jsa-metric-even"] [data-testid="stElementContainer"]{
+  [class*="st-key-jsa-metric-even"] [data-testid="stElementContainer"],
+  [class*="st-key-jsa-metric-even"] [data-testid="stMarkdownContainer"]{
     min-width:0 !important;
     width:100% !important;
     max-width:100% !important;
-    overflow:hidden !important;
+    height:auto !important;
+    overflow:visible !important;
   }
   [class*="st-key-jsa-metric-even"] .jsa-mcard{
-    height:100% !important;
+    height:auto !important;
+    min-height:100% !important;
     width:100% !important;
     box-sizing:border-box !important;
     margin-bottom:0 !important;
-    overflow:hidden !important;
+    overflow:visible !important;
   }
 }
 
