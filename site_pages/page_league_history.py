@@ -27,6 +27,7 @@ _SLEEPER_GET_CACHE_ENTRIES = 128
 _HISTORY_CACHE_ENTRIES = 8
 _MATCHUP_FETCH_WORKERS = 6
 _MAX_HISTORY_SEASONS = 10
+_SEASON_CACHE_ENTRIES = _HISTORY_CACHE_ENTRIES * _MAX_HISTORY_SEASONS
 _LEAGUE_HISTORY_TABS = (
     "🧠 Draft & Roster Insights",
     "🏆 All-Time Leaderboard",
@@ -68,16 +69,19 @@ def _rivalry_slate_card_html(row) -> str:
     ink, border, fill = _rivalry_score_swatch(score, locked)
     lock_mark = " 🔒" if locked else ""
     return (
-        "<div style='background:" + fill + ";border:1px solid " + border
+        "<div class='jsa-lh-card' style='background:" + fill + ";border:1px solid " + border
         + ";border-radius:12px;padding:14px 16px;margin:0 0 10px 0;'>"
-        "<div style='display:flex;justify-content:space-between;gap:16px;align-items:flex-start;'>"
-        "<div>"
-        "<div style='font-size:18px;font-weight:700;color:#E7ECF3;letter-spacing:-0.02em;'>"
+        "<div class='jsa-lh-card-row' style='display:flex;justify-content:space-between;"
+        "gap:16px;align-items:flex-start;'>"
+        "<div class='jsa-lh-card-copy' style='min-width:0;'>"
+        "<div style='font-size:18px;font-weight:700;color:#E7ECF3;letter-spacing:-0.02em;"
+        "overflow-wrap:anywhere;'>"
         + manager_a + " vs " + manager_b + lock_mark + "</div>"
-        "<div style='font-size:13px;color:#E7ECF3;margin-top:6px;line-height:1.45;'>"
+        "<div style='font-size:13px;color:#E7ECF3;margin-top:6px;line-height:1.45;"
+        "overflow-wrap:anywhere;'>"
         + reason + "</div>"
         "</div>"
-        "<div style='text-align:right;flex:0 0 auto;'>"
+        "<div class='jsa-lh-score' style='text-align:right;flex:0 0 auto;'>"
         "<div style='font-size:11px;font-weight:700;letter-spacing:0.08em;color:"
         + ink + ";'>RIVALRY SCORE</div>"
         "<div style='font-size:28px;font-weight:800;color:" + ink
@@ -103,8 +107,17 @@ def _rivalry_score_legend_html() -> str:
             + label + "</span>"
         )
     return (
-        "<div style='display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px 0;'>"
+        "<div class='jsa-lh-legend' style='display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px 0;'>"
         + "".join(parts) + "</div>"
+    )
+
+
+def _lh_plotly(fig) -> None:
+    """Stretch charts and keep phone scroll from being stolen by Plotly."""
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config={"displayModeBar": False, "scrollZoom": False},
     )
 
 
@@ -135,11 +148,11 @@ def _sleeper_get(url: str):
 
 
 @st.cache_data(ttl=3600, max_entries=_HISTORY_CACHE_ENTRIES)
-def _league_history_season_count(start_league_id: str) -> int:
-    """Count the linked Sleeper seasons before the heavier weekly pulls begin."""
+def _league_history_chain(start_league_id: str) -> list[dict]:
+    """Walk previous_league_id links. Newest season first."""
     current_id = start_league_id.strip()
     seen = set()
-    season_count = 0
+    chain: list[dict] = []
     while current_id and current_id not in {"0", ""} and current_id not in seen:
         if len(seen) >= _MAX_HISTORY_SEASONS:
             break
@@ -147,16 +160,42 @@ def _league_history_season_count(start_league_id: str) -> int:
         info = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}")
         if not info or not isinstance(info, dict) or not info.get("season"):
             break
-        season_count += 1
+        chain.append({
+            "league_id": current_id,
+            "season": str(info.get("season")),
+            "name": info.get("name") or "League",
+        })
         previous_id = info.get("previous_league_id")
         current_id = previous_id if previous_id and previous_id != "0" else ""
-    return season_count
+    return chain
+
+
+def _league_history_season_count(start_league_id: str) -> int:
+    """Count the linked Sleeper seasons before the heavier weekly pulls begin."""
+    return len(_league_history_chain(start_league_id))
 
 
 def _history_load_estimate(season_count: int) -> tuple[int, int]:
     """Return a conservative first-load range calibrated to the public fetch path."""
     seasons = max(1, min(int(season_count or 1), _MAX_HISTORY_SEASONS))
     return max(5, seasons * 2), max(10, seasons * 4)
+
+
+def _fetch_league_weeks(league_id: str, resource: str) -> dict:
+    """Fetch weeks 1-18 for matchups or transactions with bounded concurrency."""
+    def _fetch_wk(wk):
+        try:
+            r = req.get(
+                f"https://api.sleeper.app/v1/league/{league_id}/{resource}/{wk}",
+                timeout=15,
+            )
+            r.raise_for_status()
+            return wk, r.json()
+        except Exception:
+            return wk, None
+
+    with _cf.ThreadPoolExecutor(max_workers=_MATCHUP_FETCH_WORKERS) as pool:
+        return dict(pool.map(_fetch_wk, range(1, 19)))
 
 
 @st.cache_data(ttl=86400, max_entries=1)
@@ -166,179 +205,239 @@ def _fetch_player_directory() -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
-@st.cache_data(ttl=3600, max_entries=_HISTORY_CACHE_ENTRIES)
-def _fetch_sleeper_history(start_league_id: str) -> dict:
-    seasons = {}
-    league_name = None
-    current_id  = start_league_id.strip()
-    seen        = set()
+@st.cache_data(ttl=3600, max_entries=_SEASON_CACHE_ENTRIES)
+def _fetch_one_season(league_id: str):
+    """Return (season, payload) for one Sleeper league-season, or None."""
+    current_id = league_id.strip()
+    info = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}")
+    if not info or not isinstance(info, dict):
+        return None
+    yr = info.get("season")
+    if not yr:
+        return None
 
-    while current_id and current_id not in ("0", "") and current_id not in seen:
-        if len(seen) >= _MAX_HISTORY_SEASONS:
-            break
-        seen.add(current_id)
+    users_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/users") or []
+    rosters_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/rosters") or []
+    bracket_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/winners_bracket") or []
+    draft_id = str(info.get("draft_id") or "")
+    draft_picks = (
+        _sleeper_get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks") or []
+        if draft_id else []
+    )
 
-        info = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}")
-        if not info or not isinstance(info, dict):
-            break
-        if league_name is None:
-            league_name = info.get("name", "League")
-
-        yr = info.get("season")
-        if not yr:
-            break
-
-        users_raw   = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/users")   or []
-        rosters_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/rosters")  or []
-        bracket_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/winners_bracket") or []
-        draft_id    = str(info.get("draft_id") or "")
-        draft_picks = (
-            _sleeper_get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks") or []
-            if draft_id else []
-        )
-
-        user_map = {
-            u["user_id"]: {
-                "username":  u.get("display_name") or "—",
-                "team_name": (u.get("metadata") or {}).get("team_name") or "",
-            }
-            for u in users_raw if isinstance(u, dict)
+    user_map = {
+        u["user_id"]: {
+            "username": u.get("display_name") or "—",
+            "team_name": (u.get("metadata") or {}).get("team_name") or "",
         }
+        for u in users_raw if isinstance(u, dict)
+    }
 
-        playoff_finish = {}
-        champion_rid   = None
-        runner_up_rid  = None
+    playoff_finish = {}
+    champion_rid = None
+    runner_up_rid = None
 
-        if bracket_raw and info.get("status") == "complete":
-            valid = [m for m in bracket_raw if isinstance(m, dict)]
-            max_r = max((m.get("r", 0) for m in valid), default=0)
-            for m in valid:
-                if m.get("r") != max_r or m.get("w") is None or m.get("l") is None:
-                    continue
-                w, l, p = str(m["w"]), str(m["l"]), m.get("p")
-                if p == 1:
-                    champion_rid  = w
-                    runner_up_rid = l
-                if p:
-                    if w not in playoff_finish or p < playoff_finish[w]:
-                        playoff_finish[w] = p
-                    if l not in playoff_finish or p + 1 < playoff_finish[l]:
-                        playoff_finish[l] = p + 1
-
-        standings = []
-        for ro in rosters_raw:
-            if not isinstance(ro, dict):
+    if bracket_raw and info.get("status") == "complete":
+        valid = [m for m in bracket_raw if isinstance(m, dict)]
+        max_r = max((m.get("r", 0) for m in valid), default=0)
+        for m in valid:
+            if m.get("r") != max_r or m.get("w") is None or m.get("l") is None:
                 continue
-            rid      = str(ro.get("roster_id", ""))
-            owner_id = ro.get("owner_id")
-            u        = user_map.get(owner_id, {"username": "—", "team_name": ""})
-            s        = ro.get("settings") or {}
-            fpts     = s.get("fpts", 0) + s.get("fpts_decimal", 0) / 100
-            fpts_ag  = s.get("fpts_against", 0) + s.get("fpts_against_decimal", 0) / 100
-            standings.append({
-                "roster_id":     ro.get("roster_id"),
-                "owner_id":      owner_id,
-                "username":      u["username"],
-                "team_name":     u["team_name"],
-                "wins":          s.get("wins", 0),
-                "losses":        s.get("losses", 0),
-                "fpts":          round(fpts, 2),
-                "fpts_against":  round(fpts_ag, 2),
-                "playoff_finish": playoff_finish.get(rid),
+            w, l, p = str(m["w"]), str(m["l"]), m.get("p")
+            if p == 1:
+                champion_rid = w
+                runner_up_rid = l
+            if p:
+                if w not in playoff_finish or p < playoff_finish[w]:
+                    playoff_finish[w] = p
+                if l not in playoff_finish or p + 1 < playoff_finish[l]:
+                    playoff_finish[l] = p + 1
+
+    standings = []
+    for ro in rosters_raw:
+        if not isinstance(ro, dict):
+            continue
+        rid = str(ro.get("roster_id", ""))
+        owner_id = ro.get("owner_id")
+        u = user_map.get(owner_id, {"username": "—", "team_name": ""})
+        s = ro.get("settings") or {}
+        fpts = s.get("fpts", 0) + s.get("fpts_decimal", 0) / 100
+        fpts_ag = s.get("fpts_against", 0) + s.get("fpts_against_decimal", 0) / 100
+        standings.append({
+            "roster_id": ro.get("roster_id"),
+            "owner_id": owner_id,
+            "username": u["username"],
+            "team_name": u["team_name"],
+            "wins": s.get("wins", 0),
+            "losses": s.get("losses", 0),
+            "fpts": round(fpts, 2),
+            "fpts_against": round(fpts_ag, 2),
+            "playoff_finish": playoff_finish.get(rid),
+        })
+
+    standings.sort(key=lambda x: (x["playoff_finish"] or 99, -x["wins"], -x["fpts"]))
+
+    def _by_rid(rid_str):
+        for row in standings:
+            if str(row["roster_id"]) == rid_str:
+                return row
+        return {"username": "?", "team_name": ""}
+
+    champ = _by_rid(champion_rid) if champion_rid else {"username": "?", "team_name": ""}
+    ruup = _by_rid(runner_up_rid) if runner_up_rid else {"username": "?", "team_name": ""}
+
+    _lg_settings = info.get("settings") or {}
+    _playoff_start = int(_lg_settings.get("playoff_week_start") or 15)
+    _wk_data = _fetch_league_weeks(current_id, "matchups")
+
+    _matchups_season: list = []
+    _roster_entries_season: list = []
+    for _wk in range(1, 19):
+        _wk_raw = _wk_data.get(_wk)
+        if not _wk_raw or not isinstance(_wk_raw, list):
+            continue
+        _grps: dict = {}
+        for _entry in _wk_raw:
+            if not isinstance(_entry, dict):
+                continue
+            _mid = _entry.get("matchup_id")
+            _roster_entries_season.append({
+                "season": yr,
+                "week": _wk,
+                "roster_id": _entry.get("roster_id"),
+                "matchup_id": _mid,
+                "players": list(_entry.get("players") or []),
+                "starters": list(_entry.get("starters") or []),
+                "players_points": dict(_entry.get("players_points") or {}),
             })
-
-        standings.sort(key=lambda x: (x["playoff_finish"] or 99, -x["wins"], -x["fpts"]))
-
-        def _by_rid(rid_str):
-            for row in standings:
-                if str(row["roster_id"]) == rid_str:
-                    return row
-            return {"username": "?", "team_name": ""}
-
-        champ = _by_rid(champion_rid)  if champion_rid  else {"username": "?", "team_name": ""}
-        ruup  = _by_rid(runner_up_rid) if runner_up_rid else {"username": "?", "team_name": ""}
-
-        # Fetch weekly matchups — parallelised to avoid 18 serial HTTP calls per season
-        _lg_settings  = info.get("settings") or {}
-        _playoff_start = int(_lg_settings.get("playoff_week_start") or 15)
-
-        def _fetch_wk(wk):
-            try:
-                r = req.get(
-                    f"https://api.sleeper.app/v1/league/{current_id}/matchups/{wk}",
-                    timeout=15,
-                )
-                r.raise_for_status()
-                return wk, r.json()
-            except Exception:
-                return wk, None
-
-        # A history can span ten seasons, so keep public API pressure bounded rather
-        # than opening eighteen weekly requests at once for every season.
-        with _cf.ThreadPoolExecutor(max_workers=_MATCHUP_FETCH_WORKERS) as _pool:
-            _wk_data = dict(_pool.map(_fetch_wk, range(1, 19)))
-
-        _matchups_season: list = []
-        _roster_entries_season: list = []
-        for _wk in range(1, 19):
-            _wk_raw = _wk_data.get(_wk)
-            if not _wk_raw or not isinstance(_wk_raw, list):
+            if _mid is None:
                 continue
-            _grps: dict = {}
-            for _entry in _wk_raw:
-                if not isinstance(_entry, dict):
+            _grps.setdefault(_mid, []).append(_entry)
+        for _mid2, _ents in _grps.items():
+            if len(_ents) == 2:
+                _ma, _mb = _ents[0], _ents[1]
+                _sa = float(_ma.get("points") or 0)
+                _sb = float(_mb.get("points") or 0)
+                if _sa == 0 and _sb == 0:
                     continue
-                _mid = _entry.get("matchup_id")
-                _roster_entries_season.append({
+                _matchups_season.append({
                     "season": yr,
                     "week": _wk,
-                    "roster_id": _entry.get("roster_id"),
-                    "matchup_id": _mid,
-                    "players": list(_entry.get("players") or []),
-                    "starters": list(_entry.get("starters") or []),
-                    "players_points": dict(_entry.get("players_points") or {}),
+                    "is_playoff": _wk >= _playoff_start,
+                    "rid_a": str(_ma.get("roster_id", "")),
+                    "score_a": _sa,
+                    "rid_b": str(_mb.get("roster_id", "")),
+                    "score_b": _sb,
                 })
-                if _mid is None:
-                    continue
-                _grps.setdefault(_mid, []).append(_entry)
-            for _mid2, _ents in _grps.items():
-                if len(_ents) == 2:
-                    _ma, _mb = _ents[0], _ents[1]
-                    _sa = float(_ma.get("points") or 0)
-                    _sb = float(_mb.get("points") or 0)
-                    if _sa == 0 and _sb == 0:
-                        continue
-                    _matchups_season.append({
-                        "season":     yr,
-                        "week":       _wk,
-                        "is_playoff": _wk >= _playoff_start,
-                        "rid_a":      str(_ma.get("roster_id", "")),
-                        "score_a":    _sa,
-                        "rid_b":      str(_mb.get("roster_id", "")),
-                        "score_b":    _sb,
-                    })
 
-        seasons[yr] = {
-            "league_id": current_id,
-            "draft_id": draft_id,
-            "status":    info.get("status"),
-            "champion":  {"username": champ["username"], "team_name": champ.get("team_name", "")},
-            "runner_up": {"username": ruup["username"],  "team_name": ruup.get("team_name", "")},
-            "standings": standings,
-            "matchups":  _matchups_season,
-            "draft_picks": draft_picks if isinstance(draft_picks, list) else [],
-            "roster_entries": _roster_entries_season,
-            "league_settings": {
-                "total_rosters": info.get("total_rosters"),
-                "roster_positions": list(info.get("roster_positions") or []),
-                "scoring_settings": dict(info.get("scoring_settings") or {}),
-            },
-        }
+    payload = {
+        "league_id": current_id,
+        "draft_id": draft_id,
+        "status": info.get("status"),
+        "champion": {"username": champ["username"], "team_name": champ.get("team_name", "")},
+        "runner_up": {"username": ruup["username"], "team_name": ruup.get("team_name", "")},
+        "standings": standings,
+        "matchups": _matchups_season,
+        "draft_picks": draft_picks if isinstance(draft_picks, list) else [],
+        "roster_entries": _roster_entries_season,
+        "league_settings": {
+            "total_rosters": info.get("total_rosters"),
+            "roster_positions": list(info.get("roster_positions") or []),
+            "scoring_settings": dict(info.get("scoring_settings") or {}),
+            "waiver_type": _lg_settings.get("waiver_type"),
+            "waiver_budget": _lg_settings.get("waiver_budget"),
+        },
+    }
+    return str(yr), payload
 
-        prev = info.get("previous_league_id")
-        current_id = prev if (prev and prev != "0") else ""
 
+@st.cache_data(ttl=3600, max_entries=_SEASON_CACHE_ENTRIES)
+def _fetch_season_transactions(league_id: str) -> list:
+    """All complete-looking weekly transactions for one Sleeper season."""
+    weeks = _fetch_league_weeks(league_id.strip(), "transactions")
+    rows: list = []
+    for week in range(1, 19):
+        payload = weeks.get(week)
+        if isinstance(payload, list):
+            rows.extend(payload)
+    return rows
+
+
+def _fetch_sleeper_history(start_league_id: str) -> dict:
+    """Compose the cached chain plus per-season payloads. Used by tests."""
+    chain = _league_history_chain(start_league_id)
+    seasons = {}
+    league_name = chain[0]["name"] if chain else "League"
+    for item in chain:
+        fetched = _fetch_one_season(item["league_id"])
+        if not fetched:
+            continue
+        yr, payload = fetched
+        seasons[yr] = payload
+        if league_name == "League":
+            league_name = item.get("name") or league_name
     return {"league_name": league_name or "League", "seasons": seasons}
+
+
+def _render_load_form():
+    with st.form("lh_load_form", border=False):
+        league_id_input = st.text_input(
+            "Sleeper League ID",
+            value="",
+            placeholder="e.g. 1255197436951932928",
+            help="Find it in your Sleeper league URL: sleeper.com/leagues/{ID}/league",
+            key="lh_league_id",
+        )
+        load_requested = st.form_submit_button("Load league history", type="primary")
+    return league_id_input, load_requested
+
+
+def _load_history_with_status(league_id: str) -> tuple[dict, str | None]:
+    """Fetch with a visible per-season status panel. Returns (history, error)."""
+    with st.status("Finding linked Sleeper seasons…", expanded=True) as status:
+        chain = _league_history_chain(league_id)
+        if not chain:
+            status.update(
+                label="Sleeper did not return a league for that ID.",
+                state="error",
+                expanded=True,
+            )
+            return {"league_name": "League", "seasons": {}}, (
+                "Sleeper did not return a league for that ID. "
+                "Check the number in your league URL."
+            )
+        n = len(chain)
+        low, high = _history_load_estimate(n)
+        years = ", ".join(item["season"] for item in chain)
+        season_word = "season" if n == 1 else "seasons"
+        st.write(f"Found {n} {season_word}: {years}.")
+        st.write(f"First load usually takes {low} to {high} seconds. Reloads of this ID are instant for an hour.")
+        seasons = {}
+        league_name = chain[0]["name"]
+        for i, item in enumerate(chain, 1):
+            yr = item["season"]
+            status.update(label=f"Loading {yr} (season {i} of {n})")
+            st.write(f"{yr}: standings, draft board, weekly scores")
+            fetched = _fetch_one_season(item["league_id"])
+            if fetched:
+                fetched_year, payload = fetched
+                seasons[fetched_year] = payload
+        if not seasons:
+            status.update(
+                label="This league exists, but no season history came back.",
+                state="error",
+                expanded=True,
+            )
+            return {"league_name": league_name, "seasons": {}}, (
+                "This league exists, but no season history came back. "
+                "It may be too new or still empty."
+            )
+        status.update(
+            label=f"Loaded {len(seasons)} {season_word}.",
+            state="complete",
+            expanded=False,
+        )
+        return {"league_name": league_name or "League", "seasons": seasons}, None
 
 
 def render():
@@ -346,15 +445,7 @@ def render():
 
     # A form batches text entry. Without it, every numeric keystroke could start a
     # multi-season public API crawl on the next Streamlit rerun.
-    with st.form("lh_load_form", border=False):
-        _league_id_input = st.text_input(
-            "Sleeper League ID",
-            value="",
-            placeholder="e.g. 1255197436951932928",
-            help="Find it in your Sleeper league URL: sleeper.com/leagues/{ID}/league",
-            key="lh_league_id",
-        )
-        _load_requested = st.form_submit_button("Load league history", type="primary")
+    _league_id_input, _load_requested = _render_load_form()
 
     _form_error = None
     if _load_requested:
@@ -362,6 +453,8 @@ def render():
         _form_error = _league_id_error(_submitted_lid)
         if _form_error is None:
             st.session_state["lh_loaded_league_id"] = _submitted_lid
+            st.session_state.pop("lh_acq_league_id", None)
+            st.session_state.pop("lh_history_ready_for", None)
 
     # Keep a successfully loaded result visible while users change page controls or
     # prepare a different ID. Only an explicit, valid Load submits a new public request.
@@ -371,29 +464,42 @@ def render():
 
     if not _lid:
         if not _form_error:
-            st.info("Enter your Sleeper league ID, then select Load league history.")
+            st.info(
+                "Enter your Sleeper league ID, then select Load league history.  \n\n"
+                "First load walks every linked season (standings, drafts, weekly scores). "
+                "A 3-year league is usually about 10-20 seconds. A 10-year league can take "
+                "about 40. The same ID is instant for an hour after that.  \n\n"
+                "Find the ID in your league URL: sleeper.com/leagues/{ID}/league"
+            )
     elif _OFFLINE:
         st.info("League history needs a live connection to Sleeper and is "
                 "unavailable offline.")
     else:
-        with st.spinner("Checking linked Sleeper seasons…"):
-            _linked_seasons = _league_history_season_count(_lid)
-        if _linked_seasons:
-            _estimate_low, _estimate_high = _history_load_estimate(_linked_seasons)
-            _season_word = "season" if _linked_seasons == 1 else "seasons"
-            _loading_copy = (
-                f"Loading {_linked_seasons} {_season_word} from Sleeper… "
-                f"estimated {_estimate_low}–{_estimate_high} seconds."
+        if st.session_state.get("lh_history_ready_for") == _lid:
+            _lh = _fetch_sleeper_history(_lid)
+            _load_error = None if _lh["seasons"] else (
+                "This league exists, but no season history came back. "
+                "It may be too new or still empty."
             )
         else:
-            _loading_copy = "Loading league history from Sleeper… usually under a minute."
-        with st.spinner(_loading_copy, show_time=True):
-            _lh = _fetch_sleeper_history(_lid)
+            _lh, _load_error = _load_history_with_status(_lid)
+            if _load_error is None and _lh["seasons"]:
+                st.session_state["lh_history_ready_for"] = _lid
 
-        if not _lh["seasons"]:
-            st.error("No data found — double-check the league ID and try again.")
+        if _load_error:
+            st.error(_load_error)
+        elif not _lh["seasons"]:
+            st.error(
+                "This league exists, but no season history came back. "
+                "It may be too new or still empty."
+            )
         else:
             st.header(_lh["league_name"])
+            st.caption(
+                f"Loaded {len(_lh['seasons'])} "
+                f"{'season' if len(_lh['seasons']) == 1 else 'seasons'}. "
+                "Cached for an hour."
+            )
 
             # Season filter
             _seasons_list = sorted(_lh["seasons"].keys())
@@ -638,7 +744,7 @@ def render():
                                 "zeroline": False,
                             },
                         )
-                        st.plotly_chart(_fig_map, width="stretch")
+                        _lh_plotly(_fig_map)
 
                         def _names(_frame):
                             return ", ".join(_frame.sort_values(
@@ -726,7 +832,7 @@ def render():
                             yaxis={"title": "", "automargin": True},
                             showlegend=False,
                         )
-                        st.plotly_chart(_fig_rank, width="stretch")
+                        _lh_plotly(_fig_rank)
 
                         _rank_desc = _played.sort_values("win_pct", ascending=False).reset_index(drop=True)
                         _rank_leader = _rank_desc.iloc[0]
@@ -956,7 +1062,7 @@ def render():
                             },
                             legend={"title": "Season", "orientation": "h", "y": -0.18},
                         )
-                        st.plotly_chart(_fig_chaos, width="stretch")
+                        _lh_plotly(_fig_chaos)
 
                         _shootout_type = (
                             "a true shootout—both teams contributed to the record total"
@@ -1049,7 +1155,7 @@ def render():
                             legend={"orientation": "h", "y": -0.18},
                             hovermode="x unified",
                         )
-                        st.plotly_chart(_fig_range, width="stretch")
+                        _lh_plotly(_fig_range)
 
                         _widest = _range_df.loc[_range_df["Spread"].idxmax()]
                         _highest_environment = _range_df.loc[
@@ -1150,7 +1256,8 @@ def render():
                             _rivalry_mode, ("#93A0B1", "rgba(147,160,177,0.12)")
                         )
                         st.markdown(
-                            "<div style='display:inline-block;margin:2px 0 8px 0;padding:4px 10px;"
+                            "<div class='jsa-lh-mode' style='display:inline-block;margin:2px 0 8px 0;"
+                            "padding:4px 10px;"
                             "border-radius:999px;background:" + _mode_fill
                             + ";border:1px solid " + _mode_ink + ";color:" + _mode_ink
                             + ";font-size:12px;font-weight:700;letter-spacing:0.04em;'>"
@@ -1433,8 +1540,9 @@ def render():
                                 else "#35D08A"
                             )
                             st.markdown(
-                                "<div style='font-size:22px;font-weight:700;color:"
-                                + _series_ink + ";letter-spacing:-0.02em;margin:4px 0 12px 0;'>"
+                                "<div class='jsa-lh-series' style='font-size:22px;font-weight:700;color:"
+                                + _series_ink + ";letter-spacing:-0.02em;margin:4px 0 12px 0;"
+                                "overflow-wrap:anywhere;'>"
                                 + _html.escape(str(_manager_a)) + " vs "
                                 + _html.escape(str(_manager_b)) + "</div>",
                                 unsafe_allow_html=True,
@@ -1569,7 +1677,7 @@ def render():
                                 },
                                 legend={"orientation": "h", "y": -0.28},
                             )
-                            st.plotly_chart(_fig_rivalry, width="stretch")
+                            _lh_plotly(_fig_rivalry)
 
                             _largest_game = _rivalry_games.loc[
                                 _rivalry_games["signed_margin"].abs().idxmax()
@@ -1755,11 +1863,22 @@ def render():
                             template="plotly_dark",
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(15,23,42,0.36)",
-                            margin={"l": 95, "r": 45, "t": 75, "b": 110},
-                            xaxis={"title": "Opponent", "tickangle": -45, "side": "bottom"},
-                            yaxis={"title": "Manager", "autorange": "reversed"},
+                            margin={"l": 72, "r": 24, "t": 64, "b": 96},
+                            xaxis={
+                                "title": "Opponent",
+                                "tickangle": -45,
+                                "side": "bottom",
+                                "automargin": True,
+                                "tickfont": {"size": 10},
+                            },
+                            yaxis={
+                                "title": "Manager",
+                                "autorange": "reversed",
+                                "automargin": True,
+                                "tickfont": {"size": 10},
+                            },
                         )
-                        st.plotly_chart(_fig_h2h, width="stretch")
+                        _lh_plotly(_fig_h2h)
 
                         _analysis_pairs = _rivalries.copy()
                         _analysis_pairs["series_gap"] = (
@@ -2015,7 +2134,7 @@ def render():
                                 title_text="Win Rate", range=[0, 100], ticksuffix="%",
                                 secondary_y=True,
                             )
-                            st.plotly_chart(_fig_trajectory, width="stretch")
+                            _lh_plotly(_fig_trajectory)
 
                             _best_scoring_season = _trajectory_df.loc[
                                 _trajectory_df["Pts vs League"].idxmax()
@@ -2129,7 +2248,7 @@ def render():
                                     "gridcolor": "rgba(148,163,184,0.16)",
                                 },
                             )
-                            st.plotly_chart(_fig_weekly, width="stretch")
+                            _lh_plotly(_fig_weekly)
 
                             _above_weeks = int(_weekly_df["Vs League"].gt(0).sum())
                             _lucky_wins = len(_weekly_df[
@@ -2219,7 +2338,7 @@ def render():
                             },
                             yaxis={"title": "", "automargin": True},
                         )
-                        st.plotly_chart(_fig_opponents, width="stretch")
+                        _lh_plotly(_fig_opponents)
 
                         _best_matchup = _opponent_df.loc[
                             _opponent_df["Avg Point Diff"].idxmax()
@@ -2436,7 +2555,7 @@ def render():
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                     )
-                    st.plotly_chart(_fig_consistency, width="stretch")
+                    _lh_plotly(_fig_consistency)
 
                     _top_scorer = _cl_df.loc[_cl_df["avg_above_league"].idxmax()]
                     _above_average = _eligible_cl[_eligible_cl["avg_above_league"].gt(0)]
@@ -2516,7 +2635,7 @@ def render():
                         },
                         yaxis={"title": "", "automargin": True},
                     )
-                    st.plotly_chart(_fig_luck, width="stretch")
+                    _lh_plotly(_fig_luck)
 
                     _most_aligned = _cl_df.loc[_cl_df["luck_delta"].abs().idxmin()]
                     _fortunate_meaning = (
@@ -2756,7 +2875,7 @@ def render():
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                     )
-                    st.plotly_chart(_fig_environment, width="stretch")
+                    _lh_plotly(_fig_environment)
 
                     _first_environment = _season_environment.iloc[0]
                     _latest_environment = _season_environment.iloc[-1]
@@ -2848,7 +2967,7 @@ def render():
                         xaxis={"title": "Season", "side": "top"},
                         yaxis={"title": "", "automargin": True, "autorange": "reversed"},
                     )
-                    st.plotly_chart(_fig_heatmap, width="stretch")
+                    _lh_plotly(_fig_heatmap)
 
                     _latest_scores = _manager_seasons[
                         _manager_seasons["season"].eq(_latest_column)
@@ -3025,7 +3144,7 @@ def render():
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                     )
-                    st.plotly_chart(_fig_weekly_environment, width="stretch")
+                    _lh_plotly(_fig_weekly_environment)
 
                     _lowest_week = _weekly_environment.loc[
                         _weekly_environment["average"].idxmin()
@@ -3110,7 +3229,7 @@ def render():
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                     )
-                    st.plotly_chart(_fig_cumulative, width="stretch")
+                    _lh_plotly(_fig_cumulative)
 
                     _runner_up = _manager_totals.iloc[1] if len(_manager_totals) > 1 else None
                     _lead_context = (
@@ -3166,7 +3285,10 @@ def render():
                 # navigable and the analytics stay independently testable.
                 from league_insights_view import render as _render_league_insights
 
-                _render_league_insights(_lh, _season_filter, _fetch_player_directory)
+                _render_league_insights(
+                    _lh, _season_filter, _fetch_player_directory,
+                    _fetch_season_transactions,
+                )
 
 
 

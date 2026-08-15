@@ -35,6 +35,8 @@ What it fixes, measured on a 390x844 phone viewport before the change:
   3. Metric tiles ran 4-deep down the page; they now sit 2-up.
   4. Chart annotations, the analyst-note grid, tap targets, table height and type scale
      (see the individual sections below).
+  5. League History: rivalry cards stacked, inner tabs stay swipeable, radios wrap,
+     Plotly does not steal vertical scroll, the Load button is full-width.
 
 `:has()` rules are kept in their own blocks on purpose: one unsupported selector
 invalidates an entire selector list, so a browser without :has() must degrade to
@@ -149,6 +151,41 @@ details summary{
 .jsa-mcard .jsa-mcard-label{ font-size:9.5px !important; letter-spacing:.5px !important; }
 .jsa-mcard .jsa-mcard-value{ font-size:18px !important; }
 .jsa-mcard .jsa-mcard-sub{ font-size:11.5px !important; }
+
+/* ── 12. League History ───────────────────────────────────────────────────
+   Custom HTML cards, long inner tabs, horizontal radios, and Plotly heatmaps
+   are the pieces the shared metric/table rules do not cover. */
+.jsa-lh-card{ padding:12px !important; }
+.jsa-lh-card-row{
+  flex-direction:column !important;
+  gap:8px !important;
+}
+.jsa-lh-score{ text-align:left !important; }
+.jsa-lh-score > div:last-child{ font-size:24px !important; }
+.jsa-lh-card-copy > div:first-child{ font-size:16px !important; }
+.jsa-lh-legend{ gap:6px !important; }
+.jsa-lh-legend span{ font-size:10.5px !important; padding:6px 9px !important; }
+.jsa-lh-series{ font-size:1.15rem !important; }
+
+[data-testid="stRadio"] [role="radiogroup"]{
+  flex-wrap:wrap !important;
+  row-gap:.4rem !important;
+}
+[data-testid="stFormSubmitButton"] button{
+  min-height:2.75rem !important;
+}
+[data-testid="stPlotlyChart"]{
+  max-width:100% !important;
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch;
+}
+.stTabs [data-baseweb="tab-list"]{
+  flex-wrap:nowrap !important;
+}
+.stTabs [data-baseweb="tab"]{
+  white-space:nowrap !important;
+  flex:0 0 auto !important;
+}
 
 }  /* end phones */
 

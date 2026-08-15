@@ -1,11 +1,14 @@
 # League History backlog
 
-## Next: acquisition history and player counts
+## Acquisition history
 
-- Add an explicit **Load acquisition history** action. Fetch Sleeper transactions only
-  after that action so the normal history load does not add 18 requests per season.
-- Split in-season additions into waiver, free-agent and trade acquisitions. Preserve the
-  full trade package so a traded player's production is not presented as zero-cost value.
+- Best Values loads waiver and trade transactions when that view is opened (cached). There is
+  no second Load button. Cheap claims ($0-$4) are a ranked bar and require four rostered
+  weeks in that season. $5+ bids that scored sit on a scatter; zero-point $5+ bids are a
+  ranked bar so they do not stack at zero. Free-agent adds are not on the FAAB charts.
+- Trades are graded as got-versus-gave starting-lineup points from the week after the deal.
+  The other manager is the row label. More than eight trades keeps the most lopsided |net|.
+  Picks and FAAB stay in the hover, not converted to points.
 - Add the requested **player counts** view: count how many qualifying seasons each player
   appeared on the selected manager's roster. A player counts at most once per season even
   if he had multiple roster stints, and a player-season qualifies only after at least four

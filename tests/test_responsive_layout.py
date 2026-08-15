@@ -424,3 +424,55 @@ def test_header_controls_are_reachable(browser, app_url, width):
         assert not problems, "\n".join(problems)
     finally:
         ctx.close()
+
+
+@pytest.mark.parametrize("width", [320, 390, 640])
+def test_league_history_phone_has_no_horizontal_scroll(browser, app_url, width):
+    """Empty League History is the path every phone user hits first.
+
+    APP_OFFLINE=1 keeps this hermetic. Loaded charts are covered by the shared
+    mobile.py League History rules plus the Plotly scrollZoom=False config.
+    """
+    ctx = browser.new_context(
+        viewport={"width": width, "height": 844},
+        is_mobile=True,
+        has_touch=True,
+    )
+    try:
+        page = ctx.new_page()
+        page.goto(
+            app_url + "/league-history",
+            wait_until="domcontentloaded",
+            timeout=60_000,
+        )
+        page.wait_for_selector('[data-testid="stMainBlockContainer"]', timeout=30_000)
+        page.wait_for_selector('[data-testid="stTextInput"]', timeout=30_000)
+        page.wait_for_timeout(2000)
+
+        probe = page.evaluate(_PROBE)
+        problems = []
+        if probe["scrollW"] > probe["vw"] + 1:
+            problems.append(
+                f"page scrolls horizontally ({probe['scrollW']} > {probe['vw']})"
+            )
+
+        load = page.get_by_role("button", name="Load league history")
+        assert load.count() >= 1, "Load button missing on League History"
+        box = load.first.bounding_box()
+        assert box, "Load button has no box"
+        if box["height"] < 36:
+            problems.append(f"Load button is {box['height']:.0f}px tall; need a 44px-class target")
+        cx = box["x"] + box["width"] / 2
+        cy = box["y"] + box["height"] / 2
+        hit = page.evaluate(
+            """([x, y]) => {
+              const el = document.elementFromPoint(x, y);
+              return el ? el.closest('button') !== null : false;
+            }""",
+            [cx, cy],
+        )
+        if not hit:
+            problems.append("Load button is not the topmost control at its centre")
+        assert not problems, "\n".join(problems)
+    finally:
+        ctx.close()

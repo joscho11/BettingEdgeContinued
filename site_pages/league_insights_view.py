@@ -20,6 +20,7 @@ _POSITION_COLORS = {
     "TE": "#ffb000",
     "": "#8a93a0",
 }
+_SERIES_LINE_LIMIT = 3
 
 
 def _dark_layout(fig: go.Figure, *, height: int, title: str | None = None) -> go.Figure:
@@ -36,6 +37,14 @@ def _dark_layout(fig: go.Figure, *, height: int, title: str | None = None) -> go
     fig.update_xaxes(gridcolor="rgba(255,255,255,.08)", zerolinecolor="rgba(255,255,255,.15)")
     fig.update_yaxes(gridcolor="rgba(255,255,255,.08)", zerolinecolor="rgba(255,255,255,.15)")
     return fig
+
+
+def _chart(fig: go.Figure) -> None:
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config={"displayModeBar": False, "scrollZoom": False},
+    )
 
 
 def _sorted_seasons(seasons: dict) -> list[str]:
@@ -58,13 +67,21 @@ def _scope_history(history: dict, season_filter: str) -> tuple[dict, str]:
             season for season in _sorted_seasons(seasons)
             if seasons[season].get("draft_picks")
         ]
-        options = ["Last 3 completed seasons", "All available seasons"]
+        default_index = list(li.INSIGHT_WINDOWS).index(li.DEFAULT_INSIGHT_WINDOW)
         window = st.radio(
-            "Insight window", options, horizontal=True, key="lh_insight_window",
-            help="Three seasons is the default so current behavior is not overwhelmed by old league eras.",
+            "Insight window", li.INSIGHT_WINDOWS, index=default_index,
+            horizontal=True, key="lh_insight_window",
+            help="Last 3 seasons is the default so current behavior is not overwhelmed by old league eras.",
         )
-        keep = completed[-3:] if window == options[0] else _sorted_seasons(seasons)
-        label = "–".join(keep) if keep else "No completed drafts"
+        keep = li.select_insight_seasons(
+            _sorted_seasons(seasons), completed, window,
+        )
+        if not keep:
+            label = "No completed drafts"
+        elif len(keep) == 1:
+            label = keep[0]
+        else:
+            label = f"{keep[0]}-{keep[-1]}"
     scoped = {season: seasons[season] for season in keep if season in seasons}
     return {"league_name": history.get("league_name"), "seasons": scoped}, label
 
@@ -112,17 +129,105 @@ def _format_matches_benchmark(scoped: dict) -> bool:
     return True
 
 
-def _render_insight_cards(insights: list[dict]) -> None:
-    for insight in insights:
-        st.info(
-            f"**{insight['title']}**  \n"
-            f"{insight['finding']}  \n\n"
-            f"{insight['meaning']}  \n\n"
-            f"*{insight['confidence']} evidence · {insight['evidence']}*"
-        )
+def _render_insight_bullets(
+    insights: list[dict], draft_count: int, scope_label: str,
+) -> None:
+    if not insights:
+        return
+    st.subheader("What the evidence suggests")
+    if draft_count < 2:
+        st.caption("One draft. Treat this as a snapshot, not a habit.")
+    for insight in insights[:5]:
+        st.markdown(f"- {insight.get('bullet') or insight['finding']}")
+    if draft_count >= 2:
+        st.caption(f"Based on {draft_count} drafts in {scope_label}.")
 
 
-def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name: str) -> None:
+def _point_labels(frame: pd.DataFrame, season_count: int, y: str) -> list[str]:
+    """Label every point in a small window; otherwise only the outliers."""
+    work = frame.reset_index(drop=True)
+    if work.empty:
+        return []
+    if season_count <= _SERIES_LINE_LIMIT and len(work) <= 24:
+        return list(work["player_name"].astype(str))
+    labels = [""] * len(work)
+    chosen: set[int] = set(work[y].nlargest(min(6, len(work))).index.tolist())
+    if "round" in work.columns:
+        late = work[work["round"].fillna(99).ge(6)]
+        chosen.update(late.nlargest(min(3, len(late)), y).index.tolist())
+    if "lane" in work.columns:
+        pickups = work[work["lane"].eq("Pickup")]
+        chosen.update(pickups.nlargest(min(3, len(pickups)), y).index.tolist())
+    for idx in chosen:
+        labels[int(idx)] = str(work.at[idx, "player_name"])
+    return labels
+
+
+def _add_cumulative_traces(
+    fig: go.Figure,
+    position_data: pd.DataFrame,
+    position: str,
+    color: str,
+    overlay_season: str | None,
+) -> None:
+    seasons = [str(value) for value in position_data["season"].tolist()]
+    unique = sorted(set(seasons), key=lambda value: int(value) if str(value).isdigit() else str(value))
+    latest = unique[-1] if unique else None
+    if len(unique) <= _SERIES_LINE_LIMIT:
+        for season, season_data in position_data.groupby("season", sort=True):
+            fig.add_trace(go.Scatter(
+                x=season_data["round"], y=season_data["cumulative"],
+                mode="lines+markers", name=str(season),
+                line=dict(width=3),
+                hovertemplate=f"{season} · Round %{{x}}<br>{position}s drafted: %{{y}}<extra></extra>",
+            ))
+        return
+    pivot = position_data.pivot_table(
+        index="round", columns="season", values="cumulative", aggfunc="max",
+    )
+    upper = pivot.max(axis=1)
+    lower = pivot.min(axis=1)
+    median = pivot.median(axis=1)
+    fig.add_trace(go.Scatter(
+        x=upper.index, y=upper, mode="lines",
+        line=dict(width=0), showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=lower.index, y=lower, mode="lines", fill="tonexty",
+        fillcolor="rgba(242,245,247,0.12)",
+        line=dict(width=0), name="Season range",
+        hovertemplate="Round %{x}<br>Range: %{y}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=median.index, y=median, mode="lines",
+        name="Typical (median)",
+        line=dict(width=3, color=color),
+        hovertemplate="Round %{x}<br>Median: %{y}<extra></extra>",
+    ))
+    if latest is not None:
+        latest_data = position_data[position_data["season"].astype(str).eq(latest)]
+        fig.add_trace(go.Scatter(
+            x=latest_data["round"], y=latest_data["cumulative"],
+            mode="lines+markers", name=str(latest),
+            line=dict(width=3, color="#f2f5f7"),
+            hovertemplate=f"{latest} · Round %{{x}}<br>{position}s drafted: %{{y}}<extra></extra>",
+        ))
+    if overlay_season and overlay_season not in {None, "None", latest}:
+        extra = position_data[position_data["season"].astype(str).eq(str(overlay_season))]
+        if not extra.empty:
+            fig.add_trace(go.Scatter(
+                x=extra["round"], y=extra["cumulative"],
+                mode="lines+markers", name=str(overlay_season),
+                line=dict(width=2, dash="dot", color=color),
+                hovertemplate=(
+                    f"{overlay_season} · Round %{{x}}<br>{position}s drafted: %{{y}}<extra></extra>"
+                ),
+            ))
+
+
+def _render_draft_room(
+    scoped: dict, selected_user_id: str | None, manager_name: str, scope_label: str,
+) -> None:
     picks = li.draft_pick_frame(scoped["seasons"])
     if picks.empty:
         st.info("No completed Sleeper draft boards are linked to this history window.")
@@ -163,7 +268,7 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
         _dark_layout(heat, height=350, title="Where the room spends each round")
         heat.update_xaxes(title="Round", dtick=1)
         heat.update_yaxes(title="")
-        st.plotly_chart(heat, width="stretch")
+        _chart(heat)
         peak_position, peak_round = matrix.stack().idxmax()
         peak_value = float(matrix.loc[peak_position, peak_round])
         st.caption(
@@ -174,6 +279,21 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
 
     cumulative = li.cumulative_position_frame(picks)
     if not cumulative.empty:
+        timing_seasons = sorted(
+            {str(value) for value in cumulative["season"].tolist()},
+            key=lambda value: int(value) if str(value).isdigit() else str(value),
+        )
+        overlay = None
+        if len(timing_seasons) > _SERIES_LINE_LIMIT:
+            older = ["None"] + timing_seasons[:-1]
+            overlay = st.selectbox(
+                "Compare one extra season on the QB/TE timing charts",
+                older, key="lh_timing_overlay",
+            )
+            st.caption(
+                "The band is every season in this window. The solid line is the median. "
+                "Last season is overlaid so you can see whether this year was the exception."
+            )
         left, right = st.columns(2)
         for container, position, color in (
             (left, "QB", _POSITION_COLORS["QB"]),
@@ -182,17 +302,11 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
             with container:
                 fig = go.Figure()
                 position_data = cumulative[cumulative["position"].eq(position)]
-                for season, season_data in position_data.groupby("season", sort=True):
-                    fig.add_trace(go.Scatter(
-                        x=season_data["round"], y=season_data["cumulative"],
-                        mode="lines+markers", name=str(season),
-                        line=dict(width=3),
-                        hovertemplate=f"{season} · Round %{{x}}<br>{position}s drafted: %{{y}}<extra></extra>",
-                    ))
+                _add_cumulative_traces(fig, position_data, position, color, overlay)
                 _dark_layout(fig, height=360, title=f"{position} draft timing")
                 fig.update_xaxes(title="Round", dtick=1)
                 fig.update_yaxes(title=f"Cumulative {position}s", rangemode="tozero")
-                st.plotly_chart(fig, width="stretch")
+                _chart(fig)
                 st.caption(
                     "A steep section is the run to anticipate. A flat section means that position "
                     "barely moved, so chasing the previous run would have sacrificed value elsewhere."
@@ -213,7 +327,7 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
         _dark_layout(tax, height=380, title="The backup QB/TE tax")
         tax.update_layout(barmode="group")
         tax.update_yaxes(title="Players drafted per team", rangemode="tozero")
-        st.plotly_chart(tax, width="stretch")
+        _chart(tax)
         st.caption(
             f"The room spends {extra_onesies:.2f} picks per team beyond one QB and one TE. "
             "A lean onesie build converts that draft capital into an extra RB/WR lottery ticket; "
@@ -235,7 +349,7 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
         _dark_layout(tendency, height=350, title=f"{manager_name}'s QB/TE timing")
         tendency.update_yaxes(title="Round selected", autorange="reversed", dtick=1)
         tendency.update_xaxes(title="Season")
-        st.plotly_chart(tendency, width="stretch")
+        _chart(tendency)
         qb_range = profile["first_qb_round"].dropna()
         if len(qb_range) >= 3 and qb_range.max() - qb_range.min() <= 1:
             interpretation = (
@@ -281,7 +395,7 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
             _dark_layout(market_fig, height=360, title="Does this room delay the first QB or TE?")
             market_fig.update_layout(barmode="group")
             market_fig.update_yaxes(title="Picks later than comparable Sleeper median")
-            st.plotly_chart(market_fig, width="stretch")
+            _chart(market_fig)
             st.caption(
                 "Positive bars are real discounts relative to comparable 12-team, half-PPR, four-point-passing-TD "
                 "drafts. A single positive season is not a promise that the same player tier will fall again."
@@ -304,8 +418,10 @@ def _render_draft_room(scoped: dict, selected_user_id: str | None, manager_name:
                 "This is the stronger default when the elite TE tier does not fall."
             )
 
-    st.subheader("What the evidence suggests")
-    _render_insight_cards(li.draft_insights(picks, manager_seasons, selected_user_id))
+    _render_insight_bullets(
+        li.draft_insights(picks, manager_seasons, selected_user_id),
+        drafts, scope_label,
+    )
 
 
 def _manager_player_data(scoped: dict, selected_user_id: str, player_directory_loader):
@@ -323,6 +439,7 @@ def _render_player_facts(
     career: pd.DataFrame,
     eligible_weeks: pd.DataFrame,
     manager_name: str,
+    scope_label: str,
 ) -> None:
     if career.empty or eligible_weeks.empty:
         return
@@ -342,19 +459,47 @@ def _render_player_facts(
             weekly_winners.append(group.loc[group["points"].idxmax(), "player_name"])
     weekly_mvp = pd.Series(weekly_winners).value_counts().index[0] if weekly_winners else "—"
     weekly_mvp_count = int(pd.Series(weekly_winners).value_counts().iloc[0]) if weekly_winners else 0
+    window_note = f"Window: {scope_label}."
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Scoring king", top["player_name"], f"{top['lineup_points']:.1f} lineup pts")
+    c1.metric(
+        "Scoring king", top["player_name"], f"{top['lineup_points']:.1f} lineup pts",
+        help=(
+            f"Most points that actually entered this manager's starting lineup. {window_note} "
+            "Bench points do not count. A player-season needs four rostered weeks to qualify."
+        ),
+    )
     if best_start is not None:
-        c2.metric("Best start", best_start["player_name"], f"{best_start['points']:.1f} pts")
+        c2.metric(
+            "Best start", best_start["player_name"], f"{best_start['points']:.1f} pts",
+            help=(
+                f"Single highest scoring week as a starter in a real matchup. {window_note} "
+                "Bye weeks and empty matchup slots are excluded."
+            ),
+        )
         c2.caption(f"{best_start['season']} Week {int(best_start['week'])}")
     if bench_high is not None:
-        c3.metric("Biggest bench regret", bench_high["player_name"], f"{bench_high['points']:.1f} pts")
+        c3.metric(
+            "Biggest bench regret", bench_high["player_name"], f"{bench_high['points']:.1f} pts",
+            help=(
+                f"Highest scoring week left on the bench during a real matchup. {window_note} "
+                "This is one week, not a season-long ranking."
+            ),
+        )
         c3.caption(f"{bench_high['season']} Week {int(bench_high['week'])}")
-    c4.metric("Most weekly MVPs", weekly_mvp, f"Led {manager_name} {weekly_mvp_count} times")
+    c4.metric(
+        "Most weekly MVPs", weekly_mvp, f"Led {manager_name} {weekly_mvp_count} times",
+        help=(
+            f"The player who led this manager's starting lineup most often. {window_note} "
+            "Ties in a week are broken by the first listed starter."
+        ),
+    )
 
 
-def _render_my_team(scoped: dict, selected_user_id: str | None, manager_name: str, player_directory_loader) -> None:
+def _render_my_team(
+    scoped: dict, selected_user_id: str | None, manager_name: str,
+    player_directory_loader, scope_label: str,
+) -> None:
     if not selected_user_id:
         st.info("Choose a manager to load player history.")
         return
@@ -369,7 +514,7 @@ def _render_my_team(scoped: dict, selected_user_id: str | None, manager_name: st
         "A player-season qualifies after four rostered weeks, with separate stints combined. "
         "Scoring counts only weeks containing a real matchup; the main ranking uses points that entered the lineup."
     )
-    _render_player_facts(career, eligible_weeks, manager_name)
+    _render_player_facts(career, eligible_weeks, manager_name, scope_label)
 
     top = career.head(12).sort_values("lineup_points")
     scorer = go.Figure(go.Bar(
@@ -384,7 +529,7 @@ def _render_my_team(scoped: dict, selected_user_id: str | None, manager_name: st
     _dark_layout(scorer, height=500, title=f"Who scored the most for {manager_name}?")
     scorer.update_xaxes(title="Points in the starting lineup")
     scorer.update_yaxes(title="")
-    st.plotly_chart(scorer, width="stretch")
+    _chart(scorer)
     leader = career.iloc[0]
     st.caption(
         f"{leader['player_name']} leads because {leader['lineup_points']:.1f} points actually entered "
@@ -396,16 +541,18 @@ def _render_my_team(scoped: dict, selected_user_id: str | None, manager_name: st
         player_seasons.sort_values(["season", "lineup_points"], ascending=[True, False])
         .groupby("season", as_index=False).first()
     )
+    show_names = len(leaders) <= 8
     season_fig = go.Figure(go.Bar(
         x=leaders["season"], y=leaders["lineup_points"],
         marker_color=[_POSITION_COLORS.get(position, "#8a93a0") for position in leaders["position"]],
-        text=leaders["player_name"], textposition="outside",
+        text=leaders["player_name"] if show_names else None,
+        textposition="outside" if show_names else None,
         customdata=leaders[["player_name", "position"]],
         hovertemplate="%{x}: %{customdata[0]} (%{customdata[1]})<br>%{y:.1f} lineup pts<extra></extra>",
     ))
     _dark_layout(season_fig, height=390, title="The player who carried each season")
     season_fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
-    st.plotly_chart(season_fig, width="stretch")
+    _chart(season_fig)
     if len(leaders) > 1:
         high = leaders.loc[leaders["lineup_points"].idxmax()]
         st.caption(
@@ -428,7 +575,7 @@ def _render_my_team(scoped: dict, selected_user_id: str | None, manager_name: st
             hovertemplate="%{label}: %{value:.1f} lineup pts (%{percent})<extra></extra>",
         ))
         _dark_layout(donut, height=390, title="Where the qualifying lineup points came from")
-        st.plotly_chart(donut, width="stretch")
+        _chart(donut)
         lead_position = position_points.iloc[0]
         share = lead_position["lineup_points"] / position_points["lineup_points"].sum()
         st.caption(
@@ -438,78 +585,321 @@ def _render_my_team(scoped: dict, selected_user_id: str | None, manager_name: st
         )
 
 
-def _render_values(scoped: dict, selected_user_id: str | None, manager_name: str, player_directory_loader) -> None:
+def _roster_owner_map(scoped: dict) -> dict[tuple[str, str], str]:
+    owners: dict[tuple[str, str], str] = {}
+    for season, data in scoped["seasons"].items():
+        for row in data.get("standings", []):
+            roster_id = str(row.get("roster_id") or "")
+            user_id = str(row.get("owner_id") or "")
+            if roster_id and user_id:
+                owners[(str(season), roster_id)] = user_id
+    return owners
+
+
+def _load_season_transactions(scoped: dict, transaction_loader) -> dict[str, list]:
+    if transaction_loader is None:
+        return {}
+    by_season: dict[str, list] = {}
+    with st.spinner("Loading waiver bids and trades…"):
+        for season, data in scoped["seasons"].items():
+            league_id = str(data.get("league_id") or "")
+            if not league_id:
+                continue
+            by_season[str(season)] = transaction_loader(league_id) or []
+    return by_season
+
+
+def _strip_values(values: pd.Series, width: float = 0.7) -> pd.Series:
+    """Spread identical x values sideways. Hover still shows the true value."""
+    plot_x = values.astype(float).copy()
+    width = max(float(width), 0.05)
+    for value, group in values.groupby(values):
+        n = len(group)
+        if n <= 1:
+            continue
+        step = width / max(n - 1, 1)
+        offsets = [(i - (n - 1) / 2) * step for i in range(n)]
+        plot_x.loc[group.index] = [float(value) + off for off in offsets]
+    return plot_x
+
+
+def _render_trade_grades(trades: pd.DataFrame, manager_name: str) -> None:
+    if trades.empty:
+        st.caption("No completed player trades in this window.")
+        return
+    shown = li.select_trade_chart_rows(trades, li.TRADE_CHART_LIMIT)
+    shown = shown.copy()
+    shown["owner_label"] = li.trade_opponent_labels(shown)
+    shown["got_label"] = [
+        f"{li.compact_name_list(name)}  {pts:.0f}"
+        for name, pts in zip(shown["got_names"], shown["got_points"])
+    ]
+    shown["gave_label"] = [
+        f"{li.compact_name_list(name)}  {pts:.0f}"
+        for name, pts in zip(shown["gave_names"], shown["gave_points"])
+    ]
+    extras = [
+        extra if extra else "Players only"
+        for extra in shown["extra"]
+    ]
+    hover = list(zip(
+        shown["got_names"], shown["gave_names"], extras,
+        [f"{net:+.1f}" for net in shown["net"]],
+        shown["got_points"], shown["gave_points"],
+        shown["label"],
+    ))
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name="Got",
+        y=shown["owner_label"],
+        x=shown["got_points"],
+        orientation="h",
+        marker_color="#35D08A",
+        text=shown["got_label"],
+        textposition="outside",
+        cliponaxis=False,
+        customdata=hover,
+        hovertemplate=(
+            "%{customdata[6]}<br>Got: %{customdata[0]} (%{customdata[4]:.1f})"
+            "<br>Gave up: %{customdata[1]} (%{customdata[5]:.1f})"
+            "<br>Net: %{customdata[3]}<br>%{customdata[2]}<extra></extra>"
+        ),
+    ))
+    fig.add_trace(go.Bar(
+        name="Gave up",
+        y=shown["owner_label"],
+        x=shown["gave_points"],
+        orientation="h",
+        marker_color="#FB7185",
+        text=shown["gave_label"],
+        textposition="outside",
+        cliponaxis=False,
+        customdata=hover,
+        hovertemplate=(
+            "%{customdata[6]}<br>Got: %{customdata[0]} (%{customdata[4]:.1f})"
+            "<br>Gave up: %{customdata[1]} (%{customdata[5]:.1f})"
+            "<br>Net: %{customdata[3]}<br>%{customdata[2]}<extra></extra>"
+        ),
+    ))
+    fig.update_layout(barmode="group")
+    _dark_layout(
+        fig,
+        height=max(400, 64 * len(shown) + 140),
+        title=f"Did {manager_name} win these trades?",
+    )
+    fig.update_xaxes(title="Starting-lineup points after the trade", rangemode="tozero")
+    fig.update_yaxes(title="", automargin=True)
+    _chart(fig)
+    st.caption(
+        "Got is starting-lineup points the players you received scored for you from the week "
+        "after the trade through the rest of that season. Gave up is what the players you sent "
+        "scored for their new team over the same stretch. Picks and FAAB show in the hover, "
+        "not as points. Late-season trades still count."
+    )
+    if len(trades) > len(shown):
+        st.caption(
+            f"Showing the {len(shown)} most lopsided of {len(trades)} player trades. "
+            "Even deals are dropped so the chart stays readable."
+        )
+    if not bool(shown["player_only"].all()):
+        st.caption(
+            "At least one deal also moved picks or FAAB, so the point gap is not the whole package."
+        )
+    best = shown.loc[shown["net"].idxmax()]
+    if float(best["net"]) > 0:
+        st.caption(
+            f"The clearest player win is {best['label']}: {best['net']:+.1f} "
+            f"({best['got_names']} vs {best['gave_names']})."
+        )
+
+
+def _render_values(
+    scoped: dict, selected_user_id: str | None, manager_name: str,
+    player_directory_loader, transaction_loader, scope_label: str,
+) -> None:
     if not selected_user_id:
         st.info("Choose a manager to load acquisition value.")
         return
-    _, player_seasons, _, _ = _manager_player_data(scoped, selected_user_id, player_directory_loader)
+    with st.spinner("Matching Sleeper player names…"):
+        player_directory = player_directory_loader() or {}
+    weeks = li.player_week_frame(scoped["seasons"], player_directory)
+    manager_weeks = weeks[weeks["user_id"].eq(str(selected_user_id))].copy()
+    player_seasons = li.player_season_summary(manager_weeks, min_roster_weeks=4)
     picks = li.draft_pick_frame(scoped["seasons"])
     picks = picks[picks["user_id"].eq(str(selected_user_id))]
     values = li.value_frame(player_seasons, picks)
-    if values.empty:
+    owners = _roster_owner_map(scoped)
+    by_season = _load_season_transactions(scoped, transaction_loader)
+    acquisitions = li.first_acquisition_frame(by_season, owners)
+    identities = li.manager_identity_map(scoped["seasons"])
+    trades = li.trade_outcome_frame(
+        by_season, owners, weeks, str(selected_user_id), identities,
+    )
+    paid = li.paid_waiver_claim_frame(
+        by_season, owners, weeks, str(selected_user_id),
+    )
+    if values.empty and trades.empty and paid.empty:
         st.info("No qualifying player-seasons are available for this manager.")
         return
 
-    st.caption(
-        "Drafted players are matched to their actual round. Everyone else is labeled an in-season addition "
-        "until the transaction-history phase separates waivers, free agents and trades. No arbitrary combined "
-        "value score is used."
-    )
+    if not values.empty:
+        values = li.attach_acquisitions(values, acquisitions)
+    drafted = values[values["source"].eq("Drafted")].copy() if not values.empty else values
+    season_count = int(values["season"].nunique()) if not values.empty else 0
 
-    drafted = values[values["source"].eq("Drafted")].copy()
     if not drafted.empty:
+        st.caption(
+            "Drafted players sit on their actual round. Same-round picks are spread sideways. "
+            "Free-agent adds are not on this scatter. No combined value score is used."
+        )
+        if season_count > _SERIES_LINE_LIMIT:
+            st.caption("More than three seasons: only the outlier names are labeled.")
         draft_fig = go.Figure()
-        for season, group in drafted.groupby("season", sort=True):
-            draft_fig.add_trace(go.Scatter(
-                x=group["round"], y=group["lineup_points"], mode="markers+text",
-                name=str(season), text=group["player_name"], textposition="top center",
-                marker=dict(size=11, opacity=.85),
-                customdata=group[["player_name", "position", "starts", "pick_no"]],
-                hovertemplate=(
-                    "%{customdata[0]} · %{customdata[1]}<br>Round %{x:.0f}, pick #%{customdata[3]:.0f}"
-                    "<br>Lineup points: %{y:.1f}<br>Starts: %{customdata[2]}<extra></extra>"
-                ),
-            ))
+        labels = _point_labels(drafted, season_count, "lineup_points")
+        draft_opacity = 0.65 if len(drafted) > 24 else 0.85
+        draft_fig.add_trace(go.Scatter(
+            x=_strip_values(drafted["round"], width=0.28), y=drafted["lineup_points"],
+            mode="markers+text",
+            name="Drafted", text=labels, textposition="top center",
+            marker=dict(size=11, opacity=draft_opacity),
+            customdata=list(zip(
+                drafted["player_name"], drafted["position"], drafted["starts"],
+                drafted["season"], drafted["round"],
+            )),
+            hovertemplate=(
+                "%{customdata[0]} · %{customdata[1]}<br>%{customdata[3]} · Round %{customdata[4]:.0f}"
+                "<br>Lineup points: %{y:.1f}<br>Starts: %{customdata[2]}<extra></extra>"
+            ),
+        ))
         _dark_layout(draft_fig, height=520, title=f"{manager_name}'s draft cost versus realized production")
         draft_fig.update_xaxes(title="Draft round", dtick=1, autorange="reversed")
         draft_fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
-        st.plotly_chart(draft_fig, width="stretch")
+        _chart(draft_fig)
         late = drafted[drafted["round"].ge(6)].sort_values("lineup_points", ascending=False)
         if not late.empty:
             hit = late.iloc[0]
             st.caption(
                 f"The clearest late-round return is {hit['player_name']}: Round {int(hit['round'])}, "
-                f"{hit['lineup_points']:.1f} lineup points in {hit['season']}. The upper-right portion of the "
-                "chart is where meaningful production arrived after the expensive rounds were gone."
+                f"{hit['lineup_points']:.1f} lineup points in {hit['season']}."
             )
 
-    additions = values[values["source"].eq("In-season addition")].sort_values(
-        "lineup_points", ascending=False
-    ).head(10)
-    if not additions.empty:
-        additions = additions.sort_values("lineup_points")
-        add_fig = go.Figure(go.Bar(
-            x=additions["lineup_points"], y=additions["player_name"], orientation="h",
-            marker_color=[_POSITION_COLORS.get(position, "#8a93a0") for position in additions["position"]],
-            customdata=additions[["season", "position", "starts"]],
-            hovertemplate=(
-                "%{y} · %{customdata[1]}<br>%{customdata[0]}<br>Lineup points: %{x:.1f}"
-                "<br>Starts: %{customdata[2]}<extra></extra>"
-            ),
-        ))
-        _dark_layout(add_fig, height=440, title="Production acquired after the draft")
-        add_fig.update_xaxes(title="Starting-lineup points")
-        add_fig.update_yaxes(title="")
-        st.plotly_chart(add_fig, width="stretch")
-        best = additions.iloc[-1]
-        st.caption(
-            f"{best['player_name']} produced the most post-draft lineup value in this window at "
-            f"{best['lineup_points']:.1f} points. The next phase will determine whether that acquisition "
-            "was a waiver claim, free-agent add or trade before calling it a specific type of steal."
-        )
+    cheap, _ = li.split_faab_waiver_frames(values)
+    if li.league_uses_faab(scoped["seasons"]):
+        if cheap.empty and paid.empty:
+            st.caption("This window has FAAB, but this manager has no waiver claims to plot.")
+        else:
+            if not paid.empty:
+                producers, busts = li.split_paid_production_frames(paid)
+                if not producers.empty:
+                    paid_seasons = int(producers["season"].nunique())
+                    paid_labels = _point_labels(producers, paid_seasons, "lineup_points")
+                    faab_fig = go.Figure(go.Scatter(
+                        x=_strip_values(producers["faab"]), y=producers["lineup_points"],
+                        mode="markers+text", text=paid_labels, textposition="top center",
+                        marker=dict(
+                            size=11,
+                            opacity=0.7 if len(producers) > 24 else 0.88,
+                            color="#C4A35A",
+                        ),
+                        customdata=list(zip(
+                            producers["player_name"], producers["position"],
+                            producers["season"], producers["faab"], producers["acq_week"],
+                        )),
+                        hovertemplate=(
+                            "%{customdata[0]} · %{customdata[1]}<br>%{customdata[2]}"
+                            "<br>FAAB: $%{customdata[3]:.0f}<br>Lineup points: %{y:.1f}<extra></extra>"
+                        ),
+                    ))
+                    _dark_layout(
+                        faab_fig, height=420,
+                        title=f"Waiver bids of ${li.FAAB_PAID_MIN}+ for {manager_name}",
+                    )
+                    faab_fig.update_xaxes(title="FAAB spent", rangemode="tozero")
+                    faab_fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
+                    _chart(faab_fig)
+                    scatter_note = (
+                        f"Every completed bid of ${li.FAAB_PAID_MIN} or more that produced starting-lineup "
+                        "points, including players you later dropped. No roster-week minimum. "
+                        "Same-dollar bids are spread sideways."
+                    )
+                    if not busts.empty:
+                        scatter_note += " Zero-point bids are in the bar below."
+                    st.caption(scatter_note)
+                if not busts.empty:
+                    bust_top = busts.sort_values("faab", ascending=False).head(li.BUST_CHART_LIMIT)
+                    bust_top = bust_top.sort_values("faab")
+                    bust_fig = go.Figure(go.Bar(
+                        x=bust_top["faab"], y=bust_top["player_name"],
+                        orientation="h",
+                        marker_color="#C4A35A",
+                        text=[f"${int(bid)}" for bid in bust_top["faab"]],
+                        textposition="outside",
+                        customdata=list(zip(
+                            bust_top["season"], bust_top["position"],
+                        )),
+                        hovertemplate=(
+                            "%{y} · %{customdata[1]}<br>%{customdata[0]}"
+                            "<br>FAAB: $%{x:.0f}<br>Lineup points: 0<extra></extra>"
+                        ),
+                    ))
+                    _dark_layout(
+                        bust_fig, height=max(280, 28 * len(bust_top) + 80),
+                        title=f"Paid ${li.FAAB_PAID_MIN}+ with no lineup points",
+                    )
+                    bust_fig.update_xaxes(title="FAAB spent")
+                    bust_fig.update_yaxes(title="")
+                    _chart(bust_fig)
+                    st.caption(
+                        "These bids never scored in a starting lineup. They sit here instead of "
+                        "stacking on the scatter at zero. Ranked by dollars spent."
+                    )
+                    if len(busts) > len(bust_top):
+                        st.caption(
+                            f"Showing the {len(bust_top)} most expensive of {len(busts)} zero-point bids."
+                        )
+            if not cheap.empty:
+                cheap_top = cheap.sort_values("lineup_points", ascending=False).head(12)
+                cheap_top = cheap_top.sort_values("lineup_points")
+                cheap_fig = go.Figure(go.Bar(
+                    x=cheap_top["lineup_points"], y=cheap_top["player_name"],
+                    orientation="h",
+                    marker_color=[
+                        _POSITION_COLORS.get(position, "#8a93a0")
+                        for position in cheap_top["position"]
+                    ],
+                    text=[f"${int(bid)}" for bid in cheap_top["faab"]],
+                    textposition="outside",
+                    customdata=list(zip(
+                        cheap_top["season"], cheap_top["position"], cheap_top["faab"],
+                    )),
+                    hovertemplate=(
+                        "%{y} · %{customdata[1]}<br>%{customdata[0]} · $%{customdata[2]:.0f}"
+                        "<br>Lineup points: %{x:.1f}<extra></extra>"
+                    ),
+                ))
+                _dark_layout(
+                    cheap_fig, height=max(320, 28 * len(cheap_top) + 80),
+                    title=(
+                        f"Cheap waiver claims ($0-${li.FAAB_PAID_MIN - 1}, "
+                        f"4+ rostered weeks) for {manager_name}"
+                    ),
+                )
+                cheap_fig.update_xaxes(title="Starting-lineup points")
+                cheap_fig.update_yaxes(title="")
+                _chart(cheap_fig)
+                st.caption(
+                    f"Most waiver bids in a FAAB league cluster at $0-$1, so claims under "
+                    f"${li.FAAB_PAID_MIN} are ranked here instead of piled on the scatter. "
+                    "Only players with four rostered weeks in that season appear. "
+                    "One-week streamers are excluded. Free-agent adds and trades stay off the FAAB charts."
+                )
+    elif not acquisitions.empty:
+        st.caption("This league does not use FAAB, so there is no bid to plot.")
+
+    _render_trade_grades(trades, manager_name)
 
 
-def render(history: dict, season_filter: str, player_directory_loader) -> None:
+def render(history: dict, season_filter: str, player_directory_loader, transaction_loader=None) -> None:
     st.subheader("Draft & Roster Insights")
     st.caption(
         "League-specific tendencies and manager history from Sleeper's completed drafts and weekly roster snapshots. "
@@ -524,8 +914,13 @@ def render(history: dict, season_filter: str, player_directory_loader) -> None:
         horizontal=True, key="lh_insight_view", label_visibility="collapsed",
     )
     if view == "Draft Room":
-        _render_draft_room(scoped, selected_user_id, manager_name)
+        _render_draft_room(scoped, selected_user_id, manager_name, scope_label)
     elif view == "My Team":
-        _render_my_team(scoped, selected_user_id, manager_name, player_directory_loader)
+        _render_my_team(
+            scoped, selected_user_id, manager_name, player_directory_loader, scope_label,
+        )
     else:
-        _render_values(scoped, selected_user_id, manager_name, player_directory_loader)
+        _render_values(
+            scoped, selected_user_id, manager_name, player_directory_loader,
+            transaction_loader, scope_label,
+        )

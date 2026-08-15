@@ -133,10 +133,14 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "RIVALRY SCORE" in html
     assert "71.2" in html
     assert "Alice vs Bob" in html
+    assert "jsa-lh-card" in html
     assert "border-left:" not in html
     legend = page_league_history._rivalry_score_legend_html()
     assert "70+ fit" in legend
-    assert "Locked" in legend
+    assert "jsa-lh-legend" in legend
+    css = (_HERE / "mobile.py").read_text(encoding="utf-8")
+    assert ".jsa-lh-card" in css
+    assert "[data-testid=\"stRadio\"]" in css
 
 
 def test_league_history_estimate_counts_linked_seasons(monkeypatch):
@@ -150,13 +154,13 @@ def test_league_history_estimate_counts_linked_seasons(monkeypatch):
         return leagues.get(url.rsplit("/", 1)[-1])
 
     monkeypatch.setattr(page_league_history, "_sleeper_get", _fake_get)
-    page_league_history._league_history_season_count.clear()
+    page_league_history._league_history_chain.clear()
     try:
         assert page_league_history._league_history_season_count("current") == 3
         assert page_league_history._history_load_estimate(3) == (6, 12)
         assert page_league_history._history_load_estimate(99) == (20, 40)
     finally:
-        page_league_history._league_history_season_count.clear()
+        page_league_history._league_history_chain.clear()
 
 
 def test_rookie_board_excludes_direct_pff_fields_and_explains_availability(tmp_path):
@@ -237,14 +241,17 @@ def test_league_history_caps_matchup_workers_without_network(monkeypatch):
     monkeypatch.setattr(page_league_history, "_sleeper_get", _sleeper_get)
     monkeypatch.setattr(page_league_history._cf, "ThreadPoolExecutor", _Executor)
     monkeypatch.setattr(page_league_history.req, "get", lambda *_args, **_kwargs: _Response())
-    page_league_history._fetch_sleeper_history.clear()
+    page_league_history._league_history_chain.clear()
+    page_league_history._fetch_one_season.clear()
     try:
         history = page_league_history._fetch_sleeper_history(league_id)
         assert history["seasons"]
         assert seen_workers == [page_league_history._MATCHUP_FETCH_WORKERS]
         assert seen_workers[0] <= 6
+        assert history["seasons"]["2025"]["league_settings"]["waiver_type"] is None
     finally:
-        page_league_history._fetch_sleeper_history.clear()
+        page_league_history._league_history_chain.clear()
+        page_league_history._fetch_one_season.clear()
 
 
 def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
@@ -287,7 +294,11 @@ def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
     assert construction["avg_te"].eq(1).all()
     insights = league_intel.draft_insights(picks, managers, "u1")
     assert any(item["title"] == "Your early-round fingerprint" for item in insights)
-    assert all({"finding", "meaning", "evidence", "confidence"} <= set(item) for item in insights)
+    assert all(
+        {"finding", "meaning", "evidence", "confidence", "bullet"} <= set(item)
+        for item in insights
+    )
+    assert len(insights) <= 5
 
 
 def test_league_history_defaults_to_draft_and_roster_insights():
@@ -567,10 +578,38 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
                     "season": "2025", "week": 1, "is_playoff": False,
                     "rid_a": "1", "rid_b": "2", "score_a": 120.0, "score_b": 80.0,
                 }],
-                "draft_picks": [],
-                "roster_entries": [],
+                "draft_picks": [{
+                    "pick_no": 1, "round": 1, "pick_in_round": 1, "draft_slot": 1,
+                    "picked_by": "u1", "player_id": "p1",
+                    "metadata": {
+                        "first_name": "Draft", "last_name": "Hit", "position": "QB",
+                    },
+                }],
+                "roster_entries": [
+                    {
+                        "season": "2025", "week": week, "roster_id": 1,
+                        "matchup_id": 1,
+                        "players": ["p1", "p3"] + (["p5"] if week <= 2 else ["p4"]),
+                        "starters": ["p1"] + (["p4"] if week >= 3 else []),
+                        "players_points": (
+                            {"p1": 10, "p3": 8, "p4": 15} if week >= 3
+                            else {"p1": 10, "p3": 8, "p5": 4}
+                        ),
+                    }
+                    for week in (1, 2, 3, 4)
+                ] + [
+                    {
+                        "season": "2025", "week": week, "roster_id": 2,
+                        "matchup_id": 1,
+                        "players": ["p4"] if week <= 2 else ["p5"],
+                        "starters": ["p4"] if week <= 2 else ["p5"],
+                        "players_points": {"p4": 5} if week <= 2 else {"p5": 7},
+                    }
+                    for week in (1, 2, 3, 4)
+                ],
                 "league_settings": {
-                    "total_rosters": 2, "roster_positions": [], "scoring_settings": {},
+                    "total_rosters": 2, "roster_positions": [],
+                    "scoring_settings": {}, "waiver_type": 2, "waiver_budget": 100,
                 },
             },
         },
@@ -581,7 +620,19 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         "import page_league_history as p\n"
         "p._OFFLINE = False\n"
         f"p._fetch_sleeper_history = lambda _league_id: {fixture!r}\n"
-        "p._league_history_season_count = lambda _league_id: 1\n"
+        "p._league_history_chain = lambda _league_id: ["
+        "{'league_id': '1255197436951932928', 'season': '2025', 'name': 'Test League'}"
+        "]\n"
+        f"p._fetch_one_season = lambda _league_id: ('2025', {fixture['seasons']['2025']!r})\n"
+        "p._fetch_season_transactions = lambda _league_id: ["
+        "{'type': 'waiver', 'status': 'complete', 'leg': 2, "
+        "'settings': {'waiver_bid': 1}, 'adds': {'p3': 1}}, "
+        "{'type': 'waiver', 'status': 'complete', 'leg': 4, "
+        "'settings': {'waiver_bid': 18}, 'adds': {'p1': 1}}, "
+        "{'type': 'trade', 'status': 'complete', 'leg': 2, "
+        "'transaction_id': 't1', 'roster_ids': [1, 2], "
+        "'adds': {'p4': 1, 'p5': 2}, 'drops': {'p4': 2, 'p5': 1}}"
+        "]\n"
         "p._fetch_player_directory = lambda: {}\n"
         "p.render()\n",
         encoding="utf-8",
@@ -596,6 +647,32 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert [tab.label for tab in at.tabs][:2] == [
         "🧠 Draft & Roster Insights", "🏆 All-Time Leaderboard",
     ]
+    insight_window = next(widget for widget in at.radio if widget.key == "lh_insight_window")
+    assert list(insight_window.options) == [
+        "Last season", "Last 3 seasons", "All available seasons",
+    ]
+    assert insight_window.value == "Last 3 seasons"
+    insight_view = next(widget for widget in at.radio if widget.key == "lh_insight_view")
+    insight_view.set_value("My Team")
+    at.run()
+    assert not at.exception, at.exception
+    insight_view = next(widget for widget in at.radio if widget.key == "lh_insight_view")
+    insight_view.set_value("Best Values")
+    at.run()
+    assert not at.exception, at.exception
+    assert not any(button.label == "Load acquisition history" for button in at.button)
+    assert any("cluster at $0" in str(caption.value) for caption in at.caption)
+    assert any("four rostered weeks" in str(caption.value) for caption in at.caption)
+    assert any("No roster-week minimum" in str(caption.value) for caption in at.caption)
+    assert any("week after the trade" in str(caption.value) for caption in at.caption)
+    assert not any(
+        "Production acquired after the draft" in str(caption.value)
+        for caption in at.caption
+    )
+    insight_view = next(widget for widget in at.radio if widget.key == "lh_insight_view")
+    insight_view.set_value("Draft Room")
+    at.run()
+    assert not at.exception, at.exception
     assert any(tab.label == "⚔️ Rivalries" for tab in at.tabs)
     assert len(at.get("plotly_chart")) >= 4
     assert any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
@@ -725,6 +802,258 @@ def test_player_history_uses_four_week_filter_and_excludes_null_matchup_points()
     values = league_intel.value_frame(summary, league_intel.draft_pick_frame(seasons))
     sources = values.set_index("player_id")["source"].to_dict()
     assert sources == {"p1": "Drafted", "p3": "In-season addition"}
+    chart, max_round = league_intel.production_chart_frame(values)
+    lanes = chart.set_index("player_id")["lane"].to_dict()
+    assert lanes == {"p1": "Drafted", "p3": "Pickup"}
+    assert max_round == 8
+    assert float(chart.set_index("player_id").loc["p3", "chart_x"]) == max_round + 1
+
+
+def test_insight_window_includes_last_season():
+    completed = ["2022", "2023", "2024", "2025"]
+    all_seasons = completed + ["2026"]
+    assert league_intel.select_insight_seasons(
+        all_seasons, completed, "Last season",
+    ) == ["2025"]
+    assert league_intel.select_insight_seasons(
+        all_seasons, completed, "Last 3 seasons",
+    ) == ["2023", "2024", "2025"]
+    assert league_intel.select_insight_seasons(
+        all_seasons, completed, "All available seasons",
+    ) == all_seasons
+    assert league_intel.DEFAULT_INSIGHT_WINDOW == "Last 3 seasons"
+
+
+def test_transaction_adds_keep_first_faab_and_ignore_failed_claims():
+    transactions = [
+        {
+            "type": "waiver", "status": "failed", "leg": 1,
+            "settings": {"waiver_bid": 40},
+            "adds": {"p3": 4},
+        },
+        {
+            "type": "waiver", "status": "complete", "leg": 2,
+            "settings": {"waiver_bid": 17},
+            "adds": {"p3": 4},
+        },
+        {
+            "type": "free_agent", "status": "complete", "leg": 6,
+            "settings": None, "adds": {"p4": 4},
+        },
+        {
+            "type": "trade", "status": "complete", "leg": 8,
+            "adds": {"p5": 4}, "waiver_budget": [{"sender": 4, "receiver": 1, "amount": 5}],
+        },
+        {
+            "type": "waiver", "status": "complete", "leg": 3,
+            "settings": {"waiver_bid": 3},
+            "adds": {"p3": 4},
+        },
+    ]
+    owner = {("2025", "4"): "u1"}
+    acquired = league_intel.first_acquisition_frame({"2025": transactions}, owner)
+    by_player = acquired.set_index("player_id")
+    assert by_player.loc["p3", "source"] == "Waiver"
+    assert int(by_player.loc["p3", "faab"]) == 17
+    assert int(by_player.loc["p3", "week"]) == 2
+    assert by_player.loc["p4", "source"] == "Free agent"
+    assert int(by_player.loc["p4", "faab"]) == 0
+    assert by_player.loc["p5", "source"] == "Trade"
+    assert pd.isna(by_player.loc["p5", "faab"])
+
+    values = pd.DataFrame([
+        {"season": "2025", "user_id": "u1", "player_id": "p3",
+         "player_name": "Added Player", "position": "RB", "lineup_points": 80,
+         "starts": 8, "source": "In-season addition", "round": pd.NA, "pick_no": pd.NA},
+        {"season": "2025", "user_id": "u1", "player_id": "p1",
+         "player_name": "Draft Hit", "position": "QB", "lineup_points": 30,
+         "starts": 2, "source": "Drafted", "round": 8, "pick_no": 88},
+    ])
+    labeled = league_intel.attach_acquisitions(values, acquired)
+    assert labeled.set_index("player_id").loc["p3", "source"] == "Waiver"
+    assert labeled.set_index("player_id").loc["p1", "source"] == "Drafted"
+    cheap, paid = league_intel.split_faab_waiver_frames(labeled)
+    assert list(cheap["player_id"]) == []
+    assert list(paid["player_id"]) == ["p3"]
+    cheap_one, paid_one = league_intel.split_faab_waiver_frames(pd.DataFrame([
+        {"source": "Waiver", "faab": 1, "player_id": "cheap", "lineup_points": 40},
+        {"source": "Waiver", "faab": 12, "player_id": "paid", "lineup_points": 90},
+        {"source": "Free agent", "faab": 0, "player_id": "fa", "lineup_points": 70},
+    ]))
+    assert list(cheap_one["player_id"]) == ["cheap"]
+    assert list(paid_one["player_id"]) == ["paid"]
+    assert league_intel.league_uses_faab({
+        "2025": {"league_settings": {"waiver_type": 2, "waiver_budget": 100}},
+    })
+    assert not league_intel.league_uses_faab({
+        "2025": {"league_settings": {"waiver_type": 0}},
+    })
+
+
+def test_trade_outcome_scores_got_versus_gave_from_week_after():
+    transactions = [
+        {
+            "type": "trade", "status": "complete", "leg": 2,
+            "transaction_id": "t1", "roster_ids": [1, 2],
+            "adds": {"got1": 1, "gave1": 2},
+            "drops": {"got1": 2, "gave1": 1},
+            "draft_picks": [{
+                "season": "2026", "round": 2,
+                "owner_id": 1, "previous_owner_id": 2,
+            }],
+            "waiver_budget": [{"sender": 1, "receiver": 2, "amount": 5}],
+        },
+        {
+            "type": "trade", "status": "failed", "leg": 3,
+            "transaction_id": "t_fail", "roster_ids": [1, 2],
+            "adds": {"x": 1}, "drops": {"x": 2},
+        },
+        {
+            "type": "waiver", "status": "complete", "leg": 4,
+            "adds": {"waived": 1},
+        },
+        {
+            "type": "trade", "status": "complete", "leg": 10,
+            "transaction_id": "t_picks", "roster_ids": [1, 2],
+            "adds": {}, "drops": {},
+            "draft_picks": [{
+                "season": "2026", "round": 3,
+                "owner_id": 2, "previous_owner_id": 1,
+            }],
+        },
+    ]
+    owner = {("2025", "1"): "u1", ("2025", "2"): "u2"}
+    weeks = pd.DataFrame([
+        {
+            "season": "2025", "week": 2, "user_id": "u1", "roster_id": "1",
+            "player_id": "got1", "player_name": "Incoming", "position": "WR",
+            "is_starter": True, "active_matchup": True, "points": 99.0,
+        },
+        {
+            "season": "2025", "week": 3, "user_id": "u1", "roster_id": "1",
+            "player_id": "got1", "player_name": "Incoming", "position": "WR",
+            "is_starter": True, "active_matchup": True, "points": 10.0,
+        },
+        {
+            "season": "2025", "week": 4, "user_id": "u1", "roster_id": "1",
+            "player_id": "got1", "player_name": "Incoming", "position": "WR",
+            "is_starter": True, "active_matchup": True, "points": 12.0,
+        },
+        {
+            "season": "2025", "week": 3, "user_id": "u2", "roster_id": "2",
+            "player_id": "gave1", "player_name": "Outgoing", "position": "RB",
+            "is_starter": True, "active_matchup": True, "points": 6.0,
+        },
+        {
+            "season": "2025", "week": 4, "user_id": "u2", "roster_id": "2",
+            "player_id": "gave1", "player_name": "Outgoing", "position": "RB",
+            "is_starter": True, "active_matchup": True, "points": 7.0,
+        },
+        {
+            "season": "2025", "week": 3, "user_id": "u2", "roster_id": "2",
+            "player_id": "gave1", "player_name": "Outgoing", "position": "RB",
+            "is_starter": False, "active_matchup": True, "points": 50.0,
+        },
+    ])
+    out = league_intel.trade_outcome_frame(
+        {"2025": transactions}, owner, weeks, "u1",
+        {"u1": "Alice", "u2": "Bob"},
+    )
+    assert list(out["transaction_id"]) == ["t1"]
+    row = out.iloc[0]
+    assert row["got_points"] == 22.0
+    assert row["gave_points"] == 13.0
+    assert row["net"] == 9.0
+    assert row["got_names"] == "Incoming"
+    assert row["gave_names"] == "Outgoing"
+    assert "got 2026 R2" in row["extra"]
+    assert "sent $5 FAAB" in row["extra"]
+    assert row["opponent"] == "Bob"
+    assert not bool(row["player_only"])
+    empty = league_intel.trade_outcome_frame(
+        {"2025": transactions}, owner, weeks, "u3", {},
+    )
+    assert empty.empty
+
+
+def test_paid_waiver_claims_ignore_roster_week_floor():
+    transactions = [
+        {
+            "type": "waiver", "status": "complete", "leg": 8,
+            "settings": {"waiver_bid": 22},
+            "adds": {"short": 1},
+        },
+        {
+            "type": "waiver", "status": "complete", "leg": 2,
+            "settings": {"waiver_bid": 1},
+            "adds": {"cheap": 1},
+        },
+        {
+            "type": "waiver", "status": "failed", "leg": 3,
+            "settings": {"waiver_bid": 40},
+            "adds": {"missed": 1},
+        },
+        {
+            "type": "waiver", "status": "complete", "leg": 4,
+            "settings": {"waiver_bid": 12},
+            "adds": {"ghost": 1},
+        },
+        {
+            "type": "waiver", "status": "complete", "leg": 9,
+            "settings": {"waiver_bid": 30},
+            "adds": {"short": 1},
+        },
+    ]
+    owner = {("2025", "1"): "u1"}
+    weeks = pd.DataFrame([
+        {
+            "season": "2025", "week": 8, "user_id": "u1", "roster_id": "1",
+            "player_id": "short", "player_name": "One Week", "position": "WR",
+            "is_starter": True, "active_matchup": True, "points": 14.0,
+        },
+        {
+            "season": "2025", "week": 2, "user_id": "u1", "roster_id": "1",
+            "player_id": "cheap", "player_name": "Streamer", "position": "RB",
+            "is_starter": True, "active_matchup": True, "points": 9.0,
+        },
+    ])
+    paid = league_intel.paid_waiver_claim_frame(
+        {"2025": transactions}, owner, weeks, "u1",
+    )
+    by_player = paid.set_index("player_id")
+    assert set(by_player.index) == {"short", "ghost"}
+    assert int(by_player.loc["short", "faab"]) == 30
+    assert by_player.loc["short", "lineup_points"] == 14.0
+    assert by_player.loc["ghost", "lineup_points"] == 0.0
+    assert by_player.loc["ghost", "player_name"] == "ghost"
+    producers, busts = league_intel.split_paid_production_frames(paid)
+    assert list(producers["player_id"]) == ["short"]
+    assert list(busts["player_id"]) == ["ghost"]
+
+
+def test_trade_chart_caps_to_most_lopsided():
+    rows = []
+    for i in range(10):
+        rows.append({
+            "season": "2025", "week": i + 1, "transaction_id": f"t{i}",
+            "user_id": "u1", "got_points": float(i), "gave_points": 4.0,
+            "net": float(i) - 4.0, "got_names": f"Got{i}",
+            "gave_names": f"Gave{i}", "extra": "", "opponent": "Bob",
+            "label": f"2025 W{i + 1} vs Bob", "player_only": True,
+        })
+    trades = pd.DataFrame(rows)
+    shown = league_intel.select_trade_chart_rows(trades, limit=8)
+    assert list(shown["transaction_id"]) == [
+        "t0", "t1", "t2", "t3", "t6", "t7", "t8", "t9",
+    ]
+    small = league_intel.select_trade_chart_rows(trades.head(3), limit=8)
+    assert list(small["transaction_id"]) == ["t0", "t1", "t2"]
+    assert league_intel.compact_name_list("A, B, C, D") == "A, B +2"
+    labels = league_intel.trade_opponent_labels(pd.DataFrame([
+        {"opponent": "Bob", "season": "2025", "week": 3},
+        {"opponent": "Bob", "season": "2025", "week": 8},
+    ]))
+    assert labels == ["Bob · 2025 W3", "Bob · 2025 W8"]
 
 
 if __name__ == "__main__":

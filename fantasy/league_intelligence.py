@@ -16,6 +16,13 @@ import pandas as pd
 
 CORE_POSITIONS = ("QB", "RB", "WR", "TE")
 DEFAULT_MIN_ROSTER_WEEKS = 4
+SLEEPER_FAAB_WAIVER_TYPE = 2
+FAAB_PAID_MIN = 5
+PICKUP_LANE_GAP = 1.0
+TRADE_CHART_LIMIT = 8
+BUST_CHART_LIMIT = 8
+INSIGHT_WINDOWS = ("Last season", "Last 3 seasons", "All available seasons")
+DEFAULT_INSIGHT_WINDOW = "Last 3 seasons"
 RIVALRY_WEEK_MODES = (
     "Classic Rivalries",
     "Maximum Drama",
@@ -1118,15 +1125,20 @@ def draft_insights(
     first_three = picks[picks["round"].le(3)]
     if not first_three.empty:
         skill_share = float(first_three["position"].isin(("RB", "WR")).mean())
+        evidence = f"{len(first_three)} picks across {draft_count} drafts"
         insights.append({
             "title": "The room builds around RB/WR first",
-            "finding": f"{skill_share:.0%} of picks in Rounds 1–3 were RBs or WRs.",
+            "finding": f"{skill_share:.0%} of picks in Rounds 1-3 were RBs or WRs.",
             "meaning": (
                 "Early QB or TE usually requires a deliberate exception; the room normally "
                 "leaves those positions alone while the first skill-position tiers disappear."
             ),
-            "evidence": f"{len(first_three)} picks across {draft_count} drafts",
+            "evidence": evidence,
             "confidence": confidence,
+            "bullet": (
+                f"{skill_share:.0%} of Rounds 1-3 were RB/WR, so early QB/TE is the exception "
+                f"({evidence})."
+            ),
         })
 
     construction = roster_construction_frame(manager_seasons)
@@ -1134,6 +1146,7 @@ def draft_insights(
         qb2 = float(construction["qb2_plus_rate"].mean())
         te2 = float(construction["te2_plus_rate"].mean())
         extras = float((construction["avg_qb"] - 1).mean() + (construction["avg_te"] - 1).mean())
+        evidence = f"{int(construction['teams'].sum())} team-drafts"
         insights.append({
             "title": "Opponents spend bench capital on onesie positions",
             "finding": (
@@ -1144,24 +1157,34 @@ def draft_insights(
                 "A one-QB, one-TE build can turn roughly one additional bench spot into an "
                 "RB/WR upside bet, provided you are willing to stream bye-week replacements."
             ),
-            "evidence": f"{int(construction['teams'].sum())} team-drafts",
+            "evidence": evidence,
             "confidence": confidence,
+            "bullet": (
+                f"{qb2:.0%} of teams took 2+ QBs and {te2:.0%} took 2+ TEs "
+                f"({extras:.2f} extra onesie picks per team, {evidence})."
+            ),
         })
 
     run = max_position_run(picks)
     if run and run["count"] >= 6:
+        evidence = f"Best 12-pick window across {draft_count} drafts"
         insights.append({
             "title": f"Do not buy the back of a {run['position']} run",
             "finding": (
                 f"The sharpest run was {run['count']} {run['position']} picks from "
-                f"#{run['start_pick']}–#{run['end_pick']} in {run['season']}."
+                f"#{run['start_pick']}-#{run['end_pick']} in {run['season']}."
             ),
             "meaning": (
                 "Once the run is underway, the untouched position usually offers the cleaner "
                 "tier. Use nearby managers to anticipate a run, but avoid chasing it after the value is gone."
             ),
-            "evidence": f"Best {12}-pick window across {draft_count} drafts",
+            "evidence": evidence,
             "confidence": confidence,
+            "bullet": (
+                f"The sharpest run was {run['count']} {run['position']}s from "
+                f"#{run['start_pick']}-#{run['end_pick']} in {run['season']}; do not buy the back of it "
+                f"({evidence})."
+            ),
         })
 
     if selected_user_id:
@@ -1171,6 +1194,8 @@ def draft_insights(
             league_rb_share = float(manager_seasons["rb_first_four"].sum() / (4 * len(manager_seasons)))
             delta = manager_rb_share - league_rb_share
             direction = "more" if delta >= 0 else "fewer"
+            evidence = f"{len(selected)} of your drafts"
+            manager_confidence = "Emerging" if len(selected) >= 3 else "Limited"
             insights.append({
                 "title": "Your early-round fingerprint",
                 "finding": (
@@ -1181,10 +1206,14 @@ def draft_insights(
                     f"You take {abs(delta):.0%} {direction} RBs than the league in that range. "
                     "That is a useful bias check when a WR tier is falling; it is not proof that the build is wrong."
                 ),
-                "evidence": f"{len(selected)} of your drafts",
-                "confidence": "Emerging" if len(selected) >= 3 else "Limited",
+                "evidence": evidence,
+                "confidence": manager_confidence,
+                "bullet": (
+                    f"You used {manager_rb_share:.0%} of your first four picks on RB versus "
+                    f"{league_rb_share:.0%} for the room ({evidence})."
+                ),
             })
-    return insights
+    return insights[:5]
 
 
 def player_week_frame(seasons: Mapping, player_directory: Mapping | None = None) -> pd.DataFrame:
@@ -1333,3 +1362,527 @@ def value_frame(player_seasons: pd.DataFrame, picks: pd.DataFrame) -> pd.DataFra
     )
     values["source"] = values["round"].notna().map({True: "Drafted", False: "In-season addition"})
     return values
+
+
+def select_insight_seasons(
+    all_seasons: list[str],
+    completed_draft_seasons: list[str],
+    window: str,
+) -> list[str]:
+    """Choose which seasons feed Draft & Roster Insights."""
+    if window == INSIGHT_WINDOWS[0]:
+        return list(completed_draft_seasons[-1:])
+    if window == INSIGHT_WINDOWS[1]:
+        return list(completed_draft_seasons[-3:])
+    return list(all_seasons)
+
+
+def league_uses_faab(seasons: Mapping) -> bool:
+    """Sleeper stores FAAB leagues as waiver_type 2."""
+    for data in seasons.values():
+        settings = data.get("league_settings") or {}
+        try:
+            waiver_type = int(settings.get("waiver_type") or 0)
+        except (TypeError, ValueError):
+            waiver_type = 0
+        if waiver_type == SLEEPER_FAAB_WAIVER_TYPE:
+            return True
+    return False
+
+
+def split_faab_waiver_frames(
+    values: pd.DataFrame,
+    paid_min: int = FAAB_PAID_MIN,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split 4-week-qualified waiver claims for the cheap-claim bar.
+
+    The $5+ scatter does not use this helper. It is built from every completed
+    bid, including players later dropped. Free-agent adds stay off both charts.
+    """
+    columns = list(values.columns) if not values.empty else [
+        "season", "player_id", "user_id", "source", "faab", "lineup_points",
+    ]
+    empty = pd.DataFrame(columns=columns)
+    if values.empty:
+        return empty.copy(), empty.copy()
+    work = values[values["source"].eq("Waiver")].copy()
+    if work.empty:
+        return empty.copy(), empty.copy()
+    work["faab"] = pd.to_numeric(work["faab"], errors="coerce").fillna(0)
+    paid_min = max(int(paid_min), 1)
+    return work[work["faab"] < paid_min].copy(), work[work["faab"] >= paid_min].copy()
+
+
+PAID_WAIVER_COLUMNS = [
+    "season", "user_id", "player_id", "player_name", "position",
+    "faab", "acq_week", "lineup_points", "starts", "source",
+]
+
+
+def _manager_lineup_totals(player_weeks: pd.DataFrame, user_id: str) -> pd.DataFrame:
+    columns = [
+        "season", "player_id", "player_name", "position", "lineup_points", "starts",
+    ]
+    if player_weeks is None or player_weeks.empty or not user_id:
+        return pd.DataFrame(columns=columns)
+    work = player_weeks[player_weeks["user_id"].astype(str).eq(str(user_id))].copy()
+    if work.empty:
+        return pd.DataFrame(columns=columns)
+    starter = work["is_starter"] & work["active_matchup"]
+    work = work.assign(
+        lineup_value=work["points"].where(starter, 0.0),
+        start_count=starter.astype(int),
+    )
+    grouped = work.groupby(["season", "player_id"], as_index=False).agg(
+        player_name=("player_name", "last"),
+        position=("position", "last"),
+        lineup_points=("lineup_value", "sum"),
+        starts=("start_count", "sum"),
+    )
+    grouped["lineup_points"] = grouped["lineup_points"].round(2)
+    return grouped[columns]
+
+
+def paid_waiver_claim_frame(
+    transactions_by_season: Mapping[str, list],
+    roster_owner: Mapping[tuple[str, str], str],
+    player_weeks: pd.DataFrame,
+    selected_user_id: str,
+    paid_min: int = FAAB_PAID_MIN,
+) -> pd.DataFrame:
+    """Every completed $paid_min+ waiver for this manager. No roster-week floor."""
+    empty = pd.DataFrame(columns=PAID_WAIVER_COLUMNS)
+    if not transactions_by_season or not selected_user_id:
+        return empty
+    frames = [
+        transaction_adds_frame(transactions, season)
+        for season, transactions in transactions_by_season.items()
+    ]
+    if not frames:
+        return empty
+    adds = pd.concat(frames, ignore_index=True)
+    if adds.empty:
+        return empty
+    adds["user_id"] = [
+        str(roster_owner.get((str(season), str(roster_id)), "") or "")
+        for season, roster_id in zip(adds["season"], adds["roster_id"])
+    ]
+    paid_min = max(int(paid_min), 1)
+    adds["faab"] = pd.to_numeric(adds["faab"], errors="coerce")
+    work = adds[
+        adds["user_id"].eq(str(selected_user_id))
+        & adds["source"].eq("Waiver")
+        & adds["faab"].ge(paid_min)
+    ].copy()
+    if work.empty:
+        return empty
+    work = work.sort_values("faab", ascending=False).drop_duplicates(
+        ["season", "user_id", "player_id"], keep="first",
+    )
+    totals = _manager_lineup_totals(player_weeks, selected_user_id)
+    merged = work.merge(totals, on=["season", "player_id"], how="left")
+    names = _player_name_lookup(player_weeks)
+    merged["player_name"] = merged["player_name"].fillna("").replace("", pd.NA)
+    merged["player_name"] = [
+        str(name) if pd.notna(name) and str(name).strip()
+        else names.get(str(player_id), str(player_id))
+        for name, player_id in zip(merged["player_name"], merged["player_id"])
+    ]
+    merged["position"] = merged["position"].fillna("").astype(str)
+    merged["lineup_points"] = pd.to_numeric(
+        merged["lineup_points"], errors="coerce",
+    ).fillna(0.0)
+    merged["starts"] = pd.to_numeric(merged["starts"], errors="coerce").fillna(0).astype(int)
+    merged["acq_week"] = merged["week"]
+    merged["source"] = "Waiver"
+    return merged[PAID_WAIVER_COLUMNS].reset_index(drop=True)
+
+
+def split_paid_production_frames(
+    paid: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Keep zero-point $5+ bids off the scatter so they are not stacked on y=0."""
+    columns = list(paid.columns) if paid is not None and not paid.empty else list(PAID_WAIVER_COLUMNS)
+    empty = pd.DataFrame(columns=columns)
+    if paid is None or paid.empty:
+        return empty.copy(), empty.copy()
+    points = pd.to_numeric(paid["lineup_points"], errors="coerce").fillna(0.0)
+    return paid.loc[points.gt(0)].copy(), paid.loc[points.le(0)].copy()
+
+
+def compact_name_list(names: str, max_names: int = 2) -> str:
+    """Keep the first names of a trade package readable on a bar."""
+    raw = str(names or "").strip()
+    if not raw or raw == "(none)":
+        return "(none)"
+    parts = [part.strip() for part in raw.split(",") if part.strip()]
+    if len(parts) <= max_names:
+        return ", ".join(parts)
+    extra = len(parts) - max_names
+    return f"{', '.join(parts[:max_names])} +{extra}"
+
+
+def select_trade_chart_rows(
+    trades: pd.DataFrame,
+    limit: int = TRADE_CHART_LIMIT,
+) -> pd.DataFrame:
+    """Show every trade when they fit; otherwise the most lopsided |net|."""
+    if trades is None or trades.empty:
+        return trades if trades is not None else pd.DataFrame()
+    limit = max(int(limit), 1)
+    if len(trades) <= limit:
+        return trades.sort_values(["season", "week"]).reset_index(drop=True)
+    work = trades.copy()
+    work["_abs_net"] = work["net"].abs()
+    shown = work.sort_values(
+        ["_abs_net", "season", "week"], ascending=[False, True, True],
+    ).head(limit)
+    return (
+        shown.drop(columns=["_abs_net"])
+        .sort_values("net")
+        .reset_index(drop=True)
+    )
+
+
+def trade_opponent_labels(trades: pd.DataFrame) -> list[str]:
+    """Other manager plus week, so repeat counterparties stay unique."""
+    if trades is None or trades.empty:
+        return []
+    labels: list[str] = []
+    for opponent, season, week in zip(
+        trades["opponent"], trades["season"], trades["week"],
+    ):
+        name = str(opponent or "").strip() or "Unknown"
+        labels.append(f"{name} · {season} W{week}")
+    return labels
+
+
+def production_chart_frame(values: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Place undrafted-by-this-manager players in a Pickup lane past the last round."""
+    if values.empty:
+        empty = values.copy()
+        empty["chart_x"] = pd.Series(dtype=float)
+        empty["lane"] = pd.Series(dtype=str)
+        return empty, 14
+    drafted_rounds = values.loc[values["source"].eq("Drafted"), "round"].dropna()
+    max_round = int(drafted_rounds.max()) if not drafted_rounds.empty else 14
+    out = values.copy()
+    pickup_x = float(max_round + PICKUP_LANE_GAP)
+    out["lane"] = out["source"].where(out["source"].eq("Drafted"), "Pickup")
+    out["chart_x"] = out["round"].where(out["source"].eq("Drafted"), pickup_x).astype(float)
+    return out, max_round
+
+
+def transaction_adds_frame(transactions: list, season: str) -> pd.DataFrame:
+    """One row per completed add: waiver, free agent, or trade."""
+    columns = ["season", "player_id", "roster_id", "source", "faab", "week"]
+    rows: list[dict] = []
+    source_map = {"waiver": "Waiver", "free_agent": "Free agent", "trade": "Trade"}
+    for txn in transactions or []:
+        if not isinstance(txn, dict) or txn.get("status") != "complete":
+            continue
+        kind = str(txn.get("type") or "")
+        source = source_map.get(kind)
+        if source is None:
+            continue
+        adds = txn.get("adds") or {}
+        if not isinstance(adds, dict) or not adds:
+            continue
+        settings = txn.get("settings") or {}
+        faab = None
+        if kind == "waiver":
+            try:
+                faab = int(settings.get("waiver_bid") or 0)
+            except (TypeError, ValueError):
+                faab = 0
+        elif kind == "free_agent":
+            faab = 0
+        week = txn.get("leg")
+        try:
+            week = int(week or 0)
+        except (TypeError, ValueError):
+            week = 0
+        for player_id, roster_id in adds.items():
+            rows.append({
+                "season": str(season),
+                "player_id": str(player_id),
+                "roster_id": str(roster_id),
+                "source": source,
+                "faab": faab,
+                "week": week,
+            })
+    return pd.DataFrame(rows, columns=columns)
+
+
+def first_acquisition_frame(
+    transactions_by_season: Mapping[str, list],
+    roster_owner: Mapping[tuple[str, str], str],
+) -> pd.DataFrame:
+    """Keep the first completed add per player-season-manager."""
+    columns = ["season", "player_id", "user_id", "roster_id", "source", "faab", "week"]
+    frames = [
+        transaction_adds_frame(transactions, season)
+        for season, transactions in transactions_by_season.items()
+    ]
+    if not frames:
+        return pd.DataFrame(columns=columns)
+    adds = pd.concat(frames, ignore_index=True)
+    if adds.empty:
+        return pd.DataFrame(columns=columns)
+    adds["user_id"] = [
+        str(roster_owner.get((str(season), str(roster_id)), "") or "")
+        for season, roster_id in zip(adds["season"], adds["roster_id"])
+    ]
+    adds = adds[adds["user_id"].ne("")]
+    if adds.empty:
+        return pd.DataFrame(columns=columns)
+    adds = adds.sort_values(["season", "user_id", "player_id", "week"])
+    return adds.drop_duplicates(["season", "user_id", "player_id"], keep="first")[columns]
+
+
+def attach_acquisitions(
+    values: pd.DataFrame,
+    acquisitions: pd.DataFrame,
+) -> pd.DataFrame:
+    """Replace generic in-season labels when transaction history is available."""
+    if values.empty:
+        return values.copy()
+    out = values.copy()
+    if acquisitions is None or acquisitions.empty:
+        return out
+    detail = acquisitions[[
+        "season", "user_id", "player_id", "source", "faab", "week",
+    ]].rename(columns={"source": "acq_source", "week": "acq_week"})
+    out = out.merge(detail, on=["season", "user_id", "player_id"], how="left")
+    unlabeled = out["source"].eq("In-season addition") & out["acq_source"].notna()
+    out.loc[unlabeled, "source"] = out.loc[unlabeled, "acq_source"]
+    if "faab" not in out.columns:
+        out["faab"] = pd.NA
+    if "acq_week" not in out.columns:
+        out["acq_week"] = pd.NA
+    return out.drop(columns=["acq_source"], errors="ignore")
+
+
+TRADE_OUTCOME_COLUMNS = [
+    "season", "week", "transaction_id", "user_id",
+    "got_points", "gave_points", "net",
+    "got_names", "gave_names", "extra", "opponent", "label",
+    "player_only",
+]
+
+
+def _txn_week(txn: Mapping) -> int:
+    try:
+        return int(txn.get("leg") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _roster_id_for_user(
+    roster_owner: Mapping[tuple[str, str], str],
+    season: str,
+    user_id: str,
+) -> str:
+    season = str(season)
+    user_id = str(user_id)
+    for (row_season, roster_id), owner_id in roster_owner.items():
+        if str(row_season) == season and str(owner_id) == user_id:
+            return str(roster_id)
+    return ""
+
+
+def _player_name_lookup(player_weeks: pd.DataFrame) -> dict[str, str]:
+    names: dict[str, str] = {}
+    if player_weeks is None or player_weeks.empty:
+        return names
+    for player_id, group in player_weeks.groupby("player_id", sort=False):
+        key = str(player_id)
+        for raw in group["player_name"]:
+            label = str(raw or "").strip()
+            if label and label != key:
+                names[key] = label
+                break
+        names.setdefault(key, key)
+    return names
+
+
+def _join_player_names(player_ids: list[str], names: Mapping[str, str]) -> str:
+    if not player_ids:
+        return "(none)"
+    return ", ".join(names.get(player_id, player_id) for player_id in player_ids)
+
+
+def _lineup_points_after(
+    player_weeks: pd.DataFrame,
+    *,
+    season: str,
+    after_week: int,
+    user_id: str,
+    player_ids: list[str],
+) -> float:
+    if player_weeks is None or player_weeks.empty or not player_ids or not user_id:
+        return 0.0
+    mask = (
+        player_weeks["season"].astype(str).eq(str(season))
+        & player_weeks["week"].gt(int(after_week))
+        & player_weeks["user_id"].astype(str).eq(str(user_id))
+        & player_weeks["player_id"].astype(str).isin(player_ids)
+        & player_weeks["is_starter"]
+        & player_weeks["active_matchup"]
+    )
+    return round(float(player_weeks.loc[mask, "points"].sum()), 2)
+
+
+def _trade_extras(txn: Mapping, selected_roster: str) -> list[str]:
+    extras: list[str] = []
+    selected_roster = str(selected_roster)
+    for pick in txn.get("draft_picks") or []:
+        if not isinstance(pick, dict):
+            continue
+        season = str(pick.get("season") or "").strip()
+        try:
+            rnd = int(pick.get("round") or 0)
+        except (TypeError, ValueError):
+            rnd = 0
+        label = f"{season} R{rnd}".strip() if season else f"R{rnd}"
+        new_owner = str(pick.get("owner_id") or "")
+        old_owner = str(pick.get("previous_owner_id") or "")
+        if new_owner == selected_roster:
+            extras.append(f"got {label}")
+        elif old_owner == selected_roster:
+            extras.append(f"sent {label}")
+    for item in txn.get("waiver_budget") or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            amount = int(item.get("amount") or 0)
+        except (TypeError, ValueError):
+            amount = 0
+        sender = str(item.get("sender") or "")
+        receiver = str(item.get("receiver") or "")
+        if receiver == selected_roster:
+            extras.append(f"got ${amount} FAAB")
+        elif sender == selected_roster:
+            extras.append(f"sent ${amount} FAAB")
+    return extras
+
+
+def trade_outcome_frame(
+    transactions_by_season: Mapping[str, list],
+    roster_owner: Mapping[tuple[str, str], str],
+    player_weeks: pd.DataFrame,
+    selected_user_id: str,
+    identity_map: Mapping[str, str] | None = None,
+) -> pd.DataFrame:
+    """Score each completed trade as got-vs-gave starting-lineup points.
+
+    Got is what received players scored for this manager after the trade week.
+    Gave is what sent players scored for their new manager after that week.
+    Picks and FAAB are listed, not converted to points. The four-week roster
+    filter does not apply, so late-season trades still appear.
+    """
+    identity_map = identity_map or {}
+    names = _player_name_lookup(player_weeks)
+    rows: list[dict] = []
+    selected_user_id = str(selected_user_id)
+    for season, transactions in (transactions_by_season or {}).items():
+        season = str(season)
+        selected_roster = _roster_id_for_user(
+            roster_owner, season, selected_user_id,
+        )
+        if not selected_roster:
+            continue
+        for txn in transactions or []:
+            if not isinstance(txn, dict):
+                continue
+            if txn.get("status") != "complete":
+                continue
+            if str(txn.get("type") or "") != "trade":
+                continue
+            adds = txn.get("adds") or {}
+            drops = txn.get("drops") or {}
+            if not isinstance(adds, dict):
+                adds = {}
+            if not isinstance(drops, dict):
+                drops = {}
+            involved = {
+                str(roster_id) for roster_id in (txn.get("roster_ids") or [])
+                if roster_id is not None
+            }
+            involved |= {str(roster_id) for roster_id in adds.values()}
+            involved |= {str(roster_id) for roster_id in drops.values()}
+            if selected_roster not in involved:
+                continue
+            got_ids = [
+                str(player_id) for player_id, roster_id in adds.items()
+                if str(roster_id) == selected_roster
+            ]
+            gave_ids = [
+                str(player_id) for player_id, roster_id in drops.items()
+                if str(roster_id) == selected_roster
+            ]
+            if not got_ids and not gave_ids:
+                continue
+            extras = _trade_extras(txn, selected_roster)
+            week = _txn_week(txn)
+            got_points = _lineup_points_after(
+                player_weeks,
+                season=season,
+                after_week=week,
+                user_id=selected_user_id,
+                player_ids=got_ids,
+            )
+            add_rosters = {
+                str(player_id): str(roster_id) for player_id, roster_id in adds.items()
+            }
+            gave_points = 0.0
+            for player_id in gave_ids:
+                to_roster = add_rosters.get(player_id, "")
+                to_user = str(roster_owner.get((season, to_roster), "") or "")
+                gave_points += _lineup_points_after(
+                    player_weeks,
+                    season=season,
+                    after_week=week,
+                    user_id=to_user,
+                    player_ids=[player_id],
+                )
+            gave_points = round(gave_points, 2)
+            other_users: list[str] = []
+            for roster_id in involved:
+                owner_id = str(roster_owner.get((season, str(roster_id)), "") or "")
+                if owner_id and owner_id != selected_user_id and owner_id not in other_users:
+                    other_users.append(owner_id)
+            if len(other_users) == 1:
+                opponent = str(identity_map.get(other_users[0], other_users[0]))
+            elif len(other_users) > 1:
+                opponent = "multiple managers"
+            else:
+                opponent = ""
+            label = f"{season} W{week}"
+            if opponent:
+                label = f"{label} vs {opponent}"
+            txn_id = str(
+                txn.get("transaction_id") or f"{season}-{week}-{selected_roster}"
+            )
+            rows.append({
+                "season": season,
+                "week": week,
+                "transaction_id": txn_id,
+                "user_id": selected_user_id,
+                "got_points": got_points,
+                "gave_points": gave_points,
+                "net": round(got_points - gave_points, 2),
+                "got_names": _join_player_names(got_ids, names),
+                "gave_names": _join_player_names(gave_ids, names),
+                "extra": "; ".join(extras),
+                "opponent": opponent,
+                "label": label,
+                "player_only": not extras,
+            })
+    if not rows:
+        return pd.DataFrame(columns=TRADE_OUTCOME_COLUMNS)
+    return (
+        pd.DataFrame(rows, columns=TRADE_OUTCOME_COLUMNS)
+        .sort_values(["season", "week", "transaction_id"])
+        .reset_index(drop=True)
+    )
