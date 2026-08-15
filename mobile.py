@@ -314,19 +314,59 @@ details summary{
    stacked layout; it must never take a neighbouring rule down with it.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* 8a. Only the game-card rows stay horizontal. Streamlit forces
-   min-width:calc(100% - 2rem) on every column below 640px; these rows opt out. */
+/* 8a. Game-card rows stay one row, on a shared grid so headers sit on the
+   numbers. Streamlit forces min-width:calc(100% - 2rem) below 640px, which
+   used to stack SPREAD / PREDICTED / SCORE into unlabeled full-width boxes.
+   The pick pill is hidden on phones: the recommended team is already bold. */
 @media (max-width: 640px){
-  [data-testid="stHorizontalBlock"]:has(.jsa-gc-stat),
-  [data-testid="stHorizontalBlock"]:has(.jsa-gc-hdr),
-  [data-testid="stHorizontalBlock"]:has(.jsa-gc-bet){
-    flex-wrap:nowrap !important;
-    gap:.3rem !important;
+  [class*="st-key-jsa-gc"]{
+    --jsa-gc-cols: minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);
   }
-  [data-testid="stHorizontalBlock"]:has(.jsa-gc-stat) > [data-testid="stColumn"],
-  [data-testid="stHorizontalBlock"]:has(.jsa-gc-hdr)  > [data-testid="stColumn"],
-  [data-testid="stHorizontalBlock"]:has(.jsa-gc-bet)  > [data-testid="stColumn"]{
+  [class*="st-key-jsa-gc"]:has(.jsa-gc-scored){
+    --jsa-gc-cols: minmax(0,1.35fr) repeat(3,minmax(0,.85fr));
+  }
+  [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-stat),
+  [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-hdr){
+    display:grid !important;
+    flex-wrap:unset !important;
+    align-items:stretch !important;
+    gap:.35rem !important;
+    grid-template-columns: var(--jsa-gc-cols) !important;
+  }
+  [class*="st-key-jsa-gc"] [data-testid="stColumn"],
+  [class*="st-key-jsa-gc"] [data-testid="stElementContainer"]{
     min-width:0 !important;
+    max-width:100% !important;
+    width:auto !important;
+    overflow:hidden !important;
+    padding:0 !important;
+    box-sizing:border-box !important;
+  }
+  [class*="st-key-jsa-gc"] [data-testid="stColumn"]:has(.jsa-gc-pick){
+    display:none !important;
+  }
+  [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-hdr) [data-testid="stMarkdownContainer"] p,
+  [class*="st-key-jsa-gc"] [data-testid="stHorizontalBlock"]:has(.jsa-gc-stat) [data-testid="stMarkdownContainer"] p{
+    margin:0 !important;
+  }
+  .jsa-gc-hdr{
+    letter-spacing:0 !important;
+    overflow:hidden !important;
+  }
+  .jsa-gc-stat{
+    box-sizing:border-box !important;
+    width:100% !important;
+    min-width:0 !important;
+    overflow:hidden !important;
+  }
+  .jsa-gc-team{
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    height:auto !important;
+    min-height:32px !important;
+    display:flex !important;
+    align-items:center !important;
+    padding-top:0 !important;
   }
 }
 
@@ -353,8 +393,11 @@ details summary{
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .jsa-mcard) > [data-testid="stColumn"],
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]):not(:has([data-testid="stDataFrame"])) > [data-testid="stColumn"]{
     min-width:calc(50% - .225rem) !important;
+    max-width:calc(50% - .225rem) !important;
+    width:auto !important;
     flex:1 1 calc(50% - .225rem) !important;
-    overflow:visible !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
   }
 }
 
@@ -529,8 +572,10 @@ details summary{
   [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]),
   [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has(.jsa-mcard){
     display:grid !important;
+    flex-wrap:unset !important;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
     grid-auto-rows:1fr !important;
+    align-items:stretch !important;
     gap:.45rem !important;
   }
   [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"],
@@ -540,6 +585,23 @@ details summary{
     width:auto !important;
     flex:none !important;
     padding:0 !important;
+    display:flex !important;
+    align-items:stretch !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+  [class*="st-key-jsa-metric-even"] [data-testid="stElementContainer"]{
+    min-width:0 !important;
+    width:100% !important;
+    max-width:100% !important;
+    overflow:hidden !important;
+  }
+  [class*="st-key-jsa-metric-even"] .jsa-mcard{
+    height:100% !important;
+    width:100% !important;
+    box-sizing:border-box !important;
+    margin-bottom:0 !important;
+    overflow:hidden !important;
   }
 }
 

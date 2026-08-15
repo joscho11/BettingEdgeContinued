@@ -117,7 +117,6 @@ def render():
         )
 
     st.divider()
-    col1, col2, col3, col4 = st.columns(4)
 
     _primary_edge = 'ens_model_edge'       if ('ens_model_edge'       in week_df.columns and week_df['ens_model_edge'].notna().any())       else 'model_edge'
     _pred_col     = 'ens_predicted_margin' if ('ens_predicted_margin' in week_df.columns and week_df['ens_predicted_margin'].notna().any()) else 'predicted_margin'
@@ -125,22 +124,24 @@ def render():
     filtered_df  = week_df[week_df[_primary_edge].abs() >= edge_threshold].copy()
     hidden_count = len(week_df) - len(filtered_df)
 
-    col1.markdown(metric_card("Total Games", len(week_df)), unsafe_allow_html=True)
-    col2.markdown(metric_card("Showing", len(filtered_df), f"edge ≥ {edge_threshold} pts"), unsafe_allow_html=True)
-    _avg_edge = week_df[_primary_edge].abs().mean()
-    col3.markdown(metric_card("Avg Ensemble Edge", f"{_avg_edge:.1f} pts",
-                              color="green" if _avg_edge >= 1.5 else "blue"), unsafe_allow_html=True)
+    with st.container(key="jsa-metric-even-wp"):
+        col1, col2, col3, col4 = st.columns(4)
+        col1.markdown(metric_card("Total Games", len(week_df)), unsafe_allow_html=True)
+        col2.markdown(metric_card("Showing", len(filtered_df), f"edge ≥ {edge_threshold} pts"), unsafe_allow_html=True)
+        _avg_edge = week_df[_primary_edge].abs().mean()
+        col3.markdown(metric_card("Avg Ensemble Edge", f"{_avg_edge:.1f} pts",
+                                  color="green" if _avg_edge >= 1.5 else "blue"), unsafe_allow_html=True)
 
-    if results_in and len(filtered_df) > 0:
-        _settled_mask = filtered_df[_correct_col].notna()
-        sc  = int(filtered_df.loc[_settled_mask, _correct_col].sum())
-        _n_settled_filt = _settled_mask.sum()
-        pct = sc / _n_settled_filt * 100 if _n_settled_filt > 0 else 0
-        col4.markdown(metric_card("ATS Record", f"{sc}/{_n_settled_filt}",
-                                  f"{pct:.0f}%",
-                                  color="green" if pct >= 52.4 else "red"), unsafe_allow_html=True)
-    else:
-        col4.markdown(metric_card("ATS Record", "Pending"), unsafe_allow_html=True)
+        if results_in and len(filtered_df) > 0:
+            _settled_mask = filtered_df[_correct_col].notna()
+            sc  = int(filtered_df.loc[_settled_mask, _correct_col].sum())
+            _n_settled_filt = _settled_mask.sum()
+            pct = sc / _n_settled_filt * 100 if _n_settled_filt > 0 else 0
+            col4.markdown(metric_card("ATS Record", f"{sc}/{_n_settled_filt}",
+                                      f"{pct:.0f}%",
+                                      color="green" if pct >= 52.4 else "red"), unsafe_allow_html=True)
+        else:
+            col4.markdown(metric_card("ATS Record", "Pending"), unsafe_allow_html=True)
 
     st.divider()
 
@@ -240,16 +241,16 @@ def render():
 
         def bet_box(team, color="#3D95CE"):
             return (
-                f"<div class='jsa-gc-bet' style='background:{color}22;border:1.5px solid {color};"
+                f"<div class='jsa-gc-bet jsa-gc-pick' style='background:{color}22;border:1.5px solid {color};"
                 f"border-radius:6px;padding:0 10px;font-size:13px;font-weight:800;"
                 f"color:{color};text-align:center;height:32px;line-height:32px;"
                 f"letter-spacing:0.5px'>▶ {team}</div>"
             )
 
         def empty_box():
-            return "<div style='height:32px'></div>"
+            return "<div class='jsa-gc-pick' style='height:32px'></div>"
 
-        for _, row in filtered_df.iterrows():
+        for _gc_i, (_, row) in enumerate(filtered_df.iterrows()):
             home      = row['home_team']
             away      = row['away_team']
             spread    = row['spread_line']
@@ -310,9 +311,10 @@ def render():
             else:
                 tier_html = ''
 
-            with st.container():
+            _gc_meta = "jsa-gc-meta jsa-gc-scored" if results_available else "jsa-gc-meta"
+            with st.container(key=f"jsa-gc-{_gc_i}"):
                 st.markdown(
-                    f"<div class='jsa-gc-meta' style='font-size:13px;color:#888;margin-bottom:6px'>"
+                    f"<div class='{_gc_meta}' style='font-size:13px;color:#888;margin-bottom:6px'>"
                     f"<b style='color:#ccc'>{_html.escape(str(away))} @ {_html.escape(str(home))}</b>"
                     f"&nbsp;&nbsp;·&nbsp;&nbsp;{_html.escape(str(row['gameday']))}"
                     f"{tier_html}"
@@ -329,6 +331,7 @@ def render():
 
                 h1.markdown("<div class='jsa-gc-hdr' style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>SPREAD</div>",    unsafe_allow_html=True)
                 h2.markdown("<div class='jsa-gc-hdr' style='text-align:center;font-size:11px;color:#aaa;letter-spacing:1px'>PREDICTED</div>", unsafe_allow_html=True)
+                h4.markdown("<div class='jsa-gc-hdr jsa-gc-pick'></div>", unsafe_allow_html=True)
 
                 if results_available:
                     a0, a1, a2, a3, a4 = st.columns([2.2, 1.2, 1.2, 1.2, 1.8])

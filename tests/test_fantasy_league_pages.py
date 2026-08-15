@@ -158,6 +158,8 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "st-key-jsa-scatter-phone-league-matrix" in css
     assert "st-key-jsa-table-desktop" in css
     assert "st-key-jsa-table-phone" in css
+    assert "st-key-jsa-gc" in css
+    assert "jsa-gc-pick" in css
     assert "min-width:56rem" in css.replace(" ", "")
     assert "max-width:none" in css.replace(" ", "")
     assert "scrollbar-width:none" not in css.replace(" ", "")
