@@ -150,10 +150,13 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "text-overflow:ellipsis" not in css
     assert "::-webkit-scrollbar-thumb" in css
     assert "st-key-jsa-lh-leaderboard-cards" in css
+    assert "st-key-jsa-lh-report-cards" in css
     assert "st-key-jsa-lh-hof-cards" in css
     assert "st-key-jsa-scatter-desktop" in css
     assert "st-key-jsa-scatter-phone" in css
     assert "st-key-jsa-scatter-phone-league-matrix" in css
+    assert "min-width:56rem" in css.replace(" ", "")
+    assert "max-width:none" in css.replace(" ", "")
     assert "scrollbar-width:none" not in css.replace(" ", "")
 
 
@@ -798,11 +801,28 @@ def test_league_matrix_phone_copy_is_taller_and_drops_cell_records():
     phone = page_league_history._league_matrix_figure(
         managers, values, text, games, phone=True,
     )
+    twelve = page_league_history._league_matrix_figure(
+        [f"M{i}" for i in range(12)],
+        [[None] * 12 for _ in range(12)],
+        [["—"] * 12 for _ in range(12)],
+        [[0] * 12 for _ in range(12)],
+        phone=True,
+    )
     assert desktop.data[0].texttemplate == "%{text}"
     assert not phone.data[0].texttemplate
     assert phone.data[0].showscale is False
     assert phone.layout.height > desktop.layout.height
+    assert phone.layout.autosize is False
+    assert phone.layout.width >= 760
+    assert twelve.layout.width >= 888
+    assert twelve.layout.width > phone.layout.width
+    assert desktop.layout.width in (None, 0)
     assert list(phone.data[0].text[0]) == text[0]
+
+
+def test_report_cards_use_aligned_scorecard_container():
+    src = (_HERE / "site_pages" / "page_league_history.py").read_text(encoding="utf-8")
+    assert 'key="jsa-lh-report-cards"' in src
 
 
 def test_schedule_luck_chart_keeps_bar_labels_off_the_axis_title():

@@ -304,10 +304,12 @@ def _league_matrix_figure(
     *,
     phone: bool,
 ):
-    """Head-to-head heatmap. Phone drops cell records and grows so it can be panned."""
+    """Head-to-head heatmap. Phone drops cell records and draws a wide pannable grid."""
     import plotly.graph_objects as go
 
     n = len(managers)
+    phone_w = max(760, 60 * n + 168) if phone else None
+    phone_h = max(760, 60 * n + 220) if phone else None
     heatmap = dict(
         z=heat_values,
         x=managers,
@@ -340,14 +342,14 @@ def _league_matrix_figure(
             "ticksuffix": " pp",
         }
     fig = go.Figure(go.Heatmap(**heatmap))
-    fig.update_layout(
+    layout = dict(
         title="League-Wide Head-to-Head Dominance",
-        height=max(720, 62 * n + 200) if phone else max(520, 42 * n + 170),
+        height=phone_h if phone else max(520, 42 * n + 170),
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(15,23,42,0.36)",
         margin=(
-            {"l": 88, "r": 12, "t": 56, "b": 120}
+            {"l": 108, "r": 16, "t": 56, "b": 128}
             if phone else
             {"l": 72, "r": 24, "t": 64, "b": 96}
         ),
@@ -356,15 +358,19 @@ def _league_matrix_figure(
             "tickangle": -90 if phone else -45,
             "side": "bottom",
             "automargin": True,
-            "tickfont": {"size": 9 if phone else 10},
+            "tickfont": {"size": 11 if phone else 10},
         },
         yaxis={
             "title": "Manager",
             "autorange": "reversed",
             "automargin": True,
-            "tickfont": {"size": 9 if phone else 10},
+            "tickfont": {"size": 11 if phone else 10},
         },
     )
+    if phone:
+        layout["width"] = phone_w
+        layout["autosize"] = False
+    fig.update_layout(**layout)
     return fig
 
 
@@ -2111,45 +2117,46 @@ def render():
                         and (_season_filter == "All Time" or _yr3p == _season_filter)
                     )
 
-                    _d1, _d2, _d3, _d4 = st.columns(4)
-                    with _d1:
-                        _record_value = (
-                            f"{int(_profile['wins'])}–{int(_profile['losses'])}"
-                            + (f"–{int(_profile['ties'])}T" if _profile["ties"] else "")
-                        )
-                        st.metric(
-                            "Regular-Season Record", _record_value,
-                            f"{_profile['win_pct']:.1f}% · rank #{int(_profile['win_rank'])}/{_peer_count}",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _d2:
-                        st.metric(
-                            "Scoring vs League",
-                            f"{_profile['avg_above_league']:+.2f} pts/wk",
-                            f"rank #{int(_profile['scoring_rank'])}/{_peer_count}",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _d3:
-                        st.metric(
-                            "Consistency",
-                            f"±{_profile['std_dev']:.1f} pts",
-                            (
-                                f"rank #{int(_profile['consistency_rank'])}/{_peer_count} "
-                                "· smaller swing is steadier"
-                            ),
-                            delta_color="off", delta_arrow="off", border=True,
-                            help=(
-                                "Typical distance of a weekly score from this manager's own average. "
-                                "±23 pts means a normal week is about 23 points above or below their mean. "
-                                "Smaller is steadier. Ranked against the rest of the league."
-                            ),
-                        )
-                    with _d4:
-                        st.metric(
-                            "Postseason Résumé", f"{_titles} titles",
-                            f"{_titles + _runner_ups} finals · {_playoff_apps} playoff apps",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
+                    with st.container(key="jsa-lh-report-cards"):
+                        _d1, _d2, _d3, _d4 = st.columns(4)
+                        with _d1:
+                            _record_value = (
+                                f"{int(_profile['wins'])}–{int(_profile['losses'])}"
+                                + (f"–{int(_profile['ties'])}T" if _profile["ties"] else "")
+                            )
+                            st.metric(
+                                "Regular-Season Record", _record_value,
+                                f"{_profile['win_pct']:.1f}% · rank #{int(_profile['win_rank'])}/{_peer_count}",
+                                delta_color="off", delta_arrow="off", border=True,
+                            )
+                        with _d2:
+                            st.metric(
+                                "Scoring vs League",
+                                f"{_profile['avg_above_league']:+.2f} pts/wk",
+                                f"rank #{int(_profile['scoring_rank'])}/{_peer_count}",
+                                delta_color="off", delta_arrow="off", border=True,
+                            )
+                        with _d3:
+                            st.metric(
+                                "Consistency",
+                                f"±{_profile['std_dev']:.1f} pts",
+                                (
+                                    f"rank #{int(_profile['consistency_rank'])}/{_peer_count} "
+                                    "· smaller swing is steadier"
+                                ),
+                                delta_color="off", delta_arrow="off", border=True,
+                                help=(
+                                    "Typical distance of a weekly score from this manager's own average. "
+                                    "±23 pts means a normal week is about 23 points above or below their mean. "
+                                    "Smaller is steadier. Ranked against the rest of the league."
+                                ),
+                            )
+                        with _d4:
+                            st.metric(
+                                "Postseason Résumé", f"{_titles} titles",
+                                f"{_titles + _runner_ups} finals · {_playoff_apps} playoff apps",
+                                delta_color="off", delta_arrow="off", border=True,
+                            )
 
                     st.caption(
                         "All-time is scoring versus the league, season by season. "

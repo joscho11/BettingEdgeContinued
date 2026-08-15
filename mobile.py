@@ -266,13 +266,32 @@ details summary{
 [class*="st-key-jsa-scatter-desktop"]{
   display:none !important;
 }
-[class*="st-key-jsa-scatter-phone-league-matrix"] [data-testid="stPlotlyChart"]{
-  min-width:42rem !important;
-}
 [data-testid="stPlotlyChart"]{
   max-width:100% !important;
   overflow-x:auto !important;
   -webkit-overflow-scrolling:touch;
+}
+/* League Matrix: keep the page at phone width and pan the grid. Plotly
+   stretch was packing 12 teams into ~360px; the phone figure is ~60px/cell. */
+[class*="st-key-jsa-scatter-phone-league-matrix"]{
+  max-width:100% !important;
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+}
+[class*="st-key-jsa-scatter-phone-league-matrix"] [data-testid="stVerticalBlock"],
+[class*="st-key-jsa-scatter-phone-league-matrix"] [data-testid="stElementContainer"],
+[class*="st-key-jsa-scatter-phone-league-matrix"] [data-testid="stFullScreenFrame"]{
+  max-width:100% !important;
+  overflow-x:auto !important;
+}
+[class*="st-key-jsa-scatter-phone-league-matrix"] [data-testid="stPlotlyChart"],
+[class*="st-key-jsa-scatter-phone-league-matrix"] .js-plotly-plot,
+[class*="st-key-jsa-scatter-phone-league-matrix"] .plot-container,
+[class*="st-key-jsa-scatter-phone-league-matrix"] .svg-container{
+  min-width:56rem !important;
+  max-width:none !important;
+  width:max-content !important;
 }
 .stTabs [data-baseweb="tab-list"]{
   flex-wrap:nowrap !important;
@@ -335,41 +354,63 @@ details summary{
   }
 }
 
-/* 10b. All-Time Leaderboard scorecards: five cards, so the last one must not
-   stretch full-width. Equal-height pairs, reserved label band, delta at the bottom. */
+/* 10b. Leaderboard + Report Cards scorecards: even 2-up pairs, reserved
+   label band, delta at the bottom. Leaderboard is five cards, so the last
+   one must not stretch full-width. */
 @media (max-width: 640px){
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
     align-items:stretch !important;
   }
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
     flex:0 0 calc(50% - .225rem) !important;
     max-width:calc(50% - .225rem) !important;
     display:flex !important;
   }
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"]{
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stColumn"] > [data-testid="stVerticalBlock"]{
     width:100% !important;
     height:100% !important;
     display:flex !important;
     flex-direction:column !important;
     flex:1 1 auto !important;
   }
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"]{
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stMetric"]{
     flex:1 1 auto !important;
     height:100% !important;
     min-height:8.25rem !important;
     display:flex !important;
     flex-direction:column !important;
   }
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div{
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stMetric"] > div{
     display:flex !important;
     flex-direction:column !important;
     flex:1 1 auto !important;
     height:100% !important;
   }
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricLabel"]{
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stMetricLabel"]{
     min-height:2.6rem !important;
   }
-  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
+  :is(
+    [class*="st-key-jsa-lh-leaderboard-cards"],
+    [class*="st-key-jsa-lh-report-cards"]
+  ) [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
     margin-top:auto !important;
   }
 }
