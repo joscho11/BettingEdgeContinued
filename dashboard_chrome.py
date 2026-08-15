@@ -257,14 +257,19 @@ visibility:hidden;pointer-events:none;}}
  section[data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"],
  section[data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] button{{
  visibility:visible;}}
- /* Streamlit's closed-drawer control is a double chevron (`»`). That does not read
+ /* Streamlit's drawer controls are double chevrons (`»` / `«`). Those do not read
     as a menu on a phone. Hide the glyph and draw three bars, the same mark YouTube
-    uses for its menu. The button itself, its tap target, and its label stay. */
- [data-testid="stExpandSidebarButton"]{{
+    uses for its menu. Open and close share the mark. The button, tap target, and
+    label stay. */
+ [data-testid="stExpandSidebarButton"],
+ [data-testid="stSidebarCollapseButton"],
+ [data-testid="stSidebarCollapseButton"] button{{
   position:relative;}}
- [data-testid="stExpandSidebarButton"] *{{
+ [data-testid="stExpandSidebarButton"] *,
+ [data-testid="stSidebarCollapseButton"] *{{
   opacity:0;}}
- [data-testid="stExpandSidebarButton"]::after{{
+ [data-testid="stExpandSidebarButton"]::after,
+ [data-testid="stSidebarCollapseButton"]::after{{
   content:"";position:absolute;left:50%;top:50%;
   width:1.05rem;height:2px;margin:-1px 0 0 -.525rem;
   background:#fafafa;
