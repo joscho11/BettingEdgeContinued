@@ -123,9 +123,14 @@ def unlabeled_scatter_copy(fig):
     return phone
 
 
+def plotly_phone_desktop(desktop_fig, phone_fig, *, slug: str) -> None:
+    """Show desktop_fig above 640px and phone_fig at phone width."""
+    with st.container(key=f"jsa-scatter-desktop-{slug}"):
+        st.plotly_chart(desktop_fig, width="stretch", config=_PLOTLY_TOUCH)
+    with st.container(key=f"jsa-scatter-phone-{slug}"):
+        st.plotly_chart(phone_fig, width="stretch", config=_PLOTLY_TOUCH)
+
+
 def plotly_labeled_scatter(fig, *, slug: str) -> None:
     """Desktop keeps names. Phone is dots only. CSS shows one copy."""
-    with st.container(key=f"jsa-scatter-desktop-{slug}"):
-        st.plotly_chart(fig, width="stretch", config=_PLOTLY_TOUCH)
-    with st.container(key=f"jsa-scatter-phone-{slug}"):
-        st.plotly_chart(unlabeled_scatter_copy(fig), width="stretch", config=_PLOTLY_TOUCH)
+    plotly_phone_desktop(fig, unlabeled_scatter_copy(fig), slug=slug)

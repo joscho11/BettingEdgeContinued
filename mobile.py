@@ -207,6 +207,31 @@ details summary{
   line-height:1.35 !important;
 }
 
+/* Hall of Fame matchup line sits in Streamlit's capsule delta. Wrapping the
+   text without growing the capsule left names hanging off the grey oval. */
+[class*="st-key-jsa-lh-hof-cards"] [data-testid="stMetricDelta"]{
+  display:block !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  height:auto !important;
+  flex-shrink:1 !important;
+  white-space:normal !important;
+  overflow:hidden !important;
+  border-radius:8px !important;
+  padding:.35rem .5rem !important;
+}
+[class*="st-key-jsa-lh-hof-cards"] [data-testid="stMetricDelta"] *{
+  display:block !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  white-space:normal !important;
+  overflow:hidden !important;
+  word-break:break-word !important;
+  overflow-wrap:anywhere !important;
+}
+
 /* ── 12. League History ───────────────────────────────────────────────────
    Custom HTML cards, long inner tabs, horizontal radios, and Plotly heatmaps
    are the pieces the shared metric/table rules do not cover. */
@@ -240,6 +265,9 @@ details summary{
 }
 [class*="st-key-jsa-scatter-desktop"]{
   display:none !important;
+}
+[class*="st-key-jsa-scatter-phone-league-matrix"] [data-testid="stPlotlyChart"]{
+  min-width:42rem !important;
 }
 [data-testid="stPlotlyChart"]{
   max-width:100% !important;
@@ -343,6 +371,18 @@ details summary{
   }
   [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
     margin-top:auto !important;
+  }
+}
+
+/* 10c. Hall of Fame matchup pill: the parent row is inline-flex and will not
+   stretch the grey box unless it is a full-width block. */
+@media (max-width: 640px){
+  [class*="st-key-jsa-lh-hof-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    overflow:hidden !important;
+    flex-shrink:1 !important;
   }
 }
 

@@ -150,8 +150,10 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "text-overflow:ellipsis" not in css
     assert "::-webkit-scrollbar-thumb" in css
     assert "st-key-jsa-lh-leaderboard-cards" in css
+    assert "st-key-jsa-lh-hof-cards" in css
     assert "st-key-jsa-scatter-desktop" in css
     assert "st-key-jsa-scatter-phone" in css
+    assert "st-key-jsa-scatter-phone-league-matrix" in css
     assert "scrollbar-width:none" not in css.replace(" ", "")
 
 
@@ -783,6 +785,24 @@ def test_unlabeled_scatter_copy_keeps_hover_text_and_drops_on_chart_names():
     assert list(phone.data[0].text) == ["Alice", "Bob"]
     assert phone.data[1].mode == "markers"
     assert fig.data[0].mode == "markers+text"
+
+
+def test_league_matrix_phone_copy_is_taller_and_drops_cell_records():
+    managers = ["Alice", "Bob", "Carol"]
+    values = [[None, 10, -5], [-10, None, 20], [5, -20, None]]
+    text = [["—", "2-1", "0-2"], ["1-2", "—", "3-0"], ["2-0", "0-3", "—"]]
+    games = [[0, 3, 2], [3, 0, 3], [2, 3, 0]]
+    desktop = page_league_history._league_matrix_figure(
+        managers, values, text, games, phone=False,
+    )
+    phone = page_league_history._league_matrix_figure(
+        managers, values, text, games, phone=True,
+    )
+    assert desktop.data[0].texttemplate == "%{text}"
+    assert not phone.data[0].texttemplate
+    assert phone.data[0].showscale is False
+    assert phone.layout.height > desktop.layout.height
+    assert list(phone.data[0].text[0]) == text[0]
 
 
 def test_schedule_luck_chart_keeps_bar_labels_off_the_axis_title():

@@ -296,6 +296,78 @@ def _schedule_luck_figure(cl_df):
     return fig
 
 
+def _league_matrix_figure(
+    managers,
+    heat_values,
+    heat_text,
+    heat_games,
+    *,
+    phone: bool,
+):
+    """Head-to-head heatmap. Phone drops cell records and grows so it can be panned."""
+    import plotly.graph_objects as go
+
+    n = len(managers)
+    heatmap = dict(
+        z=heat_values,
+        x=managers,
+        y=managers,
+        text=heat_text,
+        customdata=heat_games,
+        hoverongaps=False,
+        zmin=-50,
+        zmax=50,
+        zmid=0,
+        colorscale=[
+            [0, "#9F1239"],
+            [0.5, "#121821"],
+            [1, "#15803D"],
+        ],
+        xgap=3 if phone else 2,
+        ygap=3 if phone else 2,
+        hovertemplate=(
+            "<b>%{y} vs %{x}</b><br>Record: %{text}<br>"
+            "Win-rate edge: %{z:+.1f} pp<br>Meetings: %{customdata}<extra></extra>"
+        ),
+    )
+    if phone:
+        heatmap["showscale"] = False
+    else:
+        heatmap["texttemplate"] = "%{text}"
+        heatmap["textfont"] = {"size": 11}
+        heatmap["colorbar"] = {
+            "title": "Win-rate edge",
+            "ticksuffix": " pp",
+        }
+    fig = go.Figure(go.Heatmap(**heatmap))
+    fig.update_layout(
+        title="League-Wide Head-to-Head Dominance",
+        height=max(720, 62 * n + 200) if phone else max(520, 42 * n + 170),
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(15,23,42,0.36)",
+        margin=(
+            {"l": 88, "r": 12, "t": 56, "b": 120}
+            if phone else
+            {"l": 72, "r": 24, "t": 64, "b": 96}
+        ),
+        xaxis={
+            "title": "Opponent",
+            "tickangle": -90 if phone else -45,
+            "side": "bottom",
+            "automargin": True,
+            "tickfont": {"size": 9 if phone else 10},
+        },
+        yaxis={
+            "title": "Manager",
+            "autorange": "reversed",
+            "automargin": True,
+            "tickfont": {"size": 9 if phone else 10},
+        },
+    )
+    return fig
+
+
 def _league_id_error(raw_league_id: str) -> str | None:
     league_id = raw_league_id.strip()
     if not league_id:
@@ -1232,11 +1304,12 @@ def render():
                                 _league_intel.hall_of_fame_delta(_lo_combined),
                             ),
                         ]
-                        for _row in (_hof_cards[:4], _hof_cards[4:]):
-                            _cols = st.columns(4)
-                            for _col, (_label, _value, _delta) in zip(_cols, _row):
-                                with _col:
-                                    _hof_metric(_label, _value, _delta)
+                        with st.container(key="jsa-lh-hof-cards"):
+                            for _row in (_hof_cards[:4], _hof_cards[4:]):
+                                _cols = st.columns(4)
+                                for _col, (_label, _value, _delta) in zip(_cols, _row):
+                                    with _col:
+                                        _hof_metric(_label, _value, _delta)
                         _era_caption = _league_intel.hall_of_fame_era_caption(
                             _best_score, _played_recs,
                         )
@@ -1891,56 +1964,17 @@ def render():
                             _heat_games.append(_games_row)
                             _matrix_rows.append(_matrix_row)
 
-                        _fig_h2h = go.Figure(go.Heatmap(
-                            z=_heat_values,
-                            x=_mgrs_sorted,
-                            y=_mgrs_sorted,
-                            text=_heat_text,
-                            customdata=_heat_games,
-                            texttemplate="%{text}",
-                            textfont={"size": 11},
-                            hoverongaps=False,
-                            zmin=-50,
-                            zmax=50,
-                            zmid=0,
-                            colorscale=[
-                                [0, "#9F1239"],
-                                [0.5, "#121821"],
-                                [1, "#15803D"],
-                            ],
-                            xgap=2,
-                            ygap=2,
-                            colorbar={
-                                "title": "Win-rate edge",
-                                "ticksuffix": " pp",
-                            },
-                            hovertemplate=(
-                                "<b>%{y} vs %{x}</b><br>Record: %{text}<br>"
-                                "Win-rate edge: %{z:+.1f} pp<br>Meetings: %{customdata}<extra></extra>"
-                            ),
-                        ))
-                        _fig_h2h.update_layout(
-                            title="League-Wide Head-to-Head Dominance",
-                            height=max(520, 42 * len(_mgrs_sorted) + 170),
-                            template="plotly_dark",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(15,23,42,0.36)",
-                            margin={"l": 72, "r": 24, "t": 64, "b": 96},
-                            xaxis={
-                                "title": "Opponent",
-                                "tickangle": -45,
-                                "side": "bottom",
-                                "automargin": True,
-                                "tickfont": {"size": 10},
-                            },
-                            yaxis={
-                                "title": "Manager",
-                                "autorange": "reversed",
-                                "automargin": True,
-                                "tickfont": {"size": 10},
-                            },
+                        _fig_h2h = _league_matrix_figure(
+                            _mgrs_sorted, _heat_values, _heat_text, _heat_games,
+                            phone=False,
                         )
-                        _lh_plotly(_fig_h2h)
+                        _fig_h2h_phone = _league_matrix_figure(
+                            _mgrs_sorted, _heat_values, _heat_text, _heat_games,
+                            phone=True,
+                        )
+                        page_common.plotly_phone_desktop(
+                            _fig_h2h, _fig_h2h_phone, slug="league-matrix",
+                        )
 
                         _analysis_pairs = _rivalries.copy()
                         _analysis_pairs["series_gap"] = (
