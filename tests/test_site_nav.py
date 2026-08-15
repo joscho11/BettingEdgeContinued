@@ -99,7 +99,10 @@ def test_header_has_brand_and_tip_jar():
         "tip jar must not remain in the footer"
 
 
-def test_shared_modules_import_safe():
+def test_phone_nav_button_is_three_bars():
+    src = (_HERE / "dashboard_chrome.py").read_text(encoding="utf-8")
+    assert "[data-testid=\"stExpandSidebarButton\"]::after" in src
+    assert "box-shadow:0 -.35rem 0 #fafafa, 0 .35rem 0 #fafafa" in src
     # importing the shared modules must not fire network/data work at import time
     import dashboard_data
     import dashboard_chrome
@@ -139,6 +142,7 @@ if __name__ == "__main__":
     test_preseason_demo_banner_shows_then_hides()
     test_sidebar_is_empty_and_footer_present()
     test_header_has_brand_and_tip_jar()
+    test_phone_nav_button_is_three_bars()
     test_shared_modules_import_safe()
     test_nonselected_pages_are_lazy_imported()
     print("OK  nav skeleton: WP fixed default, empty sidebar, header brand+tip jar, footer repo link")

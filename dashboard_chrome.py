@@ -256,7 +256,20 @@ visibility:hidden;pointer-events:none;}}
 @media (max-width:767px){{
  section[data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"],
  section[data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] button{{
- visibility:visible;}}}}
+ visibility:visible;}}
+ /* Streamlit's closed-drawer control is a double chevron (`»`). That does not read
+    as a menu on a phone. Hide the glyph and draw three bars, the same mark YouTube
+    uses for its menu. The button itself, its tap target, and its label stay. */
+ [data-testid="stExpandSidebarButton"]{{
+  position:relative;}}
+ [data-testid="stExpandSidebarButton"] *{{
+  opacity:0;}}
+ [data-testid="stExpandSidebarButton"]::after{{
+  content:"";position:absolute;left:50%;top:50%;
+  width:1.05rem;height:2px;margin:-1px 0 0 -.525rem;
+  background:#fafafa;
+  box-shadow:0 -.35rem 0 #fafafa, 0 .35rem 0 #fafafa;
+  pointer-events:none;}}}}
 /* ── Phone header, owned HERE and complete on its own ──────────────────────────────
    This block is the whole phone header contract, not a partial one: mobile.py is the
    page-CONTENT layer and deliberately carries no header rules, so deleting it leaves
@@ -271,11 +284,10 @@ visibility:hidden;pointer-events:none;}}
  .jsa-tip{{font-size:10.5px;font-weight:700;padding:5px 8px;flex:0 1 auto;min-width:0;
   min-height:2rem;display:flex;align-items:center;justify-content:center;}}
  /* The drawer trigger is the only way to change page here — give it a real tap target
-    and a surface so it reads as a menu rather than a stray glyph. */
+    and a surface so the three-bar menu reads as a control. */
  [data-testid="stExpandSidebarButton"]{{min-width:2.25rem;min-height:2.25rem;
   border:1px solid var(--jsa-border, #232D3B);border-radius:var(--jsa-r-sm, 8px);
   background:var(--jsa-surface, #121821);}}
- [data-testid="stExpandSidebarButton"] span{{font-size:22px;}}
  [data-testid="stSidebarNavLink"]{{min-height:2.6rem;align-items:center;}}
  [data-testid="stSidebarNav"] a span{{font-size:15px;}}}}
 /* Narrow phones. Fixed overhead is ~117px (62px reserving the `»`, 55px reserving the
