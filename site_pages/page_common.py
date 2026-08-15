@@ -5,6 +5,7 @@ Moved byte-identical from app.py. `_season_week_controls` takes `df` as a parame
 so the extracted tab bodies stay byte-identical. app.py keeps its own inline copies until
 the swap (3e) removes the tab layer — temporary duplication by design.
 """
+import importlib
 import json
 import os
 from pathlib import Path
@@ -74,3 +75,32 @@ ATS_BLURB = """
         </p>
     </div>
     """
+
+
+def reload_if_stale(module):
+    """Reload a module when Streamlit Cloud copies a new file into a live process.
+
+    ``_lazy_render`` already does this for the selected page. Sibling helpers
+    imported from that page (``league_insights_view``, ``fantasy.league_intelligence``)
+    stay pinned in ``sys.modules`` unless they get the same mtime check.
+    """
+    path = getattr(module, "__file__", None)
+    if not path:
+        return module
+    try:
+        mtime = Path(path).stat().st_mtime_ns
+    except OSError:
+        return module
+    if getattr(module, "__joscho_source_mtime_ns__", None) != mtime:
+        importlib.invalidate_caches()
+        source = Path(path)
+        cache_dir = source.parent / "__pycache__"
+        if cache_dir.is_dir():
+            for pyc in cache_dir.glob(f"{source.stem}*.pyc"):
+                try:
+                    pyc.unlink()
+                except OSError:
+                    pass
+        module = importlib.reload(module)
+    module.__joscho_source_mtime_ns__ = mtime
+    return module

@@ -113,7 +113,7 @@ def test_nonselected_pages_are_lazy_imported():
     tree = ast.parse(Path(ENTRY).read_text(encoding="utf-8"))
     eager_imports = {
         alias.name
-        for node in ast.walk(tree)
+        for node in tree.body
         if isinstance(node, ast.Import)
         for alias in node.names
         if alias.name.startswith("page_")

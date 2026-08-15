@@ -1,5 +1,13 @@
 # League History backlog
 
+## Cloud load crash (2026-08-15)
+
+- Streamlit Cloud can copy a new `page_league_history.py` into a live process
+  without restarting, while `league_insights_view` stays pinned. The page then
+  called four arguments into a three-argument `render`. That is a TypeError at
+  the call site, and Cloud redacts the message. Fix: reload stale `site_pages`
+  helpers plus `fantasy.league_intelligence` before the page runs.
+
 ## Acquisition history
 
 - Best Values loads waiver and trade transactions when that view is opened (cached). There is

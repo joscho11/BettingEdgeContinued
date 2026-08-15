@@ -3283,9 +3283,9 @@ def render():
             with _lhG:
                 # Kept in a separate renderer so this already-large history page remains
                 # navigable and the analytics stay independently testable.
-                from league_insights_view import render as _render_league_insights
-
-                _render_league_insights(
+                import league_insights_view as _insights_mod
+                _insights_mod = page_common.reload_if_stale(_insights_mod)
+                _insights_mod.render(
                     _lh, _season_filter, _fetch_player_directory,
                     _fetch_season_transactions,
                 )

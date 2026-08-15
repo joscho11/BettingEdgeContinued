@@ -16,6 +16,7 @@ from streamlit.testing.v1 import AppTest
 _HERE = Path(__file__).resolve().parents[1]
 _SITE_PAGES = _HERE / "site_pages"
 sys.path.insert(0, str(_HERE))
+sys.path.insert(0, str(_SITE_PAGES))
 
 import page_league_history
 from fantasy import league_intelligence as league_intel
@@ -304,6 +305,31 @@ def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
 def test_league_history_defaults_to_draft_and_roster_insights():
     assert page_league_history._LEAGUE_HISTORY_TABS[0] == "🧠 Draft & Roster Insights"
     assert page_league_history._LEAGUE_HISTORY_TABS[1] == "🏆 All-Time Leaderboard"
+
+
+def test_insights_render_accepts_transaction_loader():
+    import inspect
+    import league_insights_view
+    params = inspect.signature(league_insights_view.render).parameters
+    assert "transaction_loader" in params
+
+
+def test_reload_if_stale_picks_up_a_new_file_on_disk(tmp_path):
+    import page_common
+
+    path = tmp_path / "stale_helper.py"
+    path.write_text("VALUE = 1\n", encoding="utf-8")
+    sys.path.insert(0, str(tmp_path))
+    try:
+        import stale_helper
+        stale_helper.__joscho_source_mtime_ns__ = 0
+        path.write_text("VALUE = 2\n", encoding="utf-8")
+        refreshed = page_common.reload_if_stale(stale_helper)
+        assert refreshed.VALUE == 2
+    finally:
+        sys.modules.pop("stale_helper", None)
+        if str(tmp_path) in sys.path:
+            sys.path.remove(str(tmp_path))
 
 
 def test_manager_leaderboard_adjusts_scores_within_each_league_week():

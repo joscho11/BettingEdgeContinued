@@ -29,25 +29,41 @@ import runtime_telemetry  # OFF unless APP_TELEMETRY=1; remove this import + beg
 runtime_telemetry.begin()
 
 
+def _refresh_cloud_synced_modules() -> None:
+    """Reload page helpers whose source changed without a process restart.
+
+    Streamlit Cloud can copy new files into a live interpreter. Reloading only
+    the selected page left ``league_insights_view`` pinned at the previous
+    signature, so League History called four arguments into a three-argument
+    ``render`` and crashed with a redacted TypeError at the call site.
+    """
+    page_common = importlib.import_module("page_common")
+
+    for name in ("fantasy.league_intelligence", "league_insights_view"):
+        loaded = sys.modules.get(name)
+        if loaded is not None:
+            sys.modules[name] = page_common.reload_if_stale(loaded)
+    site_pages = (_HERE / "site_pages").resolve()
+    for name, loaded in list(sys.modules.items()):
+        path = getattr(loaded, "__file__", None)
+        if not path:
+            continue
+        try:
+            resolved = Path(path).resolve()
+        except OSError:
+            continue
+        if resolved.parent != site_pages or resolved.name == "page_common.py":
+            continue
+        sys.modules[name] = page_common.reload_if_stale(loaded)
+
+
 def _lazy_render(module_name: str):
     """Return a page callable that imports its implementation only when selected."""
     def render():
-        was_loaded = module_name in sys.modules
-        module = importlib.import_module(module_name)
-        source_path = Path(module.__file__)
-        source_mtime = source_path.stat().st_mtime_ns
-
-        # Streamlit Cloud can sync a lazily imported page without restarting the
-        # Python process. Reload only when that page's source changed, so a live
-        # session cannot stay pinned to the previous deployment.
-        if (
-            was_loaded
-            and getattr(module, "__joscho_source_mtime_ns__", None)
-            != source_mtime
-        ):
-            module = importlib.reload(module)
-            source_mtime = source_path.stat().st_mtime_ns
-        module.__joscho_source_mtime_ns__ = source_mtime
+        _refresh_cloud_synced_modules()
+        page_common = importlib.import_module("page_common")
+        module = page_common.reload_if_stale(importlib.import_module(module_name))
+        sys.modules[module_name] = module
         module.render()
 
     render.__name__ = f"render_{module_name}"
