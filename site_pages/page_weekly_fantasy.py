@@ -13,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from dashboard_chrome import TABLE_HEIGHT   # shared ~20-row height for long tables
+from dashboard_chrome import TABLE_HEIGHT, dataframe_phone_desktop   # shared ~20-row height for long tables
 
 import dashboard_data
 import page_common
@@ -370,12 +370,20 @@ def render():
                     col_config["Actual Receptions"] = st.column_config.NumberColumn("Actual Receptions", format="%.1f",
                                       help=f"Actual number of receptions recorded in this game. {_dnp_note}")
 
-                st.dataframe(
+                phone_keep = [
+                    col for col in (
+                        "#", "Player", "Opponent", "Proj Pts", "Health", "Actual Pts",
+                    ) if col in tbl.columns
+                ]
+                dataframe_phone_desktop(
                     tbl.style.apply(style_fn, axis=None),
-                    hide_index=True,          # the explicit "#" column replaces the index
+                    tbl[phone_keep].style.apply(style_fn, axis=None),
+                    slug=f"wf-{pos.lower()}",
+                    hide_index=True,
                     width="stretch",
                     height=TABLE_HEIGHT,
                     column_config=col_config,
+                    key=f"wf_grid_{pos}_{season}_{week}_{player_search}_{len(tbl)}",
                 )
 
                 # ── Agent Analysis ────────────────────────────────────────────

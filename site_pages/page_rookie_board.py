@@ -13,8 +13,11 @@ they make no claim to beat Sleeper.
 """
 import sys
 from pathlib import Path
+
 import pandas as pd
 import streamlit as st
+
+from dashboard_chrome import dataframe_phone_desktop
 
 _HERE = Path(__file__).resolve().parents[1]
 _BOARD = _HERE / "fantasy" / "rookie" / "board_data"
@@ -89,6 +92,10 @@ _COLS = {
     "diff": "Diff vs Sleeper", "talent_score": "College Talent",
     "pct_speed_score": "Athleticism (Percentile)", "pct_cfb_final_dom": "Production (Percentile)",
 }
+_PHONE_SHOW = [
+    "#", "Player", "Pos", "Pick", "Full Hit-%",
+    "Proj (season ½-PPR)", "Diff vs Sleeper",
+]
 
 
 @st.cache_data(ttl=3600)
@@ -364,9 +371,7 @@ def render():
     show.insert(0, "#", range(1, len(show) + 1))
 
     st.caption("**Three hit-% columns.** " + THREE_MODEL)
-    st.dataframe(
-        show, hide_index=True, width="stretch", height=min(720, 60 + 35 * len(show)),
-        column_config={
+    _rookie_cfg = {
             "#": st.column_config.NumberColumn(
                 # 50px is the grid minimum; pinned so it keeps that exact width instead of
                 # absorbing an even share of the table's leftover space (grow=0 when pinned).
@@ -400,7 +405,13 @@ def render():
                                     "blank rather than filled from it."),
             "Athleticism (Percentile)": st.column_config.NumberColumn(format="%.0f", help=PCT_HELP),
             "Production (Percentile)": st.column_config.NumberColumn(format="%.0f", help=PCT_HELP),
-        },
+        }
+    dataframe_phone_desktop(
+        show,
+        show[[c for c in _PHONE_SHOW if c in show.columns]],
+        slug="rookie-board",
+        hide_index=True, width="stretch", height=min(720, 60 + 35 * len(show)),
+        column_config=_rookie_cfg,
     )
     model_available = int(show["Proj (season ½-PPR)"].notna().sum())
     sleeper_available = int(show["Sleeper Proj"].notna().sum())

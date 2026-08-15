@@ -62,16 +62,20 @@ def _run_compact():
     return at
 
 
-def _board_df(at):
+def _board_df(at, *, phone=False):
+    matches = []
     for el in at.dataframe:
         v = el.value
         d = v.data if hasattr(v, "data") else v
         try:
             if {"adp_half_ppr", "model_gap"} <= set(d.columns):
-                return d
+                matches.append(d)
         except Exception:
             pass
-    return None
+    if not matches:
+        return None
+    matches.sort(key=lambda frame: len(frame.columns), reverse=not phone)
+    return matches[0]
 
 
 def test_board_uses_dataframe_not_table():
@@ -122,11 +126,28 @@ def test_full_v2_board_default_adp_ascending():
         f"detail columns must be dropped when the toggle is off: " \
         f"{set(board._DETAIL_ONLY) & set(c.columns)}"
     assert set(board._COMPACT_COLS) | set(board._DETAIL_ONLY) == set(board._DISPLAY_COLS)
+    assert board._PHONE_COLS == [
+        "player", "position", "adp_half_ppr", "pos_rank", "sleeper_gap", "model_gap",
+    ]
+    assert set(board._PHONE_COLS) <= set(board._COMPACT_COLS)
     adp_c = c["adp_half_ppr"].to_numpy()
     assert (adp_c[:-1] <= adp_c[1:]).all(), "compact view must keep the ADP-ascending default"
     # model_proj_raw stays internal in BOTH modes and out of the export
     for frame in (t, c):
         assert "model_proj_raw" not in frame.columns
+
+
+def test_phone_board_keeps_the_price_spine_only():
+    """Phone copy drops ranks, raw points, and talent. Desktop stays the full board."""
+    import draft_board_2026 as board
+
+    at = _run()
+    phone = _board_df(at, phone=True)
+    desktop = _board_df(at, phone=False)
+    assert phone is not None and desktop is not None
+    assert set(board._DISPLAY_COLS) <= set(desktop.columns)
+    assert list(phone.columns) == [board._ROW_NO] + board._PHONE_COLS
+    assert phone.shape[0] == desktop.shape[0] == 180
 
 
 def test_compact_view_keeps_numeric_sort_and_the_full_csv():

@@ -248,7 +248,7 @@ The Model Proj values are frozen until the planned dated early-September public-
 
 The two talent columns are described in their own section further down this page. They are descriptive context on their own scales and feed no other column.
 
-Use the **Position** filter and the **Player search** box to narrow the board, and the **Sort by** and **Order** controls to reorder it — those sort numerically, with no-data rows always at the bottom. **Show projection and talent detail** is on by default; turn it off for a compact nine-column view showing just the price-versus-projection comparison. The CSV download always contains all thirteen columns.
+Use the **Position** filter and the **Player search** box to narrow the board, and the **Sort by** and **Order** controls to reorder it — those sort numerically, with no-data rows always at the bottom. **Show projection and talent detail** is on by default; turn it off for a compact nine-column view showing just the price-versus-projection comparison. On a phone the board shows player, position, ADP, and both gaps. The CSV download always contains all thirteen columns.
         """)
 
     with st.expander("What is the Rookie Board page?"):

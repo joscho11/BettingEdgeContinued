@@ -151,10 +151,13 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "::-webkit-scrollbar-thumb" in css
     assert "st-key-jsa-lh-leaderboard-cards" in css
     assert "st-key-jsa-lh-report-cards" in css
+    assert "grid-auto-rows:1fr" in css.replace(" ", "")
     assert "st-key-jsa-lh-hof-cards" in css
     assert "st-key-jsa-scatter-desktop" in css
     assert "st-key-jsa-scatter-phone" in css
     assert "st-key-jsa-scatter-phone-league-matrix" in css
+    assert "st-key-jsa-table-desktop" in css
+    assert "st-key-jsa-table-phone" in css
     assert "min-width:56rem" in css.replace(" ", "")
     assert "max-width:none" in css.replace(" ", "")
     assert "scrollbar-width:none" not in css.replace(" ", "")
@@ -187,7 +190,7 @@ def test_rookie_board_excludes_direct_pff_fields_and_explains_availability(tmp_p
     assert any(w.label == "Position" for w in at.selectbox)
     # Three tables since 2026-07-27: the rookie board itself, plus the collapsed
     # "college QBs/RBs/WRs/TEs not in this rookie class" views. ALL must stay free of direct PFF fields.
-    assert len(at.dataframe) == 5
+    assert len(at.dataframe) == 6
 
     banned_pff = {"PFF Grade", "PFF Grade (Percentile)", "PFF Efficiency",
                   "PFF Efficiency (Percentile)", "grades_pass", "btt_rate", "twp_rate",
@@ -199,12 +202,21 @@ def test_rookie_board_excludes_direct_pff_fields_and_explains_availability(tmp_p
     for table in tables:
         assert not banned_pff & set(table.columns),             f"direct PFF fields leaked into a public table: {banned_pff & set(table.columns)}"
 
-    shown = tables[0]
+    shown = max(tables, key=lambda table: len(table.columns))
     assert {"Draft-Capital Hit-%", "College Hit-%", "Full Hit-%", "College Talent",
             "Athleticism (Percentile)", "Production (Percentile)"} <= set(shown.columns)
+    phone = min(
+        (table for table in tables if "Full Hit-%" in table.columns),
+        key=lambda table: len(table.columns),
+    )
+    assert list(phone.columns) == [
+        "#", "Player", "Pos", "Pick", "Full Hit-%",
+        "Proj (season ½-PPR)", "Diff vs Sleeper",
+    ]
 
-    for watch in tables[1:]:
-        assert {"Player", "College", "College Talent"} <= set(watch.columns)
+    for watch in tables:
+        if "College Talent" in watch.columns and "Full Hit-%" not in watch.columns:
+            assert {"Player", "College", "College Talent"} <= set(watch.columns)
 
     copy = " ".join(str(x.value) for x in at.caption)
     assert "top-24 for RB/WR or top-12 for QB/TE" in copy

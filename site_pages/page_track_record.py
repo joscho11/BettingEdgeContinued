@@ -346,19 +346,20 @@ def render():
         _profit_hm,   _hm_w, _hm_l = _units_profit(_med_or_high_sub)
         _profit_all,  _a_w, _a_l = _units_profit(season_df)
 
-        p1, p2, p3 = st.columns(3)
-        p1.markdown(metric_card("Profit (HIGH only)",
-                                f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
-                                color="green" if _profit_high > 0 else "red"),
-                    unsafe_allow_html=True)
-        p2.markdown(metric_card("Profit (HIGH + MED)",
-                                f"{_hm_w}-{_hm_l}", f"{_profit_hm:+,} units",
-                                color="green" if _profit_hm > 0 else "red"),
-                    unsafe_allow_html=True)
-        p3.markdown(metric_card("Profit (all picks)",
-                                f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
-                                color="green" if _profit_all > 0 else "red"),
-                    unsafe_allow_html=True)
+        with st.container(key="jsa-metric-even-profit"):
+            p1, p2, p3 = st.columns(3)
+            p1.markdown(metric_card("Profit (HIGH only)",
+                                    f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
+                                    color="green" if _profit_high > 0 else "red"),
+                        unsafe_allow_html=True)
+            p2.markdown(metric_card("Profit (HIGH + MED)",
+                                    f"{_hm_w}-{_hm_l}", f"{_profit_hm:+,} units",
+                                    color="green" if _profit_hm > 0 else "red"),
+                        unsafe_allow_html=True)
+            p3.markdown(metric_card("Profit (all picks)",
+                                    f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
+                                    color="green" if _profit_all > 0 else "red"),
+                        unsafe_allow_html=True)
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 

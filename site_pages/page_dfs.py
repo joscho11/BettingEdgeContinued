@@ -26,13 +26,14 @@ def render():
 
     st.divider()
 
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.metric("Scoring", "DK Classic (full PPR)")
-    with col_b:
-        st.metric("Salary cap", "$50,000")
-    with col_c:
-        st.metric("Roster slots", "9 (QB/2RB/3WR/TE/FLEX/DST)")
+    with st.container(key="jsa-metric-even"):
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.metric("Scoring", "DK Classic (full PPR)")
+        with col_b:
+            st.metric("Salary cap", "$50,000")
+        with col_c:
+            st.metric("Roster slots", "9 (QB/2RB/3WR/TE/FLEX/DST)")
 
     st.caption(
         "Under the hood: `fantasy/dfs/dfs_pipeline.ipynb` — "

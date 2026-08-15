@@ -15,7 +15,7 @@ import streamlit as st
 import dashboard_data
 import page_common
 from dashboard_utils import metric_card, get_confidence, _md_to_html
-from dashboard_chrome import _OFFLINE, TABLE_HEIGHT
+from dashboard_chrome import _OFFLINE, TABLE_HEIGHT, dataframe_phone_desktop
 
 _HERE = Path(__file__).resolve().parents[1]
 
@@ -1187,8 +1187,14 @@ def render():
                         "Pts Above League Avg", "Best Finish",
                     ]].sort_values(["Titles", "Win %"], ascending=[False, False])
                     with st.expander("View complete manager records"):
-                        st.dataframe(
+                        dataframe_phone_desktop(
                             _details,
+                            _details[[
+                                c for c in (
+                                    "Manager", "Titles", "Record", "Win %", "Best Finish",
+                                ) if c in _details.columns
+                            ]],
+                            slug="lh-leaderboard-records",
                             width="stretch",
                             hide_index=True,
                             column_config={
@@ -2513,8 +2519,16 @@ def render():
                             "Finish":    _fin4,
                         })
                     with st.expander("View complete career season history"):
-                        st.dataframe(
-                            pd.DataFrame(_s_hist),
+                        _season_hist = pd.DataFrame(_s_hist)
+                        dataframe_phone_desktop(
+                            _season_hist,
+                            _season_hist[[
+                                c for c in (
+                                    "Season", "Official Record", "Finish",
+                                    "Avg Score", "H2H Win %",
+                                ) if c in _season_hist.columns
+                            ]],
+                            slug="lh-season-history",
                             hide_index=True,
                             width="stretch",
                             column_config={
@@ -2731,8 +2745,15 @@ def render():
                         "above_avg_losses": "Above-Avg Losses",
                     })
                     with st.expander("View complete consistency and luck metrics"):
-                        st.dataframe(
+                        dataframe_phone_desktop(
                             _cl_details,
+                            _cl_details[[
+                                c for c in (
+                                    "Manager", "Avg Score", "Wins vs Expected",
+                                    "Actual Win %", "Expected Win %",
+                                ) if c in _cl_details.columns
+                            ]],
+                            slug="lh-consistency",
                             hide_index=True,
                             width="stretch",
                             column_config={

@@ -136,16 +136,17 @@ def _render_evidence():
             "was compared with the posted season number and recorded as higher or lower. Then the "
             "real result settled it."
         )
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Landed correctly", f"{dr['correct_rate']:.1%}",
+        with st.container(key="jsa-metric-even-direction"):
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Landed correctly", f"{dr['correct_rate']:.1%}",
                   help=f"{dr['n_graded']} team-seasons where the projection differed from the "
                        f"posted number. {dr['n_excluded_exact']} exact matches were excluded "
                        "because there is nothing to settle.")
-        c2.metric("Needed to break even", f"{dr['break_even_rate']:.1%}",
+            c2.metric("Needed to break even", f"{dr['break_even_rate']:.1%}",
                   help="The rate the posted numbers themselves imply is required simply to come "
                        "out level, before anything is gained. It sits above 50% because neither direction "
                        "is ever quoted at even money.")
-        c3.metric("Return per unit", f"{dr['return_per_unit']:+.1%}",
+            c3.metric("Return per unit", f"{dr['return_per_unit']:+.1%}",
                   help="What a flat, unweighted unit on every one of these comparisons would have "
                        "returned across the ten seasons.")
         lo, hi = dr["ci95_shortfall"]
@@ -268,10 +269,8 @@ def render():
     view = view.sort_values("Proj Wins", ascending=False).reset_index(drop=True)
     view.insert(0, "#", range(1, len(view) + 1))
 
-    st.dataframe(
-        view.style.apply(_style(view), axis=None),
-        hide_index=True, width="stretch", height=min(720, 60 + 35 * len(view)),
-        column_config={
+    phone_view = view[["#", "Team", "Proj Wins", "Median", "80% Range"]]
+    totals_cfg = {
             "#": st.column_config.NumberColumn(
                 # 50px is the grid minimum; pinned so it keeps that exact width instead of
                 # absorbing an even share of the table's leftover space (grow=0 when pinned).
@@ -285,8 +284,22 @@ def render():
             "p75": st.column_config.NumberColumn(format="%.1f", help=P_HELP),
             "p90": st.column_config.NumberColumn(format="%.1f", help=P_HELP),
             "80% Range": st.column_config.NumberColumn(format="%.1f", help=RANGE_HELP),
-        },
-    )
+        }
+    totals_height = min(720, 60 + 35 * len(view))
+    with st.container(key="jsa-table-desktop-season-totals"):
+        st.dataframe(
+            view.style.apply(_style(view), axis=None),
+            hide_index=True, width="stretch", height=totals_height,
+            column_config=totals_cfg,
+        )
+    with st.container(key="jsa-table-phone-season-totals"):
+        st.dataframe(
+            phone_view.style.apply(_style(view), axis=None),
+            hide_index=True, width="stretch", height=totals_height,
+            column_config={
+                name: spec for name, spec in totals_cfg.items() if name in phone_view.columns
+            },
+        )
 
     st.caption(
         f"{season} regular season · {len(view)} teams · projections sum to "
@@ -301,27 +314,28 @@ def render():
         mae = ev.get("pooled_mae_headline")
         cov = ev.get("coverage80")
         band = ev.get("coverage80_band") or []
-        c1, c2, c3 = st.columns(3)
-        if mae is not None:
-            bench = _benchmark_mae()
-            c1.metric("Average miss, backtest", f"{mae:.2f} wins",
-                      help="Mean absolute error across ten held-out seasons (320 team-seasons). "
-                           + (f"The archived market consensus scored {bench:.2f} over the same "
-                              f"rows, a gap of {mae - bench:+.2f} wins. " if bench is not None
-                              else "The archived market consensus scored lower over the same "
-                                   "rows. ")
-                           + "That is why this model is published as a projection and nothing "
-                             "stronger.")
-        if cov is not None:
-            c2.metric("Interval accuracy", f"{cov * 100:.0f}%",
-                      help=("Share of held-out seasons whose actual win count fell inside the "
-                            "80 percent interval. The acceptable band "
-                            + (f"({band[0]:.0%} to {band[1]:.0%}) " if len(band) == 2 else "")
-                            + "was written down before this was measured."))
-        c3.metric("Beats the archived consensus?",
-                  "No" if ev.get("gate_B_passed") is False else "See notes",
-                  help="A pre-registered test, fired once, on a frozen set of seasons chosen "
-                       "before any model was fitted.")
+        with st.container(key="jsa-metric-even-evidence"):
+            c1, c2, c3 = st.columns(3)
+            if mae is not None:
+                bench = _benchmark_mae()
+                c1.metric("Average miss, backtest", f"{mae:.2f} wins",
+                          help="Mean absolute error across ten held-out seasons (320 team-seasons). "
+                               + (f"The archived market consensus scored {bench:.2f} over the same "
+                                  f"rows, a gap of {mae - bench:+.2f} wins. " if bench is not None
+                                  else "The archived market consensus scored lower over the same "
+                                       "rows. ")
+                               + "That is why this model is published as a projection and nothing "
+                                 "stronger.")
+            if cov is not None:
+                c2.metric("Interval accuracy", f"{cov * 100:.0f}%",
+                          help=("Share of held-out seasons whose actual win count fell inside the "
+                                "80 percent interval. The acceptable band "
+                                + (f"({band[0]:.0%} to {band[1]:.0%}) " if len(band) == 2 else "")
+                                + "was written down before this was measured."))
+            c3.metric("Beats the archived consensus?",
+                      "No" if ev.get("gate_B_passed") is False else "See notes",
+                      help="A pre-registered test, fired once, on a frozen set of seasons chosen "
+                           "before any model was fitted.")
 
     _render_evidence()
 

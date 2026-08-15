@@ -27,7 +27,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from dashboard_chrome import TABLE_HEIGHT   # shared ~20-row height for long tables
+from dashboard_chrome import TABLE_HEIGHT, dataframe_phone_desktop
 
 _MONTHS = ("January", "February", "March", "April", "May", "June", "July",
            "August", "September", "October", "November", "December")
@@ -751,6 +751,10 @@ _EXPORT_NAMES = {m[0]: m[2] for m in COLUMN_META}       # colkey -> on-screen la
 # thirteen columns in either mode, and model_proj_raw stays out of both.
 _DETAIL_ONLY = ("sleeper_proj", "model_proj", "nfl_talent", "college_talent")
 _COMPACT_COLS = [c for c in _DISPLAY_COLS if c not in _DETAIL_ONLY]
+# Phone spine: who, draft price, and both gaps. Ranks and raw points stay on desktop.
+_PHONE_COLS = [
+    "player", "position", "adp_half_ppr", "pos_rank", "sleeper_gap", "model_gap",
+]
 
 # Row counter for the rendered view only — it numbers the rows as currently sorted and
 # filtered, so a long scroll stays easy to follow. Deliberately NOT part of COLUMN_META /
@@ -888,6 +892,7 @@ _OUTSIDE_COLUMN_META = [
      {"format": "%.1f", "width": "small"}),
 ]
 _OUTSIDE_DISPLAY_COLS = [m[0] for m in _OUTSIDE_COLUMN_META]
+_OUTSIDE_PHONE_COLS = ["player", "position", "model_proj", "model_proj_pos_rank_full"]
 _OUTSIDE_EXPORT_NAMES = {m[0]: m[2] for m in _OUTSIDE_COLUMN_META}
 _OUTSIDE_ROW_NO_HELP = ("Row number in this list as currently filtered and sorted — a counter "
                         "to keep your place, not a ranking.")
@@ -960,18 +965,19 @@ def _render_outside_market(board_size: int):
             "projected players — the board's rows included — not a rank within these "
             f"{len(outside):,}. All of it is descriptive information for your own judgment.")
 
-        fc1, fc2, fc3, fc4 = st.columns([1.4, 1.3, 1.6, 1.15])
-        with fc1:
-            pos = st.multiselect("Position", ["QB", "RB", "WR", "TE"],
-                                 default=["QB", "RB", "WR", "TE"], key="db26_out_pos")
-        with fc2:
-            name = st.text_input("Player search", "", key="db26_out_search")
-        with fc3:
-            sort_label = st.selectbox("Sort by", list(OUTSIDE_SORT_KEYS), index=0,
-                                      key="db26_out_sortby")
-        with fc4:
-            order = st.radio("Order", ["Descending", "Ascending"], index=0,
-                             horizontal=True, key="db26_out_sortdir")
+        with st.container(key="jsa-filter-bar-outside"):
+            fc1, fc2, fc3, fc4 = st.columns([1.4, 1.3, 1.6, 1.15])
+            with fc1:
+                pos = st.multiselect("Position", ["QB", "RB", "WR", "TE"],
+                                     default=["QB", "RB", "WR", "TE"], key="db26_out_pos")
+            with fc2:
+                name = st.text_input("Player search", "", key="db26_out_search")
+            with fc3:
+                sort_label = st.selectbox("Sort by", list(OUTSIDE_SORT_KEYS), index=0,
+                                          key="db26_out_sortby")
+            with fc4:
+                order = st.radio("Order", ["Descending", "Ascending"], index=0,
+                                 horizontal=True, key="db26_out_sortdir")
 
         view = outside[outside.position.isin(pos)]
         if name.strip():
@@ -983,12 +989,19 @@ def _render_outside_market(board_size: int):
         for _k in _TALENT_KEYS:
             if _k in display_view.columns:
                 display_view[_k] = _blank_missing_talent(display_view[_k], decimals=1)
-        st.dataframe(
-            display_view[[_ROW_NO] + _OUTSIDE_DISPLAY_COLS],
+        outside_cols = [_ROW_NO] + _OUTSIDE_DISPLAY_COLS
+        outside_phone = [_ROW_NO] + [
+            c for c in _OUTSIDE_PHONE_COLS if c in display_view.columns
+        ]
+        dataframe_phone_desktop(
+            display_view[outside_cols],
+            display_view[outside_phone],
+            slug="draft-outside",
             width="stretch", height=TABLE_HEIGHT, hide_index=True,
             key=(f"db26_outside_grid_{OUTSIDE_SORT_KEYS[sort_label]}_{order}_"
                  f"{'-'.join(sorted(pos))}_{name.strip().lower()}_{len(view)}"),
-            column_config=_outside_column_config())
+            column_config=_outside_column_config(),
+        )
         st.caption(f"Showing {len(view):,} of {len(outside):,} — blank projection or talent "
                    "cells sort to the bottom in either direction.")
         st.download_button(
@@ -1034,7 +1047,8 @@ def render():
         st.caption("The board opens on the full view. Turn off **Show projection and talent "
                    "detail** for a compact comparison view that drops the raw Sleeper and model "
                    "point estimates and the two talent scores; the CSV download always contains "
-                   "every column either way.")
+                   "every column either way. On a phone the board shows player, position, ADP, "
+                   "and both gaps.")
         st.caption("Sort with the controls below — they order the whole board numerically, "
                    "with no-data rows (blank projection / talent) always at the bottom.")
         st.caption("Visual cues: positive gaps are green and negative gaps red; rank 1 is green "
@@ -1045,7 +1059,7 @@ def render():
     # Filter + sort toolbar. Explicit numeric sort (st.dataframe's header-click sorts the
     # display strings lexicographically); this routes every sortable column through one
     # numeric path with sentinels pinned to the bottom. Default: Sleeper ADP, ascending.
-    with st.container(border=True):
+    with st.container(border=True, key="jsa-filter-bar-draft"):
         fc1, fc2, fc3, fc4 = st.columns([1.4, 1.3, 1.6, 1.15])
         with fc1:
             pos = st.multiselect("Position", ["QB", "RB", "WR", "TE"],
@@ -1106,13 +1120,21 @@ def render():
     # Fixed-height scroll box holds all rows (TABLE_HEIGHT ≈ 20 visible). The key encodes the
     # current sort AND the filter state so the grid REMOUNTS on any change — this discards
     # st.dataframe's sticky client-side header-sort so the Sort-by control always wins.
-    st.dataframe(
-        display_view[cols].style.apply(_style_board(view, df, active_sort_key), axis=None),
+    phone_cols = [_ROW_NO] + [c for c in _PHONE_COLS if c in display_view.columns]
+    style_fn = _style_board(view, df, active_sort_key)
+    grid_kwargs = dict(
         width="stretch", height=TABLE_HEIGHT, hide_index=True,
         key=("db26_grid_"
              f"{SORT_KEYS[sort_label]}_{order}_{'detail' if detail else 'compact'}_"
              f"{'-'.join(sorted(pos))}_{name.strip().lower()}_{len(view)}"),
-        column_config=_column_config(active_sort_key, ascending))
+        column_config=_column_config(active_sort_key, ascending),
+    )
+    dataframe_phone_desktop(
+        display_view[cols].style.apply(style_fn, axis=None),
+        display_view[phone_cols].style.apply(style_fn, axis=None),
+        slug="draft-board",
+        **grid_kwargs,
+    )
 
     st.download_button(
         "Download board (CSV)",

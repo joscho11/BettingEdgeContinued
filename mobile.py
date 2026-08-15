@@ -263,7 +263,11 @@ details summary{
 [data-testid="stFormSubmitButton"] button{
   min-height:2.75rem !important;
 }
-[class*="st-key-jsa-scatter-desktop"]{
+[class*="st-key-jsa-scatter-desktop"],
+[class*="st-key-jsa-table-desktop"]{
+  display:none !important;
+}
+[class*="st-key-db26_detail"]{
   display:none !important;
 }
 [data-testid="stPlotlyChart"]{
@@ -415,6 +419,88 @@ details summary{
   }
 }
 
+/* 10d. Report Cards: 2x2 equal cells. Streamlit wraps each metric in
+   stElementContainer, so height:100% on stMetric never saw a stretched
+   parent and label/value/delta stacked to their own text. Grid the row,
+   stretch the wrappers, pin the three metric bands. */
+@media (max-width: 640px){
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    grid-auto-rows:1fr !important;
+    align-items:stretch !important;
+    gap:.45rem !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    flex:none !important;
+    display:flex !important;
+    padding:0 !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"],
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stElementContainer"],
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stFullScreenFrame"]{
+    width:100% !important;
+    height:100% !important;
+    min-height:0 !important;
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetric"]{
+    flex:1 1 auto !important;
+    height:100% !important;
+    min-height:10.75rem !important;
+    display:flex !important;
+    flex-direction:column !important;
+    box-sizing:border-box !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetric"] > div{
+    display:grid !important;
+    grid-template-rows:3.1rem minmax(1.7rem,auto) 1fr !important;
+    flex:1 1 auto !important;
+    height:100% !important;
+    min-height:0 !important;
+    width:100% !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetricLabel"]{
+    min-height:3.1rem !important;
+    align-content:start !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetricValue"]{
+    min-height:1.7rem !important;
+    display:flex !important;
+    align-items:flex-end !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
+    width:100% !important;
+    max-width:100% !important;
+    min-height:3rem !important;
+    margin-top:auto !important;
+    display:flex !important;
+    align-items:stretch !important;
+    align-self:end !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetricDelta"]{
+    display:flex !important;
+    align-items:center !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-height:3rem !important;
+    box-sizing:border-box !important;
+    border-radius:8px !important;
+    flex-shrink:1 !important;
+    white-space:normal !important;
+    overflow:hidden !important;
+  }
+  [class*="st-key-jsa-lh-report-cards"] [data-testid="stMetricDelta"] *{
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+  }
+}
+
 /* 10c. Hall of Fame matchup pill: the parent row is inline-flex and will not
    stretch the grey box unless it is a full-width block. */
 @media (max-width: 640px){
@@ -424,6 +510,36 @@ details summary{
     max-width:100% !important;
     overflow:hidden !important;
     flex-shrink:1 !important;
+  }
+}
+
+/* 10e. Filter toolbars: two-up instead of a four-deep stack. */
+@media (max-width: 640px){
+  [class*="st-key-jsa-filter-bar"] [data-testid="stHorizontalBlock"]{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    gap:.45rem !important;
+  }
+  [class*="st-key-jsa-filter-bar"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    padding:0 !important;
+  }
+  [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]),
+  [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has(.jsa-mcard){
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    grid-auto-rows:1fr !important;
+    gap:.45rem !important;
+  }
+  [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"],
+  [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has(.jsa-mcard) > [data-testid="stColumn"]{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    flex:none !important;
+    padding:0 !important;
   }
 }
 
@@ -460,7 +576,8 @@ details summary{
 /* Labeled scatters: hide the unlabeled phone copy on desktop. Paired with the
    max-width 640 hide of the named copy inside the phones block above. */
 @media (min-width: 641px){
-  [class*="st-key-jsa-scatter-phone"]{ display:none !important; }
+  [class*="st-key-jsa-scatter-phone"],
+  [class*="st-key-jsa-table-phone"]{ display:none !important; }
 }
 
 /* Narrow phones (<=400px) are handled entirely in render_header alongside the rest of

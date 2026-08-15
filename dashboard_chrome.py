@@ -29,6 +29,34 @@ _REPO = "https://github.com/joscho11/JoSchoAnalytics"   # repo ROOT only (Q3)
 TABLE_HEIGHT = 735
 
 
+def dataframe_phone_desktop(desktop_data, phone_data, *, slug: str, **kwargs) -> None:
+    """Show desktop_data above 640px and phone_data at phone width.
+
+    Same pattern as the labeled-scatter swap: both copies render, CSS shows one.
+    """
+    desktop_kwargs = dict(kwargs)
+    phone_kwargs = dict(kwargs)
+    if "key" in kwargs:
+        desktop_kwargs["key"] = f"{kwargs['key']}-desktop"
+        phone_kwargs["key"] = f"{kwargs['key']}-phone"
+    cfg = kwargs.get("column_config")
+    if cfg:
+        phone_cols = set(_dataframe_columns(phone_data))
+        phone_kwargs["column_config"] = {
+            name: spec for name, spec in cfg.items() if name in phone_cols
+        }
+    with st.container(key=f"jsa-table-desktop-{slug}"):
+        st.dataframe(desktop_data, **desktop_kwargs)
+    with st.container(key=f"jsa-table-phone-{slug}"):
+        st.dataframe(phone_data, **phone_kwargs)
+
+
+def _dataframe_columns(data):
+    if hasattr(data, "data") and hasattr(data.data, "columns"):
+        return list(data.data.columns)
+    return list(getattr(data, "columns", []))
+
+
 def _ga_creds():
     # a missing/unreadable secrets.toml degrades to analytics-off, never a crash
     try:
