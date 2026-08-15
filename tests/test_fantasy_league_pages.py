@@ -142,6 +142,11 @@ def test_rivalry_score_swatch_bands_and_card_html():
     css = (_HERE / "mobile.py").read_text(encoding="utf-8")
     assert ".jsa-lh-card" in css
     assert "[data-testid=\"stRadio\"]" in css
+    assert "[data-testid=\"stMetricValue\"]" in css
+    assert "[data-testid=\"stMetricValue\"] *" in css
+    assert "white-space:normal" in css.replace(" ", "")
+    assert "overflow-wrap:anywhere" in css.replace(" ", "")
+    assert "text-overflow:ellipsis" not in css
 
 
 def test_league_history_estimate_counts_linked_seasons(monkeypatch):

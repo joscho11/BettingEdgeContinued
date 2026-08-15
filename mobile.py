@@ -32,7 +32,8 @@ What it fixes, measured on a 390x844 phone viewport before the change:
      "SPREAD / PREDICTED / SCORE" as three orphan header rows followed by unlabeled
      full-width boxes. The card rows are pinned back to a real row via :has() scoping —
      only those rows, so every other stacked layout keeps stacking.
-  3. Metric tiles ran 4-deep down the page; they now sit 2-up.
+  3. Metric tiles ran 4-deep down the page; they now sit 2-up. Native metric
+     values wrap on phones so player and manager names are not ellipsized.
   4. Chart annotations, the analyst-note grid, tap targets, table height and type scale
      (see the individual sections below).
   5. League History: rivalry cards stacked, inner tabs stay swipeable, radios wrap,
@@ -146,11 +147,48 @@ details summary{
 
 /* ── 10. Metric tiles ─────────────────────────────────────────────────────
    min-height keeps a tile with a sub-line the same height as one without, so the
-   two-up grid reads as a grid instead of a ragged pair. */
+   two-up grid reads as a grid instead of a ragged pair.
+   Streamlit renders metric text with truncate:true (nowrap + ellipsis). Combined
+   with JetBrains Mono on a 2-up phone tile, "Joshua Palmer" becomes "josh…".
+   Kill truncate, drop mono, wrap the full name. Desktop metrics stay untouched. */
 .jsa-mcard{ padding:10px 12px !important; min-height:4.9rem; }
 .jsa-mcard .jsa-mcard-label{ font-size:9.5px !important; letter-spacing:.5px !important; }
 .jsa-mcard .jsa-mcard-value{ font-size:18px !important; }
 .jsa-mcard .jsa-mcard-sub{ font-size:11.5px !important; }
+[data-testid="stMetric"]{
+  min-width:0 !important;
+  height:auto !important;
+  overflow:visible !important;
+  padding:10px 10px !important;
+}
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] *,
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] *,
+[data-testid="stMetricDelta"],
+[data-testid="stMetricDelta"] *{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:unset !important;
+  word-break:break-word !important;
+  overflow-wrap:anywhere !important;
+  max-width:100% !important;
+}
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] *{
+  line-height:1.25 !important;
+}
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] *{
+  font-family:"Space Grotesk", system-ui, sans-serif !important;
+  font-size:1rem !important;
+  line-height:1.2 !important;
+}
+[data-testid="stMetricDelta"],
+[data-testid="stMetricDelta"] *{
+  font-size:.72rem !important;
+  line-height:1.35 !important;
+}
 
 /* ── 12. League History ───────────────────────────────────────────────────
    Custom HTML cards, long inner tabs, horizontal radios, and Plotly heatmaps
@@ -170,6 +208,15 @@ details summary{
 [data-testid="stRadio"] [role="radiogroup"]{
   flex-wrap:wrap !important;
   row-gap:.4rem !important;
+}
+[data-testid="stButtonGroup"]{
+  flex-wrap:wrap !important;
+  max-width:100% !important;
+  row-gap:.35rem !important;
+}
+[data-testid="stSelectbox"],
+[data-testid="stSelectbox"] > div{
+  max-width:100% !important;
 }
 [data-testid="stFormSubmitButton"] button{
   min-height:2.75rem !important;
@@ -236,6 +283,7 @@ details summary{
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]):not(:has([data-testid="stDataFrame"])) > [data-testid="stColumn"]{
     min-width:calc(50% - .225rem) !important;
     flex:1 1 calc(50% - .225rem) !important;
+    overflow:visible !important;
   }
 }
 

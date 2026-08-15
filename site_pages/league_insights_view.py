@@ -55,7 +55,12 @@ _VIEW_SWITCHER_CSS = """
   color:#f2f5f7 !important;
 }
 @media (max-width:640px){
+  [class*="st-key-lh_insight_segment"] [data-testid="stButtonGroup"]{
+    flex-wrap:wrap !important;
+    width:100% !important;
+  }
   [class*="st-key-lh_insight_segment"] button{
+    flex:1 1 auto !important;
     min-height:2.6rem !important;
     font-size:0.92rem !important;
     padding:0.5rem 0.4rem !important;
@@ -69,7 +74,7 @@ def _dark_layout(fig: go.Figure, *, height: int, title: str | None = None) -> go
     fig.update_layout(
         title=title,
         height=height,
-        margin=dict(l=35, r=20, t=55 if title else 25, b=45),
+        margin=dict(l=55, r=20, t=55 if title else 25, b=45),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(color="#f2f5f7"),
@@ -77,7 +82,11 @@ def _dark_layout(fig: go.Figure, *, height: int, title: str | None = None) -> go
         hoverlabel=dict(bgcolor="#17202b", font_color="#ffffff"),
     )
     fig.update_xaxes(gridcolor="rgba(255,255,255,.08)", zerolinecolor="rgba(255,255,255,.15)")
-    fig.update_yaxes(gridcolor="rgba(255,255,255,.08)", zerolinecolor="rgba(255,255,255,.15)")
+    fig.update_yaxes(
+        gridcolor="rgba(255,255,255,.08)",
+        zerolinecolor="rgba(255,255,255,.15)",
+        automargin=True,
+    )
     return fig
 
 
