@@ -17,15 +17,18 @@ from video_content import INTRO_VIDEO, VIDEOS
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _BREAKDOWN_DIR = os.path.join(_HERE, "video_breakdowns")
 
-_EMBED_HEIGHT = 800   # tall enough to show the full TikTok card (video + caption + sound)
+# 9:16 player. embed/v2 is the white TikTok post card; player/v1 is the dark video.
+_EMBED_HEIGHT = 720
 _SEL_KEY = "film_room_sel"
 _INTRO_KEY = "__intro__"
 _PICK_KEY_PREFIX = "fr_pick_"
+_SITE_BG = "#0B0F14"
 
 # Picker buttons read as a list, not a column of centered capsules.
-_PICKER_CSS = """
+# Iframe chrome is painted to the site background so leftover space is not white.
+_PICKER_CSS = f"""
 <style>
-[class*="st-key-jsa-filmroom-picker"] button {
+[class*="st-key-jsa-filmroom-picker"] button {{
   justify-content: flex-start !important;
   text-align: left !important;
   white-space: normal !important;
@@ -33,17 +36,31 @@ _PICKER_CSS = """
   min-height: 2.25rem;
   padding-top: 0.45rem !important;
   padding-bottom: 0.45rem !important;
-}
+}}
+[data-testid="stIFrame"] {{
+  background: {_SITE_BG} !important;
+  display: flex !important;
+  justify-content: center !important;
+}}
+[data-testid="stIFrame"] iframe {{
+  background: {_SITE_BG} !important;
+  border: 0 !important;
+  border-radius: 12px;
+  color-scheme: dark;
+  width: min(100%, 405px) !important;
+}}
 </style>
 """
 
 
+def _embed_src(video_id: str) -> str:
+    return f"https://www.tiktok.com/player/v1/{video_id}"
+
+
 def _tiktok_embed(video_id: str, url: str) -> None:
-    # TikTok's official iframe player endpoint: no oEmbed fetch, no embed.js
-    # hydration, works offline-gracefully (the iframe simply shows TikTok's
-    # own unavailable state). st.iframe replaces the removed components.html.
-    st.iframe(f"https://www.tiktok.com/embed/v2/{video_id}",
-              height=_EMBED_HEIGHT)
+    # Official player kit, not the oEmbed card. No oEmbed fetch, no embed.js.
+    # Offline, TikTok's own unavailable state shows inside the dark frame.
+    st.iframe(_embed_src(video_id), height=_EMBED_HEIGHT)
 
 
 def _fmt_published(iso: str) -> str:

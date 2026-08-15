@@ -21,6 +21,48 @@ _POSITION_COLORS = {
     "": "#8a93a0",
 }
 _SERIES_LINE_LIMIT = 3
+_INSIGHT_VIEWS = ("My Team", "Best Values", "Draft Room")
+_DEFAULT_INSIGHT_VIEW = "My Team"
+_VIEW_KEY = "lh_insight_segment"
+_LEGACY_VIEW_KEY = "lh_insight_view"
+_PAID_FAAB_COLOR = "#38BDF8"
+_PAID_FAAB_SCATTER_COLOR = "#C4A35A"
+_VIEW_SWITCHER_CSS = """
+<style>
+[class*="st-key-lh_insight_segment"]{
+  margin:0.15rem 0 0.9rem 0;
+}
+[class*="st-key-lh_insight_segment"] label p{
+  font-size:0.98rem !important;
+  font-weight:650 !important;
+  letter-spacing:0.02em;
+  color:#f2f5f7 !important;
+  margin-bottom:0.35rem !important;
+}
+[class*="st-key-lh_insight_segment"] [data-testid="stButtonGroup"]{
+  width:auto;
+}
+[class*="st-key-lh_insight_segment"] button{
+  flex:0 0 auto !important;
+  min-height:2.5rem !important;
+  font-size:0.98rem !important;
+  font-weight:650 !important;
+  padding:0.45rem 0.95rem !important;
+}
+[class*="st-key-lh_insight_segment"] [aria-checked="true"]{
+  background:rgba(53,208,138,0.22) !important;
+  border-color:#35D08A !important;
+  color:#f2f5f7 !important;
+}
+@media (max-width:640px){
+  [class*="st-key-lh_insight_segment"] button{
+    min-height:2.6rem !important;
+    font-size:0.92rem !important;
+    padding:0.5rem 0.4rem !important;
+  }
+}
+</style>
+"""
 
 
 def _dark_layout(fig: go.Figure, *, height: int, title: str | None = None) -> go.Figure:
@@ -401,23 +443,6 @@ def _render_draft_room(
                 "drafts. A single positive season is not a promise that the same player tier will fall again."
             )
 
-        timing = benchmarks.get("timing_study", {})
-        if timing:
-            st.subheader("General timing evidence")
-            q_col, t_col = st.columns(2)
-            q = timing.get("QB", {})
-            t = timing.get("TE", {})
-            q_col.info(
-                f"**QB: Round {q.get('supported_round_window', '—')}**  \n"
-                f"Evidence grade: {str(q.get('evidence_grade', 'unknown')).title()}. "
-                "This supports a late-QB default, not blindly passing a large tier discount."
-            )
-            t_col.info(
-                f"**TE: Rounds {t.get('supported_round_window', '—')}**  \n"
-                f"Evidence grade: {str(t.get('evidence_grade', 'unknown')).title()}. "
-                "This is the stronger default when the elite TE tier does not fall."
-            )
-
     _render_insight_bullets(
         li.draft_insights(picks, manager_seasons, selected_user_id),
         drafts, scope_label,
@@ -541,48 +566,84 @@ def _render_my_team(
         player_seasons.sort_values(["season", "lineup_points"], ascending=[True, False])
         .groupby("season", as_index=False).first()
     )
+    position_points = (
+        player_seasons.groupby("position", as_index=False)["lineup_points"].sum()
+        .sort_values("lineup_points", ascending=False)
+    )
+    position_points = position_points[position_points["lineup_points"].gt(0)]
+    show_donut = not position_points.empty
+    pair_height = 360 if show_donut else 390
+
     show_names = len(leaders) <= 8
     season_fig = go.Figure(go.Bar(
         x=leaders["season"], y=leaders["lineup_points"],
         marker_color=[_POSITION_COLORS.get(position, "#8a93a0") for position in leaders["position"]],
         text=leaders["player_name"] if show_names else None,
         textposition="outside" if show_names else None,
+        cliponaxis=False,
         customdata=leaders[["player_name", "position"]],
         hovertemplate="%{x}: %{customdata[0]} (%{customdata[1]})<br>%{y:.1f} lineup pts<extra></extra>",
     ))
-    _dark_layout(season_fig, height=390, title="The player who carried each season")
+    _dark_layout(season_fig, height=pair_height, title="The player who carried each season")
     season_fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
-    _chart(season_fig)
+    season_caption = None
     if len(leaders) > 1:
         high = leaders.loc[leaders["lineup_points"].idxmax()]
-        st.caption(
+        season_caption = (
             f"The strongest individual season was {high['player_name']} in {high['season']} "
             f"with {high['lineup_points']:.1f} lineup points. This identifies the season's engine, "
             "not merely the player who stayed rostered longest."
         )
 
-    position_points = (
-        player_seasons.groupby("position", as_index=False)["lineup_points"].sum()
-        .sort_values("lineup_points", ascending=False)
-    )
-    position_points = position_points[position_points["lineup_points"].gt(0)]
-    if not position_points.empty:
+    donut = None
+    donut_caption = None
+    if show_donut:
         donut = go.Figure(go.Pie(
             labels=position_points["position"], values=position_points["lineup_points"],
-            hole=.58,
-            marker_colors=[_POSITION_COLORS.get(position, "#8a93a0") for position in position_points["position"]],
+            hole=.5,
+            marker_colors=[
+                _POSITION_COLORS.get(position, "#8a93a0")
+                for position in position_points["position"]
+            ],
             textinfo="label+percent",
+            textposition="inside",
+            insidetextorientation="horizontal",
             hovertemplate="%{label}: %{value:.1f} lineup pts (%{percent})<extra></extra>",
         ))
-        _dark_layout(donut, height=390, title="Where the qualifying lineup points came from")
-        _chart(donut)
+        donut.update_layout(
+            title=dict(
+                text="Where lineup points came from",
+                font=dict(size=16, color="#f2f5f7"),
+            ),
+            height=pair_height,
+            margin=dict(l=8, r=8, t=48, b=8),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#f2f5f7", size=12),
+            showlegend=False,
+            hoverlabel=dict(bgcolor="#17202b", font_color="#ffffff"),
+        )
         lead_position = position_points.iloc[0]
         share = lead_position["lineup_points"] / position_points["lineup_points"].sum()
-        st.caption(
+        donut_caption = (
             f"{lead_position['position']} supplied the largest share at {share:.1%}. Because the four-week "
             "filter excludes short stays, use this as a roster-construction fingerprint rather than a complete "
             "accounting of every emergency start."
         )
+
+    if donut is not None:
+        left, right = st.columns(2)
+        with left:
+            _chart(season_fig)
+            if season_caption:
+                st.caption(season_caption)
+        with right:
+            _chart(donut)
+            st.caption(donut_caption)
+    else:
+        _chart(season_fig)
+        if season_caption:
+            st.caption(season_caption)
 
 
 def _roster_owner_map(scoped: dict) -> dict[tuple[str, str], str]:
@@ -713,6 +774,171 @@ def _render_trade_grades(trades: pd.DataFrame, manager_name: str) -> None:
         )
 
 
+def _paid_production_chart(producers: pd.DataFrame, manager_name: str, height: int) -> go.Figure:
+    paid_seasons = int(producers["season"].nunique())
+    paid_labels = _point_labels(producers, paid_seasons, "lineup_points")
+    fig = go.Figure(go.Scatter(
+        x=_strip_values(producers["faab"]), y=producers["lineup_points"],
+        mode="markers+text", text=paid_labels, textposition="top center",
+        marker=dict(
+            size=11,
+            opacity=0.7 if len(producers) > 24 else 0.88,
+            color=_PAID_FAAB_SCATTER_COLOR,
+        ),
+        customdata=list(zip(
+            producers["player_name"], producers["position"],
+            producers["season"], producers["faab"], producers["acq_week"],
+        )),
+        hovertemplate=(
+            "%{customdata[0]} · %{customdata[1]}<br>%{customdata[2]}"
+            "<br>FAAB: $%{customdata[3]:.0f}<br>Lineup points: %{y:.1f}<extra></extra>"
+        ),
+    ))
+    _dark_layout(
+        fig, height=height,
+        title=f"${li.FAAB_PAID_MIN}+ bids for {manager_name}",
+    )
+    fig.update_xaxes(title="FAAB spent", rangemode="tozero")
+    fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
+    return fig
+
+
+def _paid_bust_chart(busts: pd.DataFrame, height: int | None = None) -> tuple[go.Figure, pd.DataFrame]:
+    bust_top = busts.sort_values("faab", ascending=False).head(li.BUST_CHART_LIMIT)
+    bust_top = bust_top.sort_values("faab")
+    fig = go.Figure(go.Bar(
+        x=bust_top["faab"], y=bust_top["player_name"],
+        orientation="h",
+        marker_color=_PAID_FAAB_COLOR,
+        text=[f"${int(bid)}" for bid in bust_top["faab"]],
+        textposition="outside",
+        customdata=list(zip(
+            bust_top["season"], bust_top["position"],
+        )),
+        hovertemplate=(
+            "%{y} · %{customdata[1]}<br>%{customdata[0]}"
+            "<br>FAAB: $%{x:.0f}<br>Lineup points: 0<extra></extra>"
+        ),
+    ))
+    _dark_layout(
+        fig,
+        height=height if height is not None else max(280, 28 * len(bust_top) + 80),
+        title=f"Paid ${li.FAAB_PAID_MIN}+ with no lineup points",
+    )
+    fig.update_xaxes(title="FAAB spent")
+    fig.update_yaxes(title="")
+    return fig, bust_top
+
+
+def _cheap_waiver_chart(cheap: pd.DataFrame, manager_name: str, height: int | None = None) -> go.Figure:
+    cheap_top = cheap.sort_values("lineup_points", ascending=False).head(12)
+    cheap_top = cheap_top.sort_values("lineup_points")
+    fig = go.Figure(go.Bar(
+        x=cheap_top["lineup_points"], y=cheap_top["player_name"],
+        orientation="h",
+        marker_color=[
+            _POSITION_COLORS.get(position, "#8a93a0")
+            for position in cheap_top["position"]
+        ],
+        text=[f"${int(bid)}" for bid in cheap_top["faab"]],
+        textposition="outside",
+        customdata=list(zip(
+            cheap_top["season"], cheap_top["position"], cheap_top["faab"],
+        )),
+        hovertemplate=(
+            "%{y} · %{customdata[1]}<br>%{customdata[0]} · $%{customdata[2]:.0f}"
+            "<br>Lineup points: %{x:.1f}<extra></extra>"
+        ),
+    ))
+    _dark_layout(
+        fig,
+        height=height if height is not None else max(320, 28 * len(cheap_top) + 80),
+        title=(
+            f"Cheap claims ($0-${li.FAAB_PAID_MIN - 1}, "
+            f"4+ weeks) for {manager_name}"
+        ),
+    )
+    fig.update_xaxes(title="Starting-lineup points")
+    fig.update_yaxes(title="")
+    return fig
+
+
+def _render_faab_charts(
+    cheap: pd.DataFrame, paid: pd.DataFrame, manager_name: str,
+) -> None:
+    producers = pd.DataFrame()
+    busts = pd.DataFrame()
+    if not paid.empty:
+        producers, busts = li.split_paid_production_frames(paid)
+    show_cheap = not cheap.empty
+    show_paid = not producers.empty
+    show_busts = not busts.empty
+    if not (show_cheap or show_paid or show_busts):
+        st.caption("This window has FAAB, but this manager has no waiver claims to plot.")
+        return
+
+    cheap_caption = (
+        f"Most waiver bids in a FAAB league cluster at $0-$1, so claims under "
+        f"${li.FAAB_PAID_MIN} are ranked here instead of piled on the scatter. "
+        "Only players with four rostered weeks in that season appear. "
+        "One-week streamers are excluded. Free-agent adds and trades stay off the FAAB charts."
+    )
+    bust_caption = (
+        "These bids never scored in a starting lineup. They sit here instead of "
+        "stacking on the scatter at zero. Ranked by dollars spent."
+    )
+
+    if show_paid:
+        _chart(_paid_production_chart(producers, manager_name, 420))
+        scatter_note = (
+            f"Every completed bid of ${li.FAAB_PAID_MIN} or more that produced starting-lineup "
+            "points, including players you later dropped. No roster-week minimum. "
+            "Same-dollar bids are spread sideways."
+        )
+        if show_busts and show_cheap:
+            scatter_note += " Zero-point bids sit beside cheap claims."
+        elif show_busts:
+            scatter_note += " Zero-point bids are in the ranked bar below."
+        st.caption(scatter_note)
+
+    pair_height = None
+    if show_cheap and show_busts:
+        pair_height = max(
+            320,
+            28 * max(
+                min(12, len(cheap)),
+                min(li.BUST_CHART_LIMIT, len(busts)),
+            ) + 80,
+        )
+    cheap_fig = _cheap_waiver_chart(cheap, manager_name, pair_height) if show_cheap else None
+    bust_fig = bust_top = None
+    if show_busts:
+        bust_fig, bust_top = _paid_bust_chart(busts, pair_height)
+
+    if show_cheap and show_busts:
+        left, right = st.columns(2)
+        with left:
+            _chart(cheap_fig)
+            st.caption(cheap_caption)
+        with right:
+            _chart(bust_fig)
+            st.caption(bust_caption)
+            if len(busts) > len(bust_top):
+                st.caption(
+                    f"Showing the {len(bust_top)} most expensive of {len(busts)} zero-point bids."
+                )
+    elif show_cheap:
+        _chart(cheap_fig)
+        st.caption(cheap_caption)
+    elif show_busts:
+        _chart(bust_fig)
+        st.caption(bust_caption)
+        if len(busts) > len(bust_top):
+            st.caption(
+                f"Showing the {len(bust_top)} most expensive of {len(busts)} zero-point bids."
+            )
+
+
 def _render_values(
     scoped: dict, selected_user_id: str | None, manager_name: str,
     player_directory_loader, transaction_loader, scope_label: str,
@@ -785,122 +1011,35 @@ def _render_values(
 
     cheap, _ = li.split_faab_waiver_frames(values)
     if li.league_uses_faab(scoped["seasons"]):
-        if cheap.empty and paid.empty:
-            st.caption("This window has FAAB, but this manager has no waiver claims to plot.")
-        else:
-            if not paid.empty:
-                producers, busts = li.split_paid_production_frames(paid)
-                if not producers.empty:
-                    paid_seasons = int(producers["season"].nunique())
-                    paid_labels = _point_labels(producers, paid_seasons, "lineup_points")
-                    faab_fig = go.Figure(go.Scatter(
-                        x=_strip_values(producers["faab"]), y=producers["lineup_points"],
-                        mode="markers+text", text=paid_labels, textposition="top center",
-                        marker=dict(
-                            size=11,
-                            opacity=0.7 if len(producers) > 24 else 0.88,
-                            color="#C4A35A",
-                        ),
-                        customdata=list(zip(
-                            producers["player_name"], producers["position"],
-                            producers["season"], producers["faab"], producers["acq_week"],
-                        )),
-                        hovertemplate=(
-                            "%{customdata[0]} · %{customdata[1]}<br>%{customdata[2]}"
-                            "<br>FAAB: $%{customdata[3]:.0f}<br>Lineup points: %{y:.1f}<extra></extra>"
-                        ),
-                    ))
-                    _dark_layout(
-                        faab_fig, height=420,
-                        title=f"Waiver bids of ${li.FAAB_PAID_MIN}+ for {manager_name}",
-                    )
-                    faab_fig.update_xaxes(title="FAAB spent", rangemode="tozero")
-                    faab_fig.update_yaxes(title="Starting-lineup points", rangemode="tozero")
-                    _chart(faab_fig)
-                    scatter_note = (
-                        f"Every completed bid of ${li.FAAB_PAID_MIN} or more that produced starting-lineup "
-                        "points, including players you later dropped. No roster-week minimum. "
-                        "Same-dollar bids are spread sideways."
-                    )
-                    if not busts.empty:
-                        scatter_note += " Zero-point bids are in the bar below."
-                    st.caption(scatter_note)
-                if not busts.empty:
-                    bust_top = busts.sort_values("faab", ascending=False).head(li.BUST_CHART_LIMIT)
-                    bust_top = bust_top.sort_values("faab")
-                    bust_fig = go.Figure(go.Bar(
-                        x=bust_top["faab"], y=bust_top["player_name"],
-                        orientation="h",
-                        marker_color="#C4A35A",
-                        text=[f"${int(bid)}" for bid in bust_top["faab"]],
-                        textposition="outside",
-                        customdata=list(zip(
-                            bust_top["season"], bust_top["position"],
-                        )),
-                        hovertemplate=(
-                            "%{y} · %{customdata[1]}<br>%{customdata[0]}"
-                            "<br>FAAB: $%{x:.0f}<br>Lineup points: 0<extra></extra>"
-                        ),
-                    ))
-                    _dark_layout(
-                        bust_fig, height=max(280, 28 * len(bust_top) + 80),
-                        title=f"Paid ${li.FAAB_PAID_MIN}+ with no lineup points",
-                    )
-                    bust_fig.update_xaxes(title="FAAB spent")
-                    bust_fig.update_yaxes(title="")
-                    _chart(bust_fig)
-                    st.caption(
-                        "These bids never scored in a starting lineup. They sit here instead of "
-                        "stacking on the scatter at zero. Ranked by dollars spent."
-                    )
-                    if len(busts) > len(bust_top):
-                        st.caption(
-                            f"Showing the {len(bust_top)} most expensive of {len(busts)} zero-point bids."
-                        )
-            if not cheap.empty:
-                cheap_top = cheap.sort_values("lineup_points", ascending=False).head(12)
-                cheap_top = cheap_top.sort_values("lineup_points")
-                cheap_fig = go.Figure(go.Bar(
-                    x=cheap_top["lineup_points"], y=cheap_top["player_name"],
-                    orientation="h",
-                    marker_color=[
-                        _POSITION_COLORS.get(position, "#8a93a0")
-                        for position in cheap_top["position"]
-                    ],
-                    text=[f"${int(bid)}" for bid in cheap_top["faab"]],
-                    textposition="outside",
-                    customdata=list(zip(
-                        cheap_top["season"], cheap_top["position"], cheap_top["faab"],
-                    )),
-                    hovertemplate=(
-                        "%{y} · %{customdata[1]}<br>%{customdata[0]} · $%{customdata[2]:.0f}"
-                        "<br>Lineup points: %{x:.1f}<extra></extra>"
-                    ),
-                ))
-                _dark_layout(
-                    cheap_fig, height=max(320, 28 * len(cheap_top) + 80),
-                    title=(
-                        f"Cheap waiver claims ($0-${li.FAAB_PAID_MIN - 1}, "
-                        f"4+ rostered weeks) for {manager_name}"
-                    ),
-                )
-                cheap_fig.update_xaxes(title="Starting-lineup points")
-                cheap_fig.update_yaxes(title="")
-                _chart(cheap_fig)
-                st.caption(
-                    f"Most waiver bids in a FAAB league cluster at $0-$1, so claims under "
-                    f"${li.FAAB_PAID_MIN} are ranked here instead of piled on the scatter. "
-                    "Only players with four rostered weeks in that season appear. "
-                    "One-week streamers are excluded. Free-agent adds and trades stay off the FAAB charts."
-                )
+        _render_faab_charts(cheap, paid, manager_name)
     elif not acquisitions.empty:
         st.caption("This league does not use FAAB, so there is no bid to plot.")
 
     _render_trade_grades(trades, manager_name)
 
 
+def _render_view_switcher() -> str:
+    previous = st.session_state.pop(_LEGACY_VIEW_KEY, None)
+    if previous in _INSIGHT_VIEWS and _VIEW_KEY not in st.session_state:
+        st.session_state[_VIEW_KEY] = previous
+    st.markdown(_VIEW_SWITCHER_CSS, unsafe_allow_html=True)
+    view = st.segmented_control(
+        "View",
+        list(_INSIGHT_VIEWS),
+        default=_DEFAULT_INSIGHT_VIEW,
+        required=True,
+        key=_VIEW_KEY,
+        width="content",
+        help="My Team, Best Values, and Draft Room are the three insight pages.",
+    )
+    if view not in _INSIGHT_VIEWS:
+        return _DEFAULT_INSIGHT_VIEW
+    return view
+
+
 def render(history: dict, season_filter: str, player_directory_loader, transaction_loader=None) -> None:
     st.subheader("Draft & Roster Insights")
+    view = _render_view_switcher()
     st.caption(
         "League-specific tendencies and manager history from Sleeper's completed drafts and weekly roster snapshots. "
         "Three drafts can reveal repeated habits, but every recommendation below keeps its sample visible."
@@ -908,11 +1047,6 @@ def render(history: dict, season_filter: str, player_directory_loader, transacti
     scoped, scope_label = _scope_history(history, season_filter)
     selected_user_id, manager_name = _manager_control(scoped)
     st.caption(f"Analysis window: {scope_label}")
-
-    view = st.radio(
-        "Insight view", ["Draft Room", "My Team", "Best Values"],
-        horizontal=True, key="lh_insight_view", label_visibility="collapsed",
-    )
     if view == "Draft Room":
         _render_draft_room(scoped, selected_user_id, manager_name, scope_label)
     elif view == "My Team":

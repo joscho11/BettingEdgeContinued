@@ -305,6 +305,9 @@ def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
 def test_league_history_defaults_to_draft_and_roster_insights():
     assert page_league_history._LEAGUE_HISTORY_TABS[0] == "🧠 Draft & Roster Insights"
     assert page_league_history._LEAGUE_HISTORY_TABS[1] == "🏆 All-Time Leaderboard"
+    assert page_league_history._LEAGUE_HISTORY_TABS[-1] == "📊 Consistency & Luck"
+    assert "📈 Score Trends" not in page_league_history._LEAGUE_HISTORY_TABS
+    assert len(page_league_history._LEAGUE_HISTORY_TABS) == 6
 
 
 def test_insights_render_accepts_transaction_loader():
@@ -368,6 +371,108 @@ def test_manager_leaderboard_adjusts_scores_within_each_league_week():
     assert leaders.loc["Alice", "avg_above_league"] == -5.0
     assert leaders.loc["Bob", "avg_above_league"] == 5.0
     assert leaders.loc["Alice", "games"] == 2
+    assert leaders.loc["Alice", "total_points"] == 190.0
+    assert leaders.loc["Bob", "total_points"] == 210.0
+    assert leaders.loc["Alice", "active_playoff_streak"] == 2
+    assert leaders.loc["Bob", "active_playoff_streak"] == 2
+
+
+def test_tied_leaders_share_a_headline_without_win_pct_tiebreak():
+    frame = pd.DataFrame([
+        {"manager": "Bob", "titles": 2, "win_pct": 40.0,
+         "avg_above_league": 1.0, "seasons": 4},
+        {"manager": "Alice", "titles": 2, "win_pct": 70.0,
+         "avg_above_league": 1.0, "seasons": 4},
+        {"manager": "Carol", "titles": 1, "win_pct": 70.0,
+         "avg_above_league": 3.0, "seasons": 2},
+    ])
+    names, value = league_intel.tied_leaders(frame, "titles", min_value=1)
+    assert names == ["Alice", "Bob"]
+    assert value == 2.0
+    names, value = league_intel.tied_leaders(frame, "win_pct")
+    assert names == ["Alice", "Carol"]
+    names, value = league_intel.tied_leaders(frame, "avg_above_league")
+    assert names == ["Carol"]
+    assert value == 3.0
+    names, value = league_intel.tied_leaders(frame, "seasons")
+    assert names == ["Alice", "Bob"]
+    assert league_intel.tied_leaders(frame, "titles", min_value=3) == ([], None)
+    empty = pd.DataFrame(columns=["manager", "titles"])
+    assert league_intel.tied_leaders(empty, "titles") == ([], None)
+    assert league_intel.format_tied_names(["Alice"]) == "Alice"
+    assert league_intel.format_tied_names(["Alice", "Bob"]) == "Alice & Bob"
+    assert league_intel.format_tied_names(["Alice", "Bob", "Carol"]) == "Alice, Bob +1"
+    assert league_intel.scorecard_headline(["Alice", "Bob"], flip_at=3) == "Alice & Bob"
+    assert league_intel.scorecard_headline(
+        ["Alice", "Bob", "Carol"], flip_at=3,
+    ) == "3-way tie"
+    assert league_intel.format_name_list(
+        ["Alice", "Bob", "Carol"]
+    ) == "Alice, Bob, and Carol"
+
+
+def test_active_playoff_streak_starts_at_latest_decided_season():
+    seasons = {
+        "2023": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0, "playoff_finish": 3},
+                {"username": "Bob", "wins": 1, "losses": 0, "playoff_finish": 4},
+                {"username": "Carol", "wins": 0, "losses": 1, "playoff_finish": None},
+            ],
+        },
+        "2024": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0, "playoff_finish": 1},
+                {"username": "Bob", "wins": 1, "losses": 0, "playoff_finish": 2},
+                {"username": "Carol", "wins": 1, "losses": 0, "playoff_finish": 3},
+            ],
+        },
+        "2025": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0, "playoff_finish": 2},
+                {"username": "Bob", "wins": 0, "losses": 1, "playoff_finish": None},
+                {"username": "Carol", "wins": 1, "losses": 0, "playoff_finish": 4},
+            ],
+        },
+        "2026": {
+            "standings": [
+                {"username": "Alice", "wins": 0, "losses": 0, "playoff_finish": None},
+                {"username": "Bob", "wins": 0, "losses": 0, "playoff_finish": None},
+                {"username": "Carol", "wins": 0, "losses": 0, "playoff_finish": None},
+            ],
+        },
+    }
+    streaks = league_intel.active_playoff_streaks(seasons)
+    assert streaks["Alice"] == 3
+    assert streaks["Bob"] == 0
+    assert streaks["Carol"] == 2
+    names, value = league_intel.tied_leaders(
+        league_intel.manager_leaderboard_frame(seasons, []),
+        "active_playoff_streak",
+        min_value=1,
+    )
+    assert names == ["Alice"]
+    assert value == 3.0
+
+
+def test_active_playoff_streak_three_way_tie_uses_title_rule():
+    seasons = {
+        "2025": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0, "playoff_finish": 1},
+                {"username": "Bob", "wins": 1, "losses": 0, "playoff_finish": 2},
+                {"username": "Carol", "wins": 1, "losses": 0, "playoff_finish": 3},
+            ],
+        },
+    }
+    names, value = league_intel.tied_leaders(
+        league_intel.manager_leaderboard_frame(seasons, []),
+        "active_playoff_streak",
+        min_value=1,
+    )
+    assert names == ["Alice", "Bob", "Carol"]
+    assert value == 1.0
+    assert league_intel.scorecard_headline(names, flip_at=3) == "3-way tie"
 
 
 def test_matchup_record_book_uses_weekly_all_play_for_luck():
@@ -394,6 +499,83 @@ def test_matchup_record_book_uses_weekly_all_play_for_luck():
     assert alice["all_play_opponents"] == 3
     assert alice["all_play_win_pct"] == 33.3
     assert carol["all_play_win_pct"] == 100.0
+
+
+def test_scorecard_highlights_cover_every_hall_of_fame_card():
+    games = []
+    for username, opp, score, opp_score, week in (
+        ("Alice", "Bob", 160.0, 40.0, 1),
+        ("Bob", "Alice", 40.0, 160.0, 1),
+        ("Carol", "Dan", 100.5, 100.4, 2),
+        ("Dan", "Carol", 100.4, 100.5, 2),
+    ):
+        games.append({
+            "season": "2025", "week": week, "username": username,
+            "score": score, "opp": opp, "opp_score": opp_score,
+            "won": score > opp_score, "is_playoff": False,
+        })
+    matchups = league_intel.matchup_record_frame(games)
+    blowout = matchups.loc[matchups["margin"].idxmax()].to_dict()
+    closest = matchups.loc[matchups["margin"].idxmin()].to_dict()
+    highest_game = matchups.loc[matchups["combined"].idxmax()].to_dict()
+    lowest_game = matchups.loc[matchups["combined"].idxmin()].to_dict()
+    luckiest = matchups.sort_values(
+        ["all_play_win_pct", "winner_score"], ascending=[True, True]
+    ).iloc[0].to_dict()
+    labels = league_intel.scorecard_highlight_labels(matchups, [
+        ({"season": "2025", "week": 1, "username": "Alice", "opp": "Bob"}, "Highest Score"),
+        ({"season": "2025", "week": 1, "username": "Bob", "opp": "Alice"}, "Most Painful Loss"),
+        (blowout, "Biggest Blowout"),
+        (closest, "Closest Game"),
+        ({"season": "2025", "week": 1, "username": "Bob", "opp": "Alice"}, "Lowest Score"),
+        (luckiest, "Luckiest Win"),
+        (highest_game, "Highest-Scoring Game"),
+        (lowest_game, "Lowest-Scoring Game"),
+    ])
+    named = [name for names in labels.values() for name in names]
+    assert set(named) == {
+        "Highest Score", "Most Painful Loss", "Biggest Blowout", "Closest Game",
+        "Lowest Score", "Luckiest Win", "Highest-Scoring Game", "Lowest-Scoring Game",
+    }
+    assert len(named) == 8
+    assert len(labels) == 2
+    week_one = league_intel.matchup_index_for_record(
+        matchups, {"season": "2025", "week": 1, "username": "Alice", "opp": "Bob"},
+    )
+    week_two = league_intel.matchup_index_for_record(
+        matchups, {"season": "2025", "week": 2, "username": "Carol", "opp": "Dan"},
+    )
+    assert "Highest Score" in labels[week_one]
+    assert "Closest Game" in labels[week_two]
+
+
+def test_hall_of_fame_delta_is_matchup_week_and_both_scores():
+    assert league_intel.hall_of_fame_delta({
+        "season": "2023", "week": 13, "winner": "HHayes9", "loser": "theted123",
+        "winner_score": 155, "loser_score": 50, "is_tie": False,
+    }) == "HHayes9 def. theted123 · 2023 Wk 13 (155 - 50)"
+    assert league_intel.hall_of_fame_delta({
+        "season": "2023", "week": 13, "username": "menglish8",
+        "score": 147.1, "opp": "HHayes9", "opp_score": 155.0, "won": False,
+    }) == "HHayes9 def. menglish8 · 2023 Wk 13 (155 - 147.1)"
+    assert league_intel.hall_of_fame_delta({
+        "season": "2024", "week": 1, "team_a": "Alice", "team_b": "Bob",
+        "winner": "Tie", "loser": "Tie", "winner_score": 100.0,
+        "loser_score": 100.0, "is_tie": True,
+    }) == "Alice tied Bob · 2024 Wk 1 (100 - 100)"
+    assert league_intel.hall_of_fame_delta(None) is None
+
+
+def test_hall_of_fame_era_caption_uses_that_season_average():
+    played = [
+        {"season": "2023", "score": 155.0},
+        {"season": "2023", "score": 50.0},
+        {"season": "2024", "score": 200.0},
+    ]
+    assert league_intel.hall_of_fame_era_caption(
+        {"season": "2023", "score": 155.0}, played,
+    ) == "The 155 high in 2023 came in a year whose league average was 102.5."
+    assert league_intel.hall_of_fame_era_caption(None, played) is None
 
 
 def test_rivalry_summary_tracks_series_scoring_playoffs_and_streaks():
@@ -655,6 +837,8 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         "'settings': {'waiver_bid': 1}, 'adds': {'p3': 1}}, "
         "{'type': 'waiver', 'status': 'complete', 'leg': 4, "
         "'settings': {'waiver_bid': 18}, 'adds': {'p1': 1}}, "
+        "{'type': 'waiver', 'status': 'complete', 'leg': 3, "
+        "'settings': {'waiver_bid': 22}, 'adds': {'p99': 1}}, "
         "{'type': 'trade', 'status': 'complete', 'leg': 2, "
         "'transaction_id': 't1', 'roster_ids': [1, 2], "
         "'adds': {'p4': 1, 'p5': 2}, 'drops': {'p4': 2, 'p5': 1}}"
@@ -678,11 +862,13 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         "Last season", "Last 3 seasons", "All available seasons",
     ]
     assert insight_window.value == "Last 3 seasons"
-    insight_view = next(widget for widget in at.radio if widget.key == "lh_insight_view")
-    insight_view.set_value("My Team")
-    at.run()
-    assert not at.exception, at.exception
-    insight_view = next(widget for widget in at.radio if widget.key == "lh_insight_view")
+    insight_view = next(
+        widget for widget in at.segmented_control if widget.key == "lh_insight_segment"
+    )
+    assert list(insight_view.options) == ["My Team", "Best Values", "Draft Room"]
+    assert insight_view.value == "My Team"
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "st-key-lh_insight_segment" in md
     insight_view.set_value("Best Values")
     at.run()
     assert not at.exception, at.exception
@@ -690,21 +876,82 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert any("cluster at $0" in str(caption.value) for caption in at.caption)
     assert any("four rostered weeks" in str(caption.value) for caption in at.caption)
     assert any("No roster-week minimum" in str(caption.value) for caption in at.caption)
+    assert any("sit beside cheap claims" in str(caption.value) for caption in at.caption)
+    assert any("never scored in a starting lineup" in str(caption.value) for caption in at.caption)
     assert any("week after the trade" in str(caption.value) for caption in at.caption)
     assert not any(
         "Production acquired after the draft" in str(caption.value)
         for caption in at.caption
     )
-    insight_view = next(widget for widget in at.radio if widget.key == "lh_insight_view")
+    insight_view = next(
+        widget for widget in at.segmented_control if widget.key == "lh_insight_segment"
+    )
     insight_view.set_value("Draft Room")
     at.run()
     assert not at.exception, at.exception
     assert any(tab.label == "⚔️ Rivalries" for tab in at.tabs)
     assert len(at.get("plotly_chart")) >= 4
-    assert any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
+    _lb_labels = [metric.label for metric in at.metric]
+    _card_order = [
+        "Most Titles",
+        "Most Finals Appearances",
+        "Longest Active Playoff Streak",
+        "Best Win %",
+        "Most Points",
+    ]
+    _card_idx = [_lb_labels.index(label) for label in _card_order]
+    assert _card_idx == list(range(_card_idx[0], _card_idx[0] + 5))
+    assert not any(metric.label == "Most Finals" for metric in at.metric)
+    assert not any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
+    assert not any(metric.label == "Most Seasons" for metric in at.metric)
+    assert not any(
+        "does not break a title tie" in str(caption.value) for caption in at.caption
+    )
     assert any(metric.label == "🍀 Luckiest Win (All-Play)" for metric in at.metric)
+    for _hof_label, _hof_help in page_league_history._HOF_METRIC_HELP.items():
+        _hof_metric = next(metric for metric in at.metric if metric.label == _hof_label)
+        assert _hof_metric.help == _hof_help
+    _hof_order = list(page_league_history._HOF_METRIC_HELP)
+    _metric_labels = [metric.label for metric in at.metric]
+    _hof_start = _metric_labels.index(_hof_order[0])
+    assert _metric_labels[_hof_start:_hof_start + 8] == _hof_order
+    assert not any("More Records" in str(item.value) for item in at.markdown)
+    assert not any("Scoring Range" in str(item.value) for item in at.markdown)
+    assert not any("widest scoring spread" in str(item.value) for item in at.markdown)
+    assert any(
+        "came in a year whose league average was" in str(caption.value)
+        for caption in at.caption
+    )
+    painful = next(metric for metric in at.metric if metric.label == "😤 Most Painful Loss")
+    assert painful.delta == "Alice def. Bob · 2025 Wk 1 (120 - 80)"
+    assert not any("lost by" in str(metric.delta) for metric in at.metric)
     assert any(metric.label == "Scoring vs League" for metric in at.metric)
+    assert any(
+        "All-time is scoring versus the league, season by season" in str(caption.value)
+        for caption in at.caption
+    )
+    assert any(
+        "Flip to one season and it goes weekly" in str(caption.value)
+        for caption in at.caption
+    )
     assert any(metric.label == "Most Consistent" for metric in at.metric)
+    for _cl_label, _cl_help in page_league_history._CONSISTENCY_LUCK_METRIC_HELP.items():
+        _cl_metric = next(metric for metric in at.metric if metric.label == _cl_label)
+        assert _cl_metric.help == _cl_help
+    _cl_order = list(page_league_history._CONSISTENCY_LUCK_METRIC_HELP)
+    _metric_labels = [metric.label for metric in at.metric]
+    _cl_start = _metric_labels.index(_cl_order[0])
+    assert _metric_labels[_cl_start:_cl_start + 4] == _cl_order
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "upper-right area is the ideal" in md
+    assert "lower-right area is the ideal" not in md
+    consistency_card = next(
+        metric for metric in at.metric if metric.label == "Consistency"
+    )
+    assert "SD" not in str(consistency_card.value)
+    assert str(consistency_card.value).startswith("±")
+    assert "pts" in str(consistency_card.value)
+    assert "own average" in str(consistency_card.help)
     assert any(expander.label == "View complete manager records" for expander in at.expander)
     rivalry_view = next(widget for widget in at.radio if widget.key == "lh_rivalry_view")
     assert rivalry_view.value == "Build a Week"
@@ -714,10 +961,27 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     assert not {"lh_h2h_manager_a", "lh_h2h_manager_b"} & {
         widget.key for widget in at.selectbox
     }
-    assert any(
+    assert not any(
         button.label == "Generate another slate" for button in at.button
     )
+    assert not any(
+        "Lock matchups" in str(getattr(widget, "label", ""))
+        for widget in at.multiselect
+    )
     md = " ".join(str(m.value) for m in at.markdown)
+    assert "jsa-lh-mode" not in md
+    assert any(
+        "Classic Rivalries: longest series" in str(caption.value)
+        for caption in at.caption
+    )
+    assert any(
+        "historical fit, not a prediction" in str(caption.value)
+        for caption in at.caption
+    )
+    assert any(
+        "Classic Rivalries mostly rewards long series" in str(caption.value)
+        for caption in at.caption
+    )
     assert "RIVALRY SCORE" in md
     assert "70+ fit" in md
     assert not any(
@@ -763,15 +1027,21 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         expander.label == "View complete opponent breakdown"
         for expander in at.expander
     )
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Meeting count on the bar is the sample size" in md
+    assert "true opponent-specific scoring edge" not in md
+    assert "most favorable scoring matchup" not in md
     assert any(
         expander.label == "View complete consistency and luck metrics"
         for expander in at.expander
     )
-    assert any(metric.label == "League Average" for metric in at.metric)
-    assert any(
+    assert not any(tab.label == "📈 Score Trends" for tab in at.tabs)
+    assert not any(
         expander.label == "View complete score trend data"
         for expander in at.expander
     )
+    assert not any(metric.label == "League Average" for metric in at.metric)
+    assert not any(metric.label == "Biggest Riser" for metric in at.metric)
 
     season_filter = next(
         widget for widget in at.selectbox if widget.key == "lh_season_filter"
@@ -780,7 +1050,7 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     at.run()
     assert not at.exception, at.exception
     assert any(metric.label == "Scoring vs League" for metric in at.metric)
-    assert any(metric.label == "League Average" for metric in at.metric)
+    assert not any(metric.label == "League Average" for metric in at.metric)
 
 
 def test_player_history_uses_four_week_filter_and_excludes_null_matchup_points():

@@ -7,7 +7,7 @@ for draft-room and manager-level roster analysis.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from itertools import combinations
 
@@ -28,6 +28,23 @@ RIVALRY_WEEK_MODES = (
     "Maximum Drama",
     "Fresh Blood",
 )
+RIVALRY_SCORE_EXPLAIN = {
+    "Classic Rivalries": (
+        "Each 0-100 rivalry score is historical fit, not a prediction: Classic "
+        "Rivalries mostly rewards long series, even records, and playoff meetings, "
+        "and this slate is the pairing that maximizes that total for the whole league."
+    ),
+    "Maximum Drama": (
+        "Each 0-100 rivalry score is historical fit, not a prediction: Maximum "
+        "Drama mostly rewards close games, even series, playoff meetings, and lead "
+        "changes, and this slate is the pairing that maximizes that total for the whole league."
+    ),
+    "Fresh Blood": (
+        "Each 0-100 rivalry score is historical fit, not a prediction: Fresh Blood "
+        "mostly rewards pairs who rarely meet and have similar career win rates, "
+        "and this slate is the pairing that maximizes that total for the whole league."
+    ),
+}
 
 
 def _player_name(metadata: Mapping | None, player_id: str) -> str:
@@ -77,6 +94,70 @@ def manager_display_labels(identities: Mapping[str, str]) -> dict[str, str]:
     }
 
 
+def _clean_manager_name(name) -> str:
+    value = str(name or "").strip()
+    return "" if value in {"?", "—"} else value
+
+
+def _playoff_finish_rank(finish) -> int | None:
+    if finish is None or finish == "":
+        return None
+    try:
+        return int(finish)
+    except (TypeError, ValueError):
+        return None
+
+
+def _season_sort_key(season) -> tuple:
+    text = str(season)
+    try:
+        return (0, int(text))
+    except (TypeError, ValueError):
+        return (1, text)
+
+
+def active_playoff_streaks(seasons: Mapping) -> dict[str, int]:
+    """Consecutive playoff seasons ending at the latest decided postseason.
+
+    A season counts as decided when at least one manager reached the playoffs.
+    An in-progress year with no bracket yet is ignored, so it does not reset a
+    live streak. Missing a later decided season, or missing that year's
+    playoffs, resets the count to 0.
+    """
+    if not seasons:
+        return {}
+    ordered = sorted(seasons, key=_season_sort_key)
+    makers: dict[str, set[str]] = {}
+    managers: set[str] = set()
+    for season in ordered:
+        data = seasons.get(season) or {}
+        made: set[str] = set()
+        for standing in data.get("standings") or []:
+            manager = _clean_manager_name(standing.get("username"))
+            if not manager:
+                continue
+            managers.add(manager)
+            if _playoff_finish_rank(standing.get("playoff_finish")) is not None:
+                made.add(manager)
+        for role in ("champion", "runner_up"):
+            manager = _clean_manager_name((data.get(role) or {}).get("username"))
+            if manager:
+                managers.add(manager)
+                made.add(manager)
+        makers[str(season)] = made
+    decided = [season for season in ordered if makers[str(season)]]
+    streaks = {name: 0 for name in managers}
+    for name in managers:
+        count = 0
+        for season in reversed(decided):
+            if name in makers[str(season)]:
+                count += 1
+            else:
+                break
+        streaks[name] = count
+    return streaks
+
+
 def manager_leaderboard_frame(
     seasons: Mapping,
     game_records: list[Mapping],
@@ -89,13 +170,14 @@ def manager_leaderboard_frame(
     """
     columns = [
         "manager", "titles", "finals", "seasons", "wins", "losses",
-        "win_pct", "best_finish", "avg_score", "avg_above_league", "games",
+        "win_pct", "best_finish", "avg_score", "avg_above_league",
+        "total_points", "games", "active_playoff_streak",
     ]
     stats: dict[str, dict] = {}
+    streaks = active_playoff_streaks(seasons)
 
     def _manager(name) -> str:
-        value = str(name or "").strip()
-        return "" if value in {"?", "—"} else value
+        return _clean_manager_name(name)
 
     for season_data in seasons.values():
         for standing in season_data.get("standings", []) or []:
@@ -104,11 +186,15 @@ def manager_leaderboard_frame(
                 continue
             row = stats.setdefault(manager, {
                 "titles": 0, "runner_ups": 0, "seasons": 0,
-                "wins": 0, "losses": 0, "best_finish": None,
+                "wins": 0, "losses": 0, "best_finish": None, "fpts": 0.0,
             })
             row["seasons"] += 1
             row["wins"] += int(standing.get("wins") or 0)
             row["losses"] += int(standing.get("losses") or 0)
+            try:
+                row["fpts"] += float(standing.get("fpts") or 0)
+            except (TypeError, ValueError):
+                pass
             finish = standing.get("playoff_finish")
             try:
                 finish = int(finish) if finish is not None else None
@@ -123,12 +209,12 @@ def manager_leaderboard_frame(
         if champion:
             stats.setdefault(champion, {
                 "titles": 0, "runner_ups": 0, "seasons": 0,
-                "wins": 0, "losses": 0, "best_finish": None,
+                "wins": 0, "losses": 0, "best_finish": None, "fpts": 0.0,
             })["titles"] += 1
         if runner_up:
             stats.setdefault(runner_up, {
                 "titles": 0, "runner_ups": 0, "seasons": 0,
-                "wins": 0, "losses": 0, "best_finish": None,
+                "wins": 0, "losses": 0, "best_finish": None, "fpts": 0.0,
             })["runner_ups"] += 1
 
     weekly_scores: dict[tuple[str, int], list[float]] = {}
@@ -181,9 +267,74 @@ def manager_leaderboard_frame(
             "avg_above_league": (
                 round(sum(adjusted) / len(adjusted), 2) if adjusted else None
             ),
+            "total_points": (
+                round(sum(scores), 1) if scores else (
+                    round(float(values.get("fpts") or 0), 1)
+                    if float(values.get("fpts") or 0)
+                    else None
+                )
+            ),
             "games": len(scores),
+            "active_playoff_streak": int(streaks.get(manager, 0)),
         })
     return pd.DataFrame(rows, columns=columns)
+
+
+def tied_leaders(
+    frame: pd.DataFrame,
+    column: str,
+    *,
+    name_col: str = "manager",
+    min_value: float | None = None,
+) -> tuple[list[str], float | None]:
+    """Return every manager tied at the top of ``column``, sorted by name.
+
+    A secondary stat must not break the tie. Title count 2 and 2 is a shared
+    headline even if one manager has a better win rate.
+    """
+    if frame is None or frame.empty or column not in frame.columns:
+        return [], None
+    if name_col not in frame.columns:
+        return [], None
+    values = pd.to_numeric(frame[column], errors="coerce")
+    work = frame.loc[values.notna()].copy()
+    work["_rank"] = values.loc[work.index]
+    if min_value is not None:
+        work = work.loc[work["_rank"].ge(min_value)]
+    if work.empty:
+        return [], None
+    top = work["_rank"].max()
+    names = sorted({str(name) for name in work.loc[work["_rank"].eq(top), name_col]})
+    return names, float(top)
+
+
+def format_tied_names(names: Sequence[str], *, shown: int = 2) -> str:
+    """Compact a tied-leader list for a scorecard."""
+    labels = [str(name).strip() for name in names if str(name).strip()]
+    if not labels:
+        return ""
+    if len(labels) == 1:
+        return labels[0]
+    if len(labels) == 2:
+        return f"{labels[0]} & {labels[1]}"
+    extra = len(labels) - shown
+    return f"{', '.join(labels[:shown])} +{extra}"
+
+
+def format_name_list(names: Sequence[str]) -> str:
+    """Full tied-leader list for a caption."""
+    labels = [str(name).strip() for name in names if str(name).strip()]
+    if len(labels) <= 2:
+        return format_tied_names(labels)
+    return f"{', '.join(labels[:-1])}, and {labels[-1]}"
+
+
+def scorecard_headline(names: Sequence[str], *, flip_at: int | None = None) -> str:
+    """Name-first until ``flip_at`` managers, then an N-way tie label."""
+    labels = [str(name).strip() for name in names if str(name).strip()]
+    if flip_at and len(labels) >= flip_at:
+        return f"{len(labels)}-way tie"
+    return format_tied_names(labels)
 
 
 def matchup_record_frame(
@@ -293,6 +444,155 @@ def matchup_record_frame(
         })
     return pd.DataFrame(rows, columns=columns).sort_values(
         ["season", "week", "winner"], ignore_index=True
+    )
+
+
+def matchup_index_for_record(
+    matchups: pd.DataFrame,
+    record: Mapping | None,
+) -> int | None:
+    """Return the matchup row that owns a Hall of Fame scorecard game."""
+    if matchups is None or matchups.empty or not record:
+        return None
+    try:
+        season = str(record.get("season"))
+        week = int(record.get("week") or 0)
+    except (TypeError, ValueError):
+        return None
+    names = []
+    for key in ("username", "opp", "winner", "loser", "team_a", "team_b"):
+        value = str(record.get(key) or "").strip()
+        if value and value not in {"?", "—", "Tie"}:
+            names.append(value)
+    if not names:
+        return None
+    hit = matchups.index[
+        matchups["season"].astype(str).eq(season)
+        & pd.to_numeric(matchups["week"], errors="coerce").eq(week)
+        & (matchups["team_a"].isin(names) | matchups["team_b"].isin(names))
+    ]
+    if len(hit) == 0:
+        return None
+    return int(hit[0])
+
+
+def scorecard_highlight_labels(
+    matchups: pd.DataFrame,
+    records: Sequence[tuple[Mapping | None, str]],
+) -> dict[int, list[str]]:
+    """Map matchup indices to scorecard labels, joining when one game holds several."""
+    labels: dict[int, list[str]] = {}
+    for record, label in records:
+        index = matchup_index_for_record(matchups, record)
+        if index is None:
+            continue
+        bucket = labels.setdefault(index, [])
+        if label not in bucket:
+            bucket.append(label)
+    return labels
+
+
+def _format_matchup_points(value) -> str:
+    number = float(value)
+    if abs(number - round(number)) < 1e-9:
+        return str(int(round(number)))
+    return f"{number:.2f}".rstrip("0").rstrip(".")
+
+
+def hall_of_fame_delta(record: Mapping | None) -> str | None:
+    """Scorecard subtext: winner def. loser · season Wk week (winner - loser)."""
+    if not record:
+        return None
+    try:
+        season = record.get("season")
+        week = int(record.get("week") or 0)
+    except (TypeError, ValueError):
+        return None
+    if season is None:
+        return None
+
+    is_tie = bool(record.get("is_tie"))
+    winner = str(record.get("winner") or "").strip()
+    if winner == "Tie":
+        is_tie = True
+
+    if is_tie:
+        left = str(record.get("team_a") or record.get("username") or "").strip()
+        right = str(record.get("team_b") or record.get("opp") or "").strip()
+        left_score = record.get("winner_score", record.get("score"))
+        right_score = record.get("loser_score", record.get("opp_score"))
+        if not left or not right or left_score is None or right_score is None:
+            return None
+        return (
+            f"{left} tied {right} · {season} Wk {week} "
+            f"({_format_matchup_points(left_score)} - {_format_matchup_points(right_score)})"
+        )
+
+    if winner and str(record.get("loser") or "").strip():
+        loser = str(record.get("loser")).strip()
+        winner_score = record.get("winner_score")
+        loser_score = record.get("loser_score")
+    else:
+        manager = str(record.get("username") or "").strip()
+        opponent = str(record.get("opp") or "").strip()
+        try:
+            score = float(record.get("score"))
+            opponent_score = float(record.get("opp_score"))
+        except (TypeError, ValueError):
+            return None
+        if not manager or not opponent:
+            return None
+        if score > opponent_score:
+            winner, loser = manager, opponent
+            winner_score, loser_score = score, opponent_score
+        elif opponent_score > score:
+            winner, loser = opponent, manager
+            winner_score, loser_score = opponent_score, score
+        else:
+            return (
+                f"{manager} tied {opponent} · {season} Wk {week} "
+                f"({_format_matchup_points(score)} - {_format_matchup_points(opponent_score)})"
+            )
+
+    if winner_score is None or loser_score is None:
+        return None
+    return (
+        f"{winner} def. {loser} · {season} Wk {week} "
+        f"({_format_matchup_points(winner_score)} - {_format_matchup_points(loser_score)})"
+    )
+
+
+def hall_of_fame_era_caption(
+    highest_score: Mapping | None,
+    played_records: Sequence[Mapping],
+) -> str | None:
+    """One-line scoring-era context for the Hall of Fame high score."""
+    if not highest_score:
+        return None
+    season = str(highest_score.get("season") or "").strip()
+    try:
+        high = float(highest_score.get("score"))
+    except (TypeError, ValueError):
+        return None
+    scores = []
+    for record in played_records:
+        if str(record.get("season") or "").strip() != season:
+            continue
+        try:
+            scores.append(float(record.get("score")))
+        except (TypeError, ValueError):
+            continue
+    if not scores:
+        return None
+    average = sum(scores) / len(scores)
+    avg_text = (
+        str(int(round(average)))
+        if abs(average - round(average)) < 1e-9
+        else f"{average:.1f}"
+    )
+    return (
+        f"The {_format_matchup_points(high)} high in {season} came in a year "
+        f"whose league average was {avg_text}."
     )
 
 

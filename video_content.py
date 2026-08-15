@@ -114,4 +114,13 @@ VIDEOS = [
         "video_id": "7673639176264355102",
         "breakdown_file": "draft_order.md",
     },
+    {
+        "slug": "qb-te-draft-timing",
+        "title": "When Should You Draft a QB and TE?",
+        "subtitle": "2018-2025 · 1,422 public 1QB Sleeper leagues",
+        "date": "2026-08-15",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7674314953565670687",
+        "video_id": "7674314953565670687",
+        "breakdown_file": "qb_te_draft_timing.md",
+    },
 ]

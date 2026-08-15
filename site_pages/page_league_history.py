@@ -35,18 +35,125 @@ _LEAGUE_HISTORY_TABS = (
     "⚔️ Rivalries",
     "📋 Report Cards",
     "📊 Consistency & Luck",
-    "📈 Score Trends",
 )
 
-# Rivalries color is semantic, not decoration. Classic = established (brand green),
-# Maximum Drama = close fights (rose), Fresh Blood = new pairings (sky). Score
-# bands: green 70+, yellow 50-69, red below 50. Locked matchups take blue.
+# Rivalries score bands: green 70+, yellow 50-69, red below 50.
 # Full hairline borders only; no side stripes.
-_RIVALRY_MODE_SWATCH = {
-    "Classic Rivalries": ("#35D08A", "rgba(53,208,138,0.14)"),
-    "Maximum Drama": ("#FB7185", "rgba(251,113,133,0.16)"),
-    "Fresh Blood": ("#38BDF8", "rgba(56,189,248,0.14)"),
+
+
+_LEADERBOARD_METRIC_HELP = {
+    "Most Titles": (
+        "Championship count in this window. Ties share the card. "
+        "Three or more leaders show as an N-way tie."
+    ),
+    "Best Win %": (
+        "Regular-season wins divided by wins plus losses. "
+        "All Time needs 2 seasons, so a one-year 10-0 does not take it."
+    ),
+    "Most Points": (
+        "Sum of regular-season weekly scores in this window. Playoffs are excluded. "
+        "Not adjusted for era, so a high-scoring year counts more."
+    ),
+    "Most Finals Appearances": (
+        "Championship games reached, as champ or runner-up."
+    ),
+    "Longest Active Playoff Streak": (
+        "Consecutive playoff seasons through the latest completed postseason "
+        "in this window. Sitting out or missing the playoffs resets it. "
+        "An in-progress season does not count against it. Ties share the card. "
+        "Three or more leaders show as an N-way tie."
+    ),
 }
+
+_HOF_METRIC_HELP = {
+    "🏆 Highest Score": (
+        "Highest single-team score in a completed matchup in this window. "
+        "Playoffs count."
+    ),
+    "😤 Most Painful Loss": (
+        "Highest losing score in this window. The team put up a big number and still lost. "
+        "Playoffs count. Scores of 5 or fewer are ignored."
+    ),
+    "💥 Biggest Blowout": (
+        "Largest point gap between winner and loser in a completed matchup. "
+        "Playoffs count."
+    ),
+    "🤝 Closest Game": (
+        "Smallest point gap between winner and loser. A tie counts as 0. "
+        "Playoffs count."
+    ),
+    "💀 Lowest Score": (
+        "Lowest single-team score in a completed matchup. "
+        "Scores of 5 or fewer are treated as incomplete, so an empty lineup does not take this."
+    ),
+    "🍀 Luckiest Win (All-Play)": (
+        "The win whose score would have beaten the fewest other teams in that same league-week. "
+        "This is matchup timing, not the lowest winning score."
+    ),
+    "🔥 Highest-Scoring Game": (
+        "Highest combined score of both teams in one matchup. "
+        "A blowout can still win this if one side was huge."
+    ),
+    "🧊 Lowest-Scoring Game": (
+        "Lowest combined score of both teams in one completed matchup. "
+        "Scores of 5 or fewer are treated as incomplete."
+    ),
+}
+
+_CONSISTENCY_LUCK_METRIC_HELP = {
+    "Most Consistent": (
+        "Lowest week-to-week scoring swing after subtracting that week's league average. "
+        "A high-scoring week in a high-scoring environment does not look wild. "
+        "Smaller is steadier. Regular season only."
+    ),
+    "Most Volatile": (
+        "Highest week-to-week scoring swing after subtracting that week's league average. "
+        "This is scoring variance, not a bad record. Regular season only."
+    ),
+    "Most Fortunate": (
+        "Largest surplus of actual wins over all-play expected wins. "
+        "Expected wins ask how often this week's score would have beaten every other team that week. "
+        "This is matchup timing, not whether the wins count."
+    ),
+    "Most Unfortunate": (
+        "Largest shortfall of actual wins versus all-play expected wins. "
+        "The weekly scores were better than the head-to-head record. "
+        "Regular season only."
+    ),
+}
+
+
+def _hof_metric(label: str, value, delta: str | None = None) -> None:
+    st.metric(
+        label, value, delta,
+        delta_color="off", delta_arrow="off", border=True,
+        help=_HOF_METRIC_HELP[label],
+    )
+
+
+def _leaderboard_metric(
+    label: str,
+    names: list[str],
+    delta: str | None,
+    *,
+    empty_value: str,
+    empty_delta: str | None = None,
+    flip_at: int | None = None,
+) -> None:
+    kwargs = dict(
+        delta_color="off", delta_arrow="off", border=True,
+        help=_LEADERBOARD_METRIC_HELP.get(label),
+    )
+    if not names:
+        st.metric(label, empty_value, empty_delta, **kwargs)
+        return
+    from fantasy import league_intelligence as _intel
+    st.metric(
+        label,
+        _intel.scorecard_headline(names, flip_at=flip_at),
+        delta,
+        **kwargs,
+    )
 
 
 def _rivalry_score_swatch(score: float, locked: bool = False) -> tuple[str, str, str]:
@@ -96,7 +203,6 @@ def _rivalry_score_legend_html() -> str:
         ("#35D08A", "rgba(53,208,138,0.16)", "70+ fit"),
         ("#FACC15", "rgba(250,204,21,0.16)", "50-69"),
         ("#F87171", "rgba(248,113,113,0.16)", "below 50"),
-        ("#60A5FA", "rgba(96,165,250,0.16)", "Locked"),
     )
     parts = []
     for ink, fill, label in chips:
@@ -600,7 +706,7 @@ def render():
             _h2h_managers = sorted(set(r["username"] for r in _filt_records)) if _season_filter != "All Time" else _all_managers
 
             # Sub-tabs
-            _lhG, _lhA, _lhB, _lhC, _lhD, _lhE, _lhF = st.tabs(
+            _lhG, _lhA, _lhB, _lhC, _lhD, _lhE = st.tabs(
                 _LEAGUE_HISTORY_TABS
             )
 
@@ -631,90 +737,139 @@ def render():
                         if not _established.empty:
                             _eligible = _established
 
-                    _top_titles = _leader_df.sort_values(
-                        ["titles", "win_pct"], ascending=[False, False], na_position="last"
-                    ).iloc[0]
-                    _top_win = (
-                        _eligible.sort_values("win_pct", ascending=False).iloc[0]
-                        if not _eligible.empty else None
+                    _title_names, _title_n = _league_intel.tied_leaders(
+                        _leader_df, "titles", min_value=1,
                     )
-                    _top_score = (
-                        _scored.sort_values("avg_above_league", ascending=False).iloc[0]
-                        if not _scored.empty else None
+                    _win_names, _win_n = _league_intel.tied_leaders(_eligible, "win_pct")
+                    _point_names, _point_n = _league_intel.tied_leaders(
+                        _leader_df, "total_points",
                     )
-                    _top_seasons = _leader_df.sort_values(
-                        ["seasons", "wins"], ascending=[False, False]
-                    ).iloc[0]
+                    _final_names, _final_n = _league_intel.tied_leaders(
+                        _leader_df, "finals", min_value=1,
+                    )
+                    _streak_names, _streak_n = _league_intel.tied_leaders(
+                        _leader_df, "active_playoff_streak", min_value=1,
+                    )
+                    _adj_names, _adj_n = _league_intel.tied_leaders(
+                        _scored, "avg_above_league",
+                    )
 
-                    _m1, _m2, _m3, _m4 = st.columns(4)
-                    with _m1:
-                        if int(_top_titles["titles"]) > 0:
-                            st.metric(
-                                "Most Titles", _top_titles["manager"],
-                                f'{int(_top_titles["titles"])} championships',
-                                delta_color="off", delta_arrow="off", border=True,
+                    _title_delta = None
+                    if _title_names:
+                        _title_delta = (
+                            f"{int(_title_n)} championships"
+                            + (" each" if len(_title_names) > 1 else "")
+                        )
+                    _win_delta = None
+                    if _win_names and _win_n is not None:
+                        if len(_win_names) == 1:
+                            _win_row = _eligible[_eligible["manager"].eq(_win_names[0])].iloc[0]
+                            _win_delta = (
+                                f"{_win_n:.1f}% · "
+                                f"{int(_win_row['wins'])}-{int(_win_row['losses'])}"
                             )
                         else:
-                            st.metric(
-                                "Most Titles", "No champion yet", "0 championships",
-                                delta_color="off", delta_arrow="off", border=True,
+                            _win_delta = f"{_win_n:.1f}% each"
+                    _point_delta = None
+                    if _point_names and _point_n is not None:
+                        _point_delta = (
+                            f"{_point_n:,.1f} pts"
+                            + (" each" if len(_point_names) > 1 else "")
+                        )
+                    _final_delta = None
+                    if _final_names:
+                        _final_n_int = int(_final_n)
+                        _final_word = "appearance" if _final_n_int == 1 else "appearances"
+                        _final_delta = (
+                            f"{_final_n_int} {_final_word}"
+                            + (" each" if len(_final_names) > 1 else "")
+                        )
+                    _streak_delta = None
+                    if _streak_names:
+                        _streak_n_int = int(_streak_n)
+                        _streak_word = "season" if _streak_n_int == 1 else "seasons"
+                        _streak_delta = (
+                            f"{_streak_n_int} {_streak_word}"
+                            + (" each" if len(_streak_names) > 1 else "")
+                        )
+
+                    _cards = [
+                        ("Most Titles", _title_names, _title_delta,
+                         "No champion yet", "0 championships"),
+                        ("Most Finals Appearances", _final_names, _final_delta,
+                         "No finals yet", "0 championship games"),
+                        ("Longest Active Playoff Streak", _streak_names, _streak_delta,
+                         "No active streak", "0 seasons"),
+                        ("Best Win %", _win_names, _win_delta,
+                         "No games yet", None),
+                        ("Most Points", _point_names, _point_delta,
+                         "No scores yet", None),
+                    ]
+                    _metric_cols = st.columns(len(_cards))
+                    for _col, (_label, _names, _delta, _empty, _empty_delta) in zip(
+                        _metric_cols, _cards,
+                    ):
+                        with _col:
+                            _leaderboard_metric(
+                                _label, _names, _delta,
+                                empty_value=_empty, empty_delta=_empty_delta,
+                                flip_at=3 if _label in {
+                                    "Most Titles",
+                                    "Most Finals Appearances",
+                                    "Longest Active Playoff Streak",
+                                } else None,
                             )
-                    with _m2:
-                        st.metric(
-                            "Best Win %", _top_win["manager"] if _top_win is not None else "No games yet",
-                            (
-                                f'{_top_win["win_pct"]:.1f}% · '
-                                f'{int(_top_win["wins"])}-{int(_top_win["losses"])}'
-                                if _top_win is not None else None
-                            ),
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _m3:
-                        st.metric(
-                            "Best Adjusted Scorer",
-                            _top_score["manager"] if _top_score is not None else "No scores yet",
-                            (
-                                f'{_top_score["avg_above_league"]:+.2f} pts/week vs league'
-                                if _top_score is not None else None
-                            ),
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _m4:
-                        st.metric(
-                            "Most Seasons", _top_seasons["manager"],
-                            f'{int(_top_seasons["seasons"])} seasons',
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
+                    _caption_parts = []
+                    for _tie_label, _tie_names in (
+                        ("Most Titles", _title_names),
+                        ("Most Finals Appearances", _final_names),
+                        ("Longest Active Playoff Streak", _streak_names),
+                    ):
+                        if len(_tie_names) >= 3:
+                            _caption_parts.append(
+                                f"{_tie_label} is a {len(_tie_names)}-way tie: "
+                                f"{_league_intel.format_name_list(_tie_names)}."
+                            )
+                    if not _caption_parts and any(len(_names) > 1 for _names in (
+                        _title_names, _win_names, _point_names,
+                        _final_names, _streak_names,
+                    )):
+                        _caption_parts.append("Tied leaders share a card.")
+                    if _caption_parts:
+                        st.caption(" ".join(_caption_parts))
 
                     if not _scored.empty:
                         _bubble = _scored[_scored["win_pct"].notna()].copy()
-                        _bubble_sizes = 15 + _bubble["seasons"].astype(float) * 5
-                        _fig_map = go.Figure(go.Scatter(
-                            x=_bubble["win_pct"],
-                            y=_bubble["avg_above_league"],
-                            text=_bubble["manager"],
-                            customdata=_bubble[[
-                                "titles", "seasons", "wins", "losses", "avg_score",
-                            ]],
-                            mode="markers+text",
-                            textposition="top center",
-                            marker={
-                                "size": _bubble_sizes,
-                                "color": _bubble["titles"],
-                                "colorscale": [[0, "#38bdf8"], [1, "#fbbf24"]],
-                                "cmin": 0,
-                                "cmax": max(1, int(_bubble["titles"].max())),
-                                "colorbar": {"title": "Titles"},
-                                "line": {"color": "rgba(255,255,255,0.75)", "width": 1},
-                                "opacity": 0.9,
-                            },
-                            hovertemplate=(
-                                "<b>%{text}</b><br>Win rate: %{x:.1f}%<br>"
-                                "Points vs league: %{y:+.2f}/week<br>Avg score: %{customdata[4]:.2f}<br>"
-                                "Record: %{customdata[2]}-%{customdata[3]}<br>"
-                                "Seasons: %{customdata[1]}<br>Titles: %{customdata[0]}<extra></extra>"
-                            ),
-                        ))
+                        _fig_map = go.Figure()
+                        for _label, _color, _group in (
+                            ("Title", "#fbbf24", _bubble[_bubble["titles"].gt(0)]),
+                            ("No title", "#38bdf8", _bubble[_bubble["titles"].eq(0)]),
+                        ):
+                            if _group.empty:
+                                continue
+                            _fig_map.add_trace(go.Scatter(
+                                x=_group["win_pct"],
+                                y=_group["avg_above_league"],
+                                text=_group["manager"],
+                                name=_label,
+                                customdata=_group[[
+                                    "titles", "seasons", "wins", "losses", "avg_score",
+                                ]],
+                                mode="markers+text",
+                                textposition="top center",
+                                marker={
+                                    "size": 15 + _group["seasons"].astype(float) * 5,
+                                    "color": _color,
+                                    "line": {"color": "rgba(255,255,255,0.75)", "width": 1},
+                                    "opacity": 0.9,
+                                },
+                                hovertemplate=(
+                                    "<b>%{text}</b><br>Win rate: %{x:.1f}%<br>"
+                                    "Points vs league: %{y:+.2f}/week<br>Avg score: %{customdata[4]:.2f}<br>"
+                                    "Record: %{customdata[2]}-%{customdata[3]}<br>"
+                                    "Seasons: %{customdata[1]}<br>Titles: %{customdata[0]}<extra></extra>"
+                                ),
+                            ))
                         _x_min = max(0, float(_bubble["win_pct"].min()) - 8)
                         _x_max = min(100, float(_bubble["win_pct"].max()) + 8)
                         if _x_max - _x_min < 16:
@@ -729,8 +884,14 @@ def render():
                             template="plotly_dark",
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(15,23,42,0.36)",
-                            margin={"l": 55, "r": 45, "t": 70, "b": 55},
-                            showlegend=False,
+                            margin={"l": 55, "r": 45, "t": 70, "b": 70},
+                            legend={
+                                "orientation": "h",
+                                "yanchor": "top",
+                                "y": -0.18,
+                                "x": 0,
+                                "title": "",
+                            },
                             xaxis={
                                 "title": "Regular-Season Win Rate",
                                 "ticksuffix": "%",
@@ -776,11 +937,13 @@ def render():
                                 f"**{_names(_lower_right)}** won despite below-average scoring; that record may "
                                 "be harder to repeat without stronger weekly production."
                             )
-                        if _top_score is not None:
-                            _season_equiv = float(_top_score["avg_above_league"]) * 14
+                        if _adj_names and _adj_n is not None:
+                            _season_equiv = float(_adj_n) * 14
+                            _score_label = _league_intel.format_tied_names(_adj_names)
+                            _lead_verb = "lead" if len(_adj_names) > 1 else "leads"
                             _map_takeaways.append(
-                                f"**{_top_score['manager']}** leads adjusted scoring at "
-                                f"{_top_score['avg_above_league']:+.2f} points per week—roughly "
+                                f"**{_score_label}** {_lead_verb} adjusted scoring at "
+                                f"{_adj_n:+.2f} points per week, roughly "
                                 f"{_season_equiv:+.1f} points over a 14-game regular season versus an average "
                                 "team in the same weeks."
                             )
@@ -864,13 +1027,16 @@ def render():
                         "manager": "Manager",
                         "titles": "Titles",
                         "finals": "Finals",
+                        "active_playoff_streak": "Playoff Streak",
                         "seasons": "Seasons",
                         "win_pct": "Win %",
+                        "total_points": "Total Points",
                         "avg_score": "Avg Weekly Score",
                         "avg_above_league": "Pts Above League Avg",
                     })[[
-                        "Manager", "Titles", "Finals", "Seasons", "Record", "Win %",
-                        "Avg Weekly Score", "Pts Above League Avg", "Best Finish",
+                        "Manager", "Titles", "Finals", "Playoff Streak", "Seasons",
+                        "Record", "Win %", "Total Points", "Avg Weekly Score",
+                        "Pts Above League Avg", "Best Finish",
                     ]].sort_values(["Titles", "Win %"], ascending=[False, False])
                     with st.expander("View complete manager records"):
                         st.dataframe(
@@ -883,6 +1049,14 @@ def render():
                                 ),
                                 "Finals": st.column_config.NumberColumn(
                                     "Finals", help="Championship appearances"
+                                ),
+                                "Playoff Streak": st.column_config.NumberColumn(
+                                    "Playoff Streak",
+                                    help="Consecutive playoff seasons through the latest completed postseason in this window.",
+                                ),
+                                "Total Points": st.column_config.NumberColumn(
+                                    "Total Points", format="%.1f",
+                                    help="Sum of regular-season weekly scores in this window. Playoffs are excluded.",
                                 ),
                                 "Win %": st.column_config.NumberColumn("Win %", format="%.1f%%"),
                                 "Avg Weekly Score": st.column_config.NumberColumn(
@@ -943,36 +1117,66 @@ def render():
                                 return f"{record['team_a']} tied {record['team_b']}"
                             return f"{record['winner']} def. {record['loser']}"
 
-                        _hero1, _hero2, _hero3, _hero4 = st.columns(4)
-                        with _hero1:
-                            st.metric(
-                                "🏆 Highest Score", f"{_best_score['score']:.2f} pts",
-                                f"{_best_score['username']} · {_best_score['season']} Wk {_best_score['week']}",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _hero2:
-                            st.metric(
+                        _hof_cards = [
+                            (
+                                "🏆 Highest Score",
+                                f"{_best_score['score']:.2f} pts",
+                                _league_intel.hall_of_fame_delta(_best_score),
+                            ),
+                            (
                                 "😤 Most Painful Loss",
                                 f"{_best_loss['score']:.2f} pts" if _best_loss else "No losses",
+                                _league_intel.hall_of_fame_delta(_best_loss),
+                            ),
+                            (
+                                "💥 Biggest Blowout",
+                                f"{_blowout['margin']:.2f} pts",
+                                _league_intel.hall_of_fame_delta(_blowout),
+                            ),
+                            (
+                                "🤝 Closest Game",
+                                f"{_closest['margin']:.2f} pts",
+                                _league_intel.hall_of_fame_delta(_closest),
+                            ),
+                            (
+                                "💀 Lowest Score",
+                                f"{_worst_score['score']:.2f} pts",
+                                _league_intel.hall_of_fame_delta(_worst_score),
+                            ),
+                            (
+                                "🍀 Luckiest Win (All-Play)",
                                 (
-                                    f"{_best_loss['username']} lost by "
-                                    f"{_best_loss['opp_score'] - _best_loss['score']:.2f}"
-                                    if _best_loss else None
+                                    f"{_luck_win['winner_score']:.2f} pts"
+                                    if _luck_win else "Unavailable"
                                 ),
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _hero3:
-                            st.metric(
-                                "💥 Biggest Blowout", f"{_blowout['margin']:.2f} pts",
-                                f"{_matchup_text(_blowout)} · {_blowout['season']} Wk {_blowout['week']}",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _hero4:
-                            st.metric(
-                                "🤝 Closest Game", f"{_closest['margin']:.2f} pts",
-                                f"{_matchup_text(_closest)} · {_closest['season']} Wk {_closest['week']}",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
+                                _league_intel.hall_of_fame_delta(_luck_win),
+                            ),
+                            (
+                                "🔥 Highest-Scoring Game",
+                                f"{_hi_combined['combined']:.2f} pts",
+                                _league_intel.hall_of_fame_delta(_hi_combined),
+                            ),
+                            (
+                                "🧊 Lowest-Scoring Game",
+                                f"{_lo_combined['combined']:.2f} pts",
+                                _league_intel.hall_of_fame_delta(_lo_combined),
+                            ),
+                        ]
+                        for _row in (_hof_cards[:4], _hof_cards[4:]):
+                            _cols = st.columns(4)
+                            for _col, (_label, _value, _delta) in zip(_cols, _row):
+                                with _col:
+                                    _hof_metric(_label, _value, _delta)
+                        _era_caption = _league_intel.hall_of_fame_era_caption(
+                            _best_score, _played_recs,
+                        )
+                        if _era_caption:
+                            st.caption(_era_caption)
+                        st.caption(
+                            "All-play luck compares the winner's score with every other team in that same "
+                            "league-week. A winner that would have beaten very few teams received the most "
+                            "favorable matchup timing."
+                        )
 
                         _matchup_df = _matchup_df.copy()
                         _matchup_df["matchup_label"] = _matchup_df.apply(
@@ -1007,35 +1211,43 @@ def render():
                                 ),
                             ))
 
-                        _highlight_labels: dict[int, list[str]] = {}
-                        for _row_index, _label in (
-                            (_matchup_df["combined"].idxmax(), "Highest total"),
-                            (_matchup_df["margin"].idxmax(), "Biggest blowout"),
-                            (_matchup_df["margin"].idxmin(), "Closest game"),
-                        ):
-                            _highlight_labels.setdefault(_row_index, []).append(_label)
-                        _highlighted = _matchup_df.loc[list(_highlight_labels)].copy()
-                        _highlighted["record_label"] = [
-                            " / ".join(_highlight_labels[index]) for index in _highlighted.index
-                        ]
-                        _fig_chaos.add_trace(go.Scatter(
-                            x=_highlighted["combined"],
-                            y=_highlighted["margin"],
-                            text=_highlighted["record_label"],
-                            customdata=_highlighted[["matchup_label", "season", "week"]],
-                            mode="markers+text",
-                            textposition="top center",
-                            name="Records",
-                            marker={
-                                "size": 17, "symbol": "diamond-open",
-                                "color": "#f8fafc", "line": {"width": 2.5},
-                            },
-                            hovertemplate=(
-                                "<b>%{text}</b><br>%{customdata[0]}<br>"
-                                "%{customdata[1]} Week %{customdata[2]}<br>"
-                                "Combined: %{x:.2f}<br>Margin: %{y:.2f}<extra></extra>"
-                            ),
-                        ))
+                        _highlight_labels = _league_intel.scorecard_highlight_labels(
+                            _matchup_df,
+                            [
+                                (_best_score, "Highest Score"),
+                                (_best_loss, "Most Painful Loss"),
+                                (_blowout, "Biggest Blowout"),
+                                (_closest, "Closest Game"),
+                                (_worst_score, "Lowest Score"),
+                                (_luck_win, "Luckiest Win"),
+                                (_hi_combined, "Highest-Scoring Game"),
+                                (_lo_combined, "Lowest-Scoring Game"),
+                            ],
+                        )
+                        if _highlight_labels:
+                            _highlighted = _matchup_df.loc[list(_highlight_labels)].copy()
+                            _highlighted["record_label"] = [
+                                " / ".join(_highlight_labels[index])
+                                for index in _highlighted.index
+                            ]
+                            _fig_chaos.add_trace(go.Scatter(
+                                x=_highlighted["combined"],
+                                y=_highlighted["margin"],
+                                text=_highlighted["record_label"],
+                                customdata=_highlighted[["matchup_label", "season", "week"]],
+                                mode="markers+text",
+                                textposition="top center",
+                                name="Records",
+                                marker={
+                                    "size": 17, "symbol": "diamond-open",
+                                    "color": "#f8fafc", "line": {"width": 2.5},
+                                },
+                                hovertemplate=(
+                                    "<b>%{text}</b><br>%{customdata[0]}<br>"
+                                    "%{customdata[1]} Week %{customdata[2]}<br>"
+                                    "Combined: %{x:.2f}<br>Margin: %{y:.2f}<extra></extra>"
+                                ),
+                            ))
                         _median_total = float(_matchup_df["combined"].median())
                         _median_margin = float(_matchup_df["margin"].median())
                         _fig_chaos.add_vline(
@@ -1081,135 +1293,6 @@ def render():
                             "their intersection shows how unusual each matchup was."
                         )
 
-                        _played_df = pd.DataFrame(_played_recs)
-                        _range_group = "season" if _season_filter == "All Time" else "week"
-                        _range_label = "Season" if _range_group == "season" else "Week"
-                        _range_rows = []
-                        for _period, _period_scores in _played_df.groupby(
-                            _range_group, sort=True
-                        ):
-                            _high_row = _period_scores.loc[_period_scores["score"].idxmax()]
-                            _low_row = _period_scores.loc[_period_scores["score"].idxmin()]
-                            _range_rows.append({
-                                _range_label: str(_period) if _range_group == "season" else int(_period),
-                                "High": float(_high_row["score"]),
-                                "Average": float(_period_scores["score"].mean()),
-                                "Low": float(_low_row["score"]),
-                                "High Manager": _high_row["username"],
-                                "Low Manager": _low_row["username"],
-                            })
-                        _range_df = pd.DataFrame(_range_rows)
-                        _range_df["Spread"] = _range_df["High"] - _range_df["Low"]
-
-                        _fig_range = go.Figure()
-                        _fig_range.add_trace(go.Scatter(
-                            x=_range_df[_range_label], y=_range_df["Low"],
-                            customdata=_range_df[["Low Manager"]],
-                            name="Low", mode="lines+markers",
-                            line={"color": "#fb7185", "width": 2},
-                            hovertemplate=(
-                                f"{_range_label} %{{x}}<br>Low: %{{y:.2f}}<br>"
-                                "%{customdata[0]}<extra></extra>"
-                            ),
-                        ))
-                        _fig_range.add_trace(go.Scatter(
-                            x=_range_df[_range_label], y=_range_df["High"],
-                            customdata=_range_df[["High Manager"]],
-                            name="High", mode="lines+markers", fill="tonexty",
-                            fillcolor="rgba(56,189,248,0.12)",
-                            line={"color": "#fbbf24", "width": 2},
-                            hovertemplate=(
-                                f"{_range_label} %{{x}}<br>High: %{{y:.2f}}<br>"
-                                "%{customdata[0]}<extra></extra>"
-                            ),
-                        ))
-                        _fig_range.add_trace(go.Scatter(
-                            x=_range_df[_range_label], y=_range_df["Average"],
-                            name="League average", mode="lines+markers",
-                            line={"color": "#38bdf8", "width": 3},
-                            hovertemplate=(
-                                f"{_range_label} %{{x}}<br>Average: %{{y:.2f}}<extra></extra>"
-                            ),
-                        ))
-                        _range_title = (
-                            "Season-by-Season Scoring Range"
-                            if _range_group == "season"
-                            else f"Weekly Scoring Range — {_season_filter}"
-                        )
-                        _fig_range.update_layout(
-                            title=_range_title,
-                            height=430,
-                            template="plotly_dark",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(15,23,42,0.36)",
-                            margin={"l": 55, "r": 35, "t": 70, "b": 50},
-                            xaxis={
-                                "title": _range_label,
-                                "gridcolor": "rgba(148,163,184,0.16)",
-                                **({"dtick": 1} if _range_group == "week" else {}),
-                            },
-                            yaxis={
-                                "title": "Team Score",
-                                "gridcolor": "rgba(148,163,184,0.16)",
-                            },
-                            legend={"orientation": "h", "y": -0.18},
-                            hovermode="x unified",
-                        )
-                        _lh_plotly(_fig_range)
-
-                        _widest = _range_df.loc[_range_df["Spread"].idxmax()]
-                        _highest_environment = _range_df.loc[
-                            _range_df["Average"].idxmax()
-                        ]
-                        _period_word = "season" if _range_group == "season" else "week"
-                        st.markdown(
-                            f" **What it means:** **{_range_label} {_widest[_range_label]}** had the widest "
-                            f"scoring spread at {_widest['Spread']:.2f} points, meaning lineup outcomes were "
-                            f"far more volatile than usual in that {_period_word}. **{_range_label} "
-                            f"{_highest_environment[_range_label]}** had the highest average scoring environment; "
-                            "records from that period deserve that context rather than being compared as if every "
-                            "season or week scored identically."
-                        )
-
-                        st.markdown("#### More Records")
-                        _more1, _more2, _more3, _more4 = st.columns(4)
-                        with _more1:
-                            st.metric(
-                                "💀 Lowest Score", f"{_worst_score['score']:.2f} pts",
-                                f"{_worst_score['username']} · {_worst_score['season']} Wk {_worst_score['week']}",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _more2:
-                            st.metric(
-                                "🍀 Luckiest Win (All-Play)",
-                                f"{_luck_win['winner_score']:.2f} pts" if _luck_win else "Unavailable",
-                                (
-                                    f"{_luck_win['winner']} · beats "
-                                    f"{int(_luck_win['all_play_wins'])}/{int(_luck_win['all_play_opponents'])} teams"
-                                    if _luck_win else None
-                                ),
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _more3:
-                            st.metric(
-                                "🔥 Highest-Scoring Game",
-                                f"{_hi_combined['combined']:.2f} pts",
-                                f"{_matchup_text(_hi_combined)} · {_hi_combined['season']} Wk {_hi_combined['week']}",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        with _more4:
-                            st.metric(
-                                "🧊 Lowest-Scoring Game",
-                                f"{_lo_combined['combined']:.2f} pts",
-                                f"{_matchup_text(_lo_combined)} · {_lo_combined['season']} Wk {_lo_combined['week']}",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        st.caption(
-                            "All-play luck compares the winner's score with every other team in that same "
-                            "league-week. A winner that would have beaten very few teams received the most "
-                            "favorable matchup timing."
-                        )
-
             # ── Sub-tab C: Rivalries ──────────────────────────────────────────
             with _lhC:
                 import plotly.graph_objects as go
@@ -1236,8 +1319,8 @@ def render():
                 if _rivalry_view == "Build a Week":
                     st.markdown("#### Rivalry Week Builder")
                     st.caption(
-                        "Generate a complete upcoming-season slate for the league's current "
-                        "managers. Scores describe historical rivalry fit, not predictions."
+                        "The best full-week slate for the league's current managers. "
+                        "Scores describe historical rivalry fit, not predictions."
                     )
 
                     _builder_left, _builder_right = st.columns(2)
@@ -1246,23 +1329,11 @@ def render():
                             "Slate style",
                             list(_league_intel.RIVALRY_WEEK_MODES),
                             key="lh_rivalry_mode",
-                            help=(
-                                "Classic rewards established series and playoff history; Maximum "
-                                "Drama emphasizes close, back-and-forth games; Fresh Blood favors "
-                                "underplayed opponents with similar historical results."
-                            ),
                         )
-                        _mode_ink, _mode_fill = _RIVALRY_MODE_SWATCH.get(
-                            _rivalry_mode, ("#93A0B1", "rgba(147,160,177,0.12)")
-                        )
-                        st.markdown(
-                            "<div class='jsa-lh-mode' style='display:inline-block;margin:2px 0 8px 0;"
-                            "padding:4px 10px;"
-                            "border-radius:999px;background:" + _mode_fill
-                            + ";border:1px solid " + _mode_ink + ";color:" + _mode_ink
-                            + ";font-size:12px;font-weight:700;letter-spacing:0.04em;'>"
-                            + _html.escape(_rivalry_mode) + "</div>",
-                            unsafe_allow_html=True,
+                        st.caption(
+                            "Classic Rivalries: longest series and playoff history. "
+                            "Maximum Drama: close, back-and-forth games. "
+                            "Fresh Blood: managers who rarely play each other and have similar records."
                         )
                     with _builder_right:
                         _rivalry_history = st.selectbox(
@@ -1288,93 +1359,14 @@ def render():
                             _builder_matchups["season"].astype(str).isin(_recent_seasons)
                         ].copy()
 
-                    _builder_signature = "|".join([
-                        _lid,
-                        _rivalry_mode,
-                        _rivalry_history,
-                        *_active_rivalry_managers,
-                    ])
-                    if st.session_state.get("lh_rivalry_signature") != _builder_signature:
-                        st.session_state["lh_rivalry_signature"] = _builder_signature
-                        st.session_state["lh_rivalry_locked_pairs"] = []
-                        st.session_state["lh_rivalry_avoided_pairs"] = []
-                        st.session_state.pop("lh_rivalry_locked_choices", None)
-
                     _pair_scores = _league_intel.rivalry_pair_score_frame(
                         _builder_matchups,
                         _active_rivalry_managers,
                         mode=_rivalry_mode,
                     )
-                    _saved_locks = [
-                        tuple(pair)
-                        for pair in st.session_state.get("lh_rivalry_locked_pairs", [])
-                    ]
-                    _saved_avoids = [
-                        tuple(pair)
-                        for pair in st.session_state.get("lh_rivalry_avoided_pairs", [])
-                    ]
                     _rivalry_slate = _league_intel.rivalry_week_slate_frame(
                         _pair_scores,
-                        locked_pairs=_saved_locks,
-                        avoided_pairs=_saved_avoids,
                     )
-
-                    _lock_lookup = {}
-                    if not _rivalry_slate.empty:
-                        for _, _slate_row in _rivalry_slate.iterrows():
-                            if pd.isna(_slate_row.get("manager_b")):
-                                continue
-                            _slate_pair = tuple(sorted((
-                                str(_slate_row["manager_a"]),
-                                str(_slate_row["manager_b"]),
-                            )))
-                            _slate_label = f"{_slate_pair[0]} vs {_slate_pair[1]}"
-                            _lock_lookup[_slate_label] = _slate_pair
-
-                    _selected_lock_labels = st.multiselect(
-                        "Lock matchups before generating another slate",
-                        list(_lock_lookup),
-                        key="lh_rivalry_locked_choices",
-                        disabled=not _lock_lookup,
-                    )
-                    _requested_locks = [
-                        _lock_lookup[label]
-                        for label in _selected_lock_labels
-                        if label in _lock_lookup
-                    ]
-                    _alternative_requested = st.button(
-                        "Generate another slate",
-                        key="lh_rivalry_regenerate",
-                        disabled=len(_active_rivalry_managers) < 4,
-                    )
-                    if _alternative_requested:
-                        _requested_lock_set = {
-                            tuple(sorted(pair)) for pair in _requested_locks
-                        }
-                        _new_avoid_set = {
-                            tuple(sorted(pair)) for pair in _saved_avoids
-                        }.difference(_requested_lock_set)
-                        for _, _slate_row in _rivalry_slate.iterrows():
-                            if pd.isna(_slate_row.get("manager_b")):
-                                continue
-                            _slate_pair = tuple(sorted((
-                                str(_slate_row["manager_a"]),
-                                str(_slate_row["manager_b"]),
-                            )))
-                            if _slate_pair not in _requested_lock_set:
-                                _new_avoid_set.add(_slate_pair)
-                        _new_avoids = sorted(_new_avoid_set)
-                        st.session_state["lh_rivalry_locked_pairs"] = [
-                            list(pair) for pair in _requested_locks
-                        ]
-                        st.session_state["lh_rivalry_avoided_pairs"] = [
-                            list(pair) for pair in _new_avoids
-                        ]
-                        _rivalry_slate = _league_intel.rivalry_week_slate_frame(
-                            _pair_scores,
-                            locked_pairs=_requested_locks,
-                            avoided_pairs=_new_avoids,
-                        )
 
                     if len(_active_rivalry_managers) < 2:
                         st.info(
@@ -1398,8 +1390,7 @@ def render():
                             f"{_matchup_count} matchups for "
                             f"{len(_active_rivalry_managers)} current managers · "
                             f"average score {_average_score}. "
-                            "Green is 70+ fit, yellow is 50-69, red is below 50. "
-                            "Locked matchups stay blue."
+                            "Green is 70+ fit, yellow is 50-69, red is below 50."
                         )
                         st.markdown(
                             _rivalry_score_legend_html(),
@@ -1417,6 +1408,7 @@ def render():
                                 _rivalry_slate_card_html(_slate_row),
                                 unsafe_allow_html=True,
                             )
+                    st.caption(_league_intel.RIVALRY_SCORE_EXPLAIN[_rivalry_mode])
 
                 elif _rivalry_view == "Explore a Matchup":
                     _h2h_scope = _season_filter if _season_filter != "All Time" else "all-time"
@@ -1942,7 +1934,6 @@ def render():
             # ── Sub-tab D: Report Cards ───────────────────────────────────────
             with _lhD:
                 import plotly.graph_objects as go
-                from plotly.subplots import make_subplots
 
                 from fantasy import league_intelligence as _league_intel
 
@@ -2036,9 +2027,18 @@ def render():
                         )
                     with _d3:
                         st.metric(
-                            "Consistency", f"{_profile['std_dev']:.2f} SD",
-                            f"rank #{int(_profile['consistency_rank'])}/{_peer_count} · lower is steadier",
+                            "Consistency",
+                            f"±{_profile['std_dev']:.1f} pts",
+                            (
+                                f"rank #{int(_profile['consistency_rank'])}/{_peer_count} "
+                                "· smaller swing is steadier"
+                            ),
                             delta_color="off", delta_arrow="off", border=True,
+                            help=(
+                                "Typical distance of a weekly score from this manager's own average. "
+                                "±23 pts means a normal week is about 23 points above or below their mean. "
+                                "Smaller is steadier. Ranked against the rest of the league."
+                            ),
                         )
                     with _d4:
                         st.metric(
@@ -2047,6 +2047,10 @@ def render():
                             delta_color="off", delta_arrow="off", border=True,
                         )
 
+                    st.caption(
+                        "All-time is scoring versus the league, season by season. "
+                        "Flip to one season and it goes weekly."
+                    )
                     if _season_filter == "All Time":
                         _trajectory_rows = []
                         for _season in sorted(_filt_seasons):
@@ -2075,10 +2079,7 @@ def render():
                             })
                         _trajectory_df = pd.DataFrame(_trajectory_rows)
                         if not _trajectory_df.empty:
-                            _fig_trajectory = make_subplots(
-                                specs=[[{"secondary_y": True}]]
-                            )
-                            _fig_trajectory.add_trace(go.Bar(
+                            _fig_trajectory = go.Figure(go.Bar(
                                 x=_trajectory_df["Season"],
                                 y=_trajectory_df["Pts vs League"],
                                 name="Points vs league / week",
@@ -2089,27 +2090,16 @@ def render():
                                     ],
                                     "line": {"color": "rgba(255,255,255,0.45)", "width": 1},
                                 },
-                                customdata=_trajectory_df[["Avg Score", "Record"]],
+                                customdata=_trajectory_df[["Avg Score", "Record", "Win %"]],
                                 hovertemplate=(
                                     "<b>%{x}</b><br>Points vs league: %{y:+.2f}/week<br>"
                                     "Avg score: %{customdata[0]:.2f}<br>"
-                                    "Record: %{customdata[1]}<extra></extra>"
+                                    "Record: %{customdata[1]}<br>"
+                                    "Win rate: %{customdata[2]:.1f}%<extra></extra>"
                                 ),
-                            ), secondary_y=False)
-                            _fig_trajectory.add_trace(go.Scatter(
-                                x=_trajectory_df["Season"],
-                                y=_trajectory_df["Win %"],
-                                name="Head-to-head win rate",
-                                mode="lines+markers",
-                                line={"color": "#fbbf24", "width": 3},
-                                marker={"size": 9},
-                                hovertemplate=(
-                                    "<b>%{x}</b><br>Win rate: %{y:.1f}%<extra></extra>"
-                                ),
-                            ), secondary_y=True)
+                            ))
                             _fig_trajectory.add_hline(
                                 y=0, line_dash="dot", line_color="#94a3b8",
-                                secondary_y=False,
                             )
                             _fig_trajectory.update_layout(
                                 title=f"{_sel_mgr}'s Season-by-Season Trajectory",
@@ -2118,21 +2108,16 @@ def render():
                                 paper_bgcolor="rgba(0,0,0,0)",
                                 plot_bgcolor="rgba(15,23,42,0.36)",
                                 margin={"l": 55, "r": 55, "t": 70, "b": 55},
-                                legend={"orientation": "h", "y": -0.2},
+                                showlegend=False,
                                 hovermode="x unified",
-                            )
-                            _fig_trajectory.update_xaxes(
-                                title_text="Season",
-                                gridcolor="rgba(148,163,184,0.12)",
-                            )
-                            _fig_trajectory.update_yaxes(
-                                title_text="Avg Points vs League / Week",
-                                gridcolor="rgba(148,163,184,0.16)",
-                                secondary_y=False,
-                            )
-                            _fig_trajectory.update_yaxes(
-                                title_text="Win Rate", range=[0, 100], ticksuffix="%",
-                                secondary_y=True,
+                                xaxis={
+                                    "title": "Season",
+                                    "gridcolor": "rgba(148,163,184,0.12)",
+                                },
+                                yaxis={
+                                    "title": "Avg Points vs League / Week",
+                                    "gridcolor": "rgba(148,163,184,0.16)",
+                                },
                             )
                             _lh_plotly(_fig_trajectory)
 
@@ -2282,8 +2267,9 @@ def render():
                             "Record": f"{_wins}–{_losses}" + (f"–{_ties}T" if _ties else ""),
                             "Meetings": len(_games),
                             "Avg Score": float(_games["score"].mean()),
-                            "Avg Point Diff": float(
-                                (_games["score"] - _games["opp_score"]).mean()
+                            "Avg Point Diff": round(
+                                float((_games["score"] - _games["opp_score"]).mean()),
+                                2,
                             ),
                             "Playoff Meetings": int(_games["is_playoff"].sum()),
                         })
@@ -2299,7 +2285,12 @@ def render():
                             x=_opponent_df["Avg Point Diff"],
                             y=_opponent_df["Opponent"],
                             orientation="h",
-                            text=_opponent_df["Record"],
+                            text=[
+                                f"{record} · {int(meetings)}"
+                                for record, meetings in zip(
+                                    _opponent_df["Record"], _opponent_df["Meetings"]
+                                )
+                            ],
                             textposition="outside",
                             cliponaxis=False,
                             marker={
@@ -2329,11 +2320,12 @@ def render():
                             template="plotly_dark",
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(15,23,42,0.36)",
-                            margin={"l": 25, "r": 80, "t": 70, "b": 55},
+                            margin={"l": 25, "r": 110, "t": 70, "b": 55},
                             showlegend=False,
                             xaxis={
                                 "title": "Average Point Differential vs Opponent",
                                 "range": [-_opponent_span, _opponent_span],
+                                "tickformat": "+.2f",
                                 "gridcolor": "rgba(148,163,184,0.16)",
                             },
                             yaxis={"title": "", "automargin": True},
@@ -2346,23 +2338,29 @@ def render():
                         _worst_matchup = _opponent_df.loc[
                             _opponent_df["Avg Point Diff"].idxmin()
                         ]
-                        _best_conversion = (
-                            "and that scoring advantage has converted into a winning record"
-                            if _best_matchup["Wins"] > _best_matchup["Losses"]
-                            else "but it has not produced a winning record, so close-game timing worked against them"
-                        )
-                        _worst_conversion = (
-                            "the negative scoring margin also shows up in the W–L record"
-                            if _worst_matchup["Losses"] > _worst_matchup["Wins"]
-                            else "the manager has survived the negative scoring margin in the W–L record"
-                        )
-                        st.markdown(
-                            f" **What it means:** **{_best_matchup['Opponent']}** is {_sel_mgr}'s most favorable "
-                            f"scoring matchup at {_best_matchup['Avg Point Diff']:+.2f} points per meeting, "
-                            f"{_best_conversion}. **{_worst_matchup['Opponent']}** is the toughest matchup at "
-                            f"{_worst_matchup['Avg Point Diff']:+.2f} points per meeting; {_worst_conversion}. "
-                            "This separates a true opponent-specific scoring edge from a record created by a few close finishes."
-                        )
+                        _best_n = int(_best_matchup["Meetings"])
+                        _worst_n = int(_worst_matchup["Meetings"])
+                        _best_games = "meeting" if _best_n == 1 else "meetings"
+                        _worst_games = "meeting" if _worst_n == 1 else "meetings"
+                        if _best_matchup["Opponent"] == _worst_matchup["Opponent"]:
+                            st.markdown(
+                                f" **What it means:** Average scoring margin vs "
+                                f"**{_best_matchup['Opponent']}** is "
+                                f"{_best_matchup['Avg Point Diff']:+.2f} over "
+                                f"{_best_n} {_best_games}. Meeting count on the bar is "
+                                "the sample size. A one-game blowout can sit at either end of this chart."
+                            )
+                        else:
+                            st.markdown(
+                                f" **What it means:** The highest average scoring margin is vs "
+                                f"**{_best_matchup['Opponent']}** at "
+                                f"{_best_matchup['Avg Point Diff']:+.2f} over "
+                                f"{_best_n} {_best_games}. The lowest is vs "
+                                f"**{_worst_matchup['Opponent']}** at "
+                                f"{_worst_matchup['Avg Point Diff']:+.2f} over "
+                                f"{_worst_n} {_worst_games}. A one-game blowout can sit "
+                                "at either end. Meeting count on each bar is the sample size."
+                            )
 
                     _s_hist = []
                     for _yr4 in sorted(_mgr_season_rows):
@@ -2477,29 +2475,36 @@ def render():
                             "Most Consistent", _most_consistent["manager"],
                             f"{_most_consistent['volatility']:.2f} adjusted SD",
                             delta_color="off", delta_arrow="off", border=True,
+                            help=_CONSISTENCY_LUCK_METRIC_HELP["Most Consistent"],
                         )
                     with _c2:
                         st.metric(
                             "Most Volatile", _most_volatile["manager"],
                             f"{_most_volatile['volatility']:.2f} adjusted SD",
                             delta_color="off", delta_arrow="off", border=True,
+                            help=_CONSISTENCY_LUCK_METRIC_HELP["Most Volatile"],
                         )
                     with _c3:
                         st.metric(
                             "Most Fortunate", _most_fortunate["manager"],
                             f"{_most_fortunate['luck_delta']:+.2f} wins vs expected",
                             delta_color="off", delta_arrow="off", border=True,
+                            help=_CONSISTENCY_LUCK_METRIC_HELP["Most Fortunate"],
                         )
                     with _c4:
                         st.metric(
                             "Most Unfortunate", _most_unfortunate["manager"],
                             f"{_most_unfortunate['luck_delta']:+.2f} wins vs expected",
                             delta_color="off", delta_arrow="off", border=True,
+                            help=_CONSISTENCY_LUCK_METRIC_HELP["Most Unfortunate"],
                         )
 
                     _median_volatility = float(_cl_df["volatility"].median())
-                    _luck_scale = max(1.0, float(_cl_df["luck_delta"].abs().max()))
-                    _bubble_sizes = 12 + _cl_df["games"].astype(float).pow(0.5) * 3
+                    _vol_top = max(
+                        1.0,
+                        float(_cl_df["volatility"].max()) * 1.15,
+                        _median_volatility * 1.15,
+                    )
                     _fig_consistency = go.Figure(go.Scatter(
                         x=_cl_df["avg_above_league"],
                         y=_cl_df["volatility"],
@@ -2508,18 +2513,10 @@ def render():
                             "games", "avg_score", "actual_wins", "expected_wins", "luck_delta",
                         ]],
                         mode="markers+text",
-                        textposition="top center",
+                        textposition="bottom center",
                         marker={
-                            "size": _bubble_sizes,
-                            "color": _cl_df["luck_delta"],
-                            "colorscale": [
-                                [0, "#fb7185"],
-                                [0.5, "#64748b"],
-                                [1, "#34d399"],
-                            ],
-                            "cmin": -_luck_scale,
-                            "cmax": _luck_scale,
-                            "colorbar": {"title": "Wins vs expected"},
+                            "size": 14,
+                            "color": "#38bdf8",
                             "line": {"color": "rgba(255,255,255,0.7)", "width": 1},
                             "opacity": 0.9,
                         },
@@ -2550,8 +2547,8 @@ def render():
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                         yaxis={
-                            "title": "Adjusted Scoring Volatility (Lower = Steadier)",
-                            "rangemode": "tozero",
+                            "title": "Week-to-week swing vs league (steadier at top)",
+                            "range": [_vol_top, -0.4],
                             "gridcolor": "rgba(148,163,184,0.16)",
                         },
                     )
@@ -2581,7 +2578,7 @@ def render():
                         f"edge at {_top_scorer['avg_above_league']:+.2f} points and is {_top_scorer_style}. "
                         f"Among above-average scorers, **{_reliable['manager']}** is the most reliable, meaning "
                         "their advantage is less dependent on occasional spike weeks. "
-                        f"{_consistency_caveat} The lower-right area is the ideal combination: strong and steady."
+                        f"{_consistency_caveat} The upper-right area is the ideal combination: strong and steady."
                     )
 
                     _luck_sorted = _cl_df.sort_values("luck_delta", ascending=True).copy()
@@ -2704,578 +2701,6 @@ def render():
                                 "Expected Win %": st.column_config.NumberColumn(
                                     "Expected Win %", format="%.1f%%"
                                 ),
-                            },
-                        )
-
-            # ── Sub-tab F: Score Trends ───────────────────────────────────────
-            with _lhF:
-                import plotly.graph_objects as go
-
-                from fantasy import league_intelligence as _league_intel
-
-                _trend_scope = (
-                    _season_filter if _season_filter != "All Time" else "all seasons"
-                )
-                st.subheader("Score Trends")
-                st.caption(
-                    f"Regular season only · {_trend_scope}. Raw scoring shows the league environment; "
-                    "adjusted scoring shows how far each manager finished above or below that same week's field."
-                )
-
-                _score_context = _league_intel.weekly_score_context_frame(_filt_records)
-                if _score_context.empty:
-                    st.info("No completed regular-season scores are available for this selection.")
-                elif _season_filter == "All Time":
-                    _season_environment = (
-                        _score_context.groupby("season", as_index=False)
-                        .agg(
-                            average=("score", "mean"),
-                            median=("score", "median"),
-                            q1=("score", lambda values: values.quantile(0.25)),
-                            q3=("score", lambda values: values.quantile(0.75)),
-                            completed_weeks=("week", "nunique"),
-                        )
-                        .sort_values("season")
-                    )
-                    _manager_seasons = (
-                        _score_context.groupby(["manager", "season"], as_index=False)
-                        .agg(
-                            avg_score=("score", "mean"),
-                            avg_adjusted=("adjusted_score", "mean"),
-                            games=("week", "nunique"),
-                        )
-                        .sort_values(["manager", "season"])
-                    )
-                    _manager_summary = (
-                        _manager_seasons.groupby("manager", as_index=False)
-                        .agg(
-                            seasons=("season", "nunique"),
-                            above_average_seasons=(
-                                "avg_adjusted", lambda values: int(values.gt(0).sum())
-                            ),
-                            career_adjusted=("avg_adjusted", "mean"),
-                        )
-                        .sort_values(
-                            ["above_average_seasons", "career_adjusted"],
-                            ascending=[False, False],
-                        )
-                    )
-                    _changes = []
-                    for _trend_manager, _trend_group in _manager_seasons.groupby("manager"):
-                        _trend_group = _trend_group.sort_values("season")
-                        if len(_trend_group) >= 2:
-                            _changes.append({
-                                "manager": _trend_manager,
-                                "first_season": _trend_group.iloc[0]["season"],
-                                "latest_season": _trend_group.iloc[-1]["season"],
-                                "change": float(
-                                    _trend_group.iloc[-1]["avg_adjusted"]
-                                    - _trend_group.iloc[0]["avg_adjusted"]
-                                ),
-                            })
-                    _changes_df = pd.DataFrame(_changes)
-
-                    _league_average = float(_score_context["score"].mean())
-                    _highest_season = _season_environment.loc[
-                        _season_environment["average"].idxmax()
-                    ]
-                    _steady_leader = _manager_summary.iloc[0]
-                    _riser = (
-                        _changes_df.loc[_changes_df["change"].idxmax()]
-                        if not _changes_df.empty else None
-                    )
-
-                    _t1, _t2, _t3, _t4 = st.columns(4)
-                    with _t1:
-                        st.metric(
-                            "League Average", f"{_league_average:.2f} pts",
-                            f"{int(_score_context.groupby(['season', 'week']).ngroups)} completed weeks",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _t2:
-                        st.metric(
-                            "Highest-Scoring Season", str(_highest_season["season"]),
-                            f"{_highest_season['average']:.2f} pts / team-week",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _t3:
-                        if _riser is not None and _riser["change"] > 0:
-                            st.metric(
-                                "Biggest Riser", _riser["manager"],
-                                f"{_riser['change']:+.2f} pts / week",
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                        else:
-                            _best_change = (
-                                f"{_riser['change']:+.2f} best change"
-                                if _riser is not None else "Needs 2 seasons"
-                            )
-                            st.metric(
-                                "Biggest Riser", "No positive riser",
-                                _best_change,
-                                delta_color="off", delta_arrow="off", border=True,
-                            )
-                    with _t4:
-                        st.metric(
-                            "Most Often Above Average", _steady_leader["manager"],
-                            f"{int(_steady_leader['above_average_seasons'])} of "
-                            f"{int(_steady_leader['seasons'])} seasons",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-
-                    _fig_environment = go.Figure()
-                    _fig_environment.add_trace(go.Scatter(
-                        x=_season_environment["season"],
-                        y=_season_environment["q1"],
-                        mode="lines",
-                        line={"color": "rgba(96,165,250,0)"},
-                        hoverinfo="skip",
-                        showlegend=False,
-                    ))
-                    _fig_environment.add_trace(go.Scatter(
-                        x=_season_environment["season"],
-                        y=_season_environment["q3"],
-                        mode="lines",
-                        name="Middle 50% of scores",
-                        fill="tonexty",
-                        fillcolor="rgba(96,165,250,0.16)",
-                        line={"color": "rgba(96,165,250,0)"},
-                        hovertemplate="%{x}<br>75th percentile: %{y:.2f}<extra></extra>",
-                    ))
-                    _fig_environment.add_trace(go.Scatter(
-                        x=_season_environment["season"],
-                        y=_season_environment["average"],
-                        name="League average",
-                        mode="lines+markers",
-                        line={"color": "#34d399", "width": 3},
-                        marker={"size": 8},
-                        hovertemplate="%{x}<br>Average: %{y:.2f}<extra></extra>",
-                    ))
-                    _fig_environment.add_trace(go.Scatter(
-                        x=_season_environment["season"],
-                        y=_season_environment["median"],
-                        name="League median",
-                        mode="lines+markers",
-                        line={"color": "#fbbf24", "width": 2, "dash": "dot"},
-                        marker={"size": 7},
-                        hovertemplate="%{x}<br>Median: %{y:.2f}<extra></extra>",
-                    ))
-                    _fig_environment.update_layout(
-                        title="League Scoring Environment by Season",
-                        height=470,
-                        template="plotly_dark",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(15,23,42,0.36)",
-                        margin={"l": 55, "r": 30, "t": 70, "b": 55},
-                        hovermode="x unified",
-                        legend={"orientation": "h", "y": 1.12, "x": 0},
-                        xaxis={"title": "Season", "gridcolor": "rgba(148,163,184,0.12)"},
-                        yaxis={
-                            "title": "Points per Team-Week",
-                            "gridcolor": "rgba(148,163,184,0.16)",
-                        },
-                    )
-                    _lh_plotly(_fig_environment)
-
-                    _first_environment = _season_environment.iloc[0]
-                    _latest_environment = _season_environment.iloc[-1]
-                    _lowest_season = _season_environment.loc[
-                        _season_environment["average"].idxmin()
-                    ]
-                    _environment_change = float(
-                        _latest_environment["average"] - _first_environment["average"]
-                    )
-                    if len(_season_environment) == 1:
-                        _environment_meaning = (
-                            "Only one completed season is available, so this establishes a baseline rather "
-                            "than a scoring trend."
-                        )
-                    elif abs(_environment_change) < 1:
-                        _environment_meaning = (
-                            "The first and latest seasons are within one point, so the scoring baseline has "
-                            "been broadly stable."
-                        )
-                    elif _environment_change > 0:
-                        _environment_meaning = (
-                            f"The latest season runs {_environment_change:.2f} points higher than the first, "
-                            "so recent raw scores are easier to inflate without necessarily indicating better management."
-                        )
-                    else:
-                        _environment_meaning = (
-                            f"The latest season runs {abs(_environment_change):.2f} points lower than the first, "
-                            "so recent raw totals understate performance relative to the earlier scoring environment."
-                        )
-                    st.markdown(
-                        f" **What it means:** **{_highest_season['season']}** was the most generous scoring "
-                        f"environment at {_highest_season['average']:.2f} points per team-week; "
-                        f"**{_lowest_season['season']}** was the lowest at {_lowest_season['average']:.2f}. "
-                        f"{_environment_meaning} The shaded band shows the middle half of weekly scores, so "
-                        "a wider band means outcomes were more spread out—not simply higher."
-                    )
-
-                    _heatmap = _manager_seasons.pivot(
-                        index="manager", columns="season", values="avg_adjusted"
-                    )
-                    _raw_heatmap = _manager_seasons.pivot(
-                        index="manager", columns="season", values="avg_score"
-                    ).reindex(index=_heatmap.index, columns=_heatmap.columns)
-                    _latest_column = _heatmap.columns[-1]
-                    _row_order = (
-                        _heatmap.assign(
-                            _latest=_heatmap[_latest_column],
-                            _career=_heatmap.mean(axis=1),
-                        )
-                        .sort_values(["_latest", "_career"], ascending=False, na_position="last")
-                        .index
-                    )
-                    _heatmap = _heatmap.reindex(_row_order)
-                    _raw_heatmap = _raw_heatmap.reindex(_row_order)
-                    _heat_limit = max(1.0, float(_heatmap.abs().max().max()))
-                    _heat_text = _heatmap.map(
-                        lambda value: "" if pd.isna(value) else f"{value:+.1f}"
-                    )
-                    _fig_heatmap = go.Figure(go.Heatmap(
-                        z=_heatmap.values,
-                        x=[str(value) for value in _heatmap.columns],
-                        y=_heatmap.index.tolist(),
-                        text=_heat_text.values,
-                        texttemplate="%{text}",
-                        customdata=_raw_heatmap.values,
-                        colorscale=[
-                            [0, "#be123c"],
-                            [0.5, "#334155"],
-                            [1, "#059669"],
-                        ],
-                        zmin=-_heat_limit,
-                        zmax=_heat_limit,
-                        zmid=0,
-                        xgap=2,
-                        ygap=2,
-                        colorbar={"title": "Pts vs league / week"},
-                        hovertemplate=(
-                            "<b>%{y}</b> · %{x}<br>Points vs league: %{z:+.2f}/week<br>"
-                            "Raw average: %{customdata:.2f}<extra></extra>"
-                        ),
-                    ))
-                    _fig_heatmap.update_layout(
-                        title="Manager Performance After Adjusting for Each Week's Scoring Level",
-                        height=max(470, 36 * len(_heatmap) + 130),
-                        template="plotly_dark",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(15,23,42,0.36)",
-                        margin={"l": 25, "r": 80, "t": 70, "b": 50},
-                        xaxis={"title": "Season", "side": "top"},
-                        yaxis={"title": "", "automargin": True, "autorange": "reversed"},
-                    )
-                    _lh_plotly(_fig_heatmap)
-
-                    _latest_scores = _manager_seasons[
-                        _manager_seasons["season"].eq(_latest_column)
-                    ]
-                    _latest_leader = _latest_scores.loc[
-                        _latest_scores["avg_adjusted"].idxmax()
-                    ]
-                    if _riser is None:
-                        _riser_meaning = (
-                            "There is not yet enough multi-season manager history to identify improvement."
-                        )
-                    elif _riser["change"] > 0:
-                        _riser_meaning = (
-                            f"**{_riser['manager']}** is the biggest riser, improving "
-                            f"{_riser['change']:.2f} adjusted points per week from "
-                            f"{_riser['first_season']} to {_riser['latest_season']}; that is real peer-relative "
-                            "improvement rather than a league-wide scoring bump."
-                        )
-                    else:
-                        _riser_meaning = (
-                            "No returning manager improved their first-to-latest adjusted average; the least "
-                            f"negative change belongs to **{_riser['manager']}** at {_riser['change']:+.2f}."
-                        )
-                    st.markdown(
-                        f" **What it means:** In **{_latest_column}**, **{_latest_leader['manager']}** led the "
-                        f"league by scoring {_latest_leader['avg_adjusted']:+.2f} points per week versus the "
-                        "same-week field. "
-                        f"{_riser_meaning} **{_steady_leader['manager']}** posted an above-average season "
-                        f"{int(_steady_leader['above_average_seasons'])} time(s), the most in this history. "
-                        "Green cells represent a repeatable weekly edge; red cells mean raw points were below "
-                        "what that season's exact weeks required."
-                    )
-
-                    _season_details = _season_environment.rename(columns={
-                        "season": "Season", "average": "League Average",
-                        "median": "League Median", "q1": "25th Percentile",
-                        "q3": "75th Percentile", "completed_weeks": "Completed Weeks",
-                    })
-                    _manager_details = _manager_seasons.rename(columns={
-                        "manager": "Manager", "season": "Season",
-                        "avg_score": "Raw Avg Score", "avg_adjusted": "Pts vs League / Wk",
-                        "games": "Games",
-                    })
-                    with st.expander("View complete score trend data"):
-                        st.markdown("**League scoring environment**")
-                        st.dataframe(_season_details, hide_index=True, width="stretch")
-                        st.markdown("**Manager-season performance**")
-                        st.dataframe(
-                            _manager_details.sort_values(
-                                ["Season", "Pts vs League / Wk"], ascending=[False, False]
-                            ),
-                            hide_index=True,
-                            width="stretch",
-                            column_config={
-                                "Raw Avg Score": st.column_config.NumberColumn(format="%.2f"),
-                                "Pts vs League / Wk": st.column_config.NumberColumn(format="%+.2f"),
-                            },
-                        )
-                else:
-                    _weekly_environment = (
-                        _score_context.groupby("week", as_index=False)
-                        .agg(
-                            average=("score", "mean"),
-                            median=("score", "median"),
-                            q1=("score", lambda values: values.quantile(0.25)),
-                            q3=("score", lambda values: values.quantile(0.75)),
-                            teams=("manager", "nunique"),
-                        )
-                        .sort_values("week")
-                    )
-                    _manager_totals = (
-                        _score_context.groupby("manager", as_index=False)
-                        .agg(
-                            avg_score=("score", "mean"),
-                            total_adjusted=("adjusted_score", "sum"),
-                            avg_adjusted=("adjusted_score", "mean"),
-                            games=("week", "nunique"),
-                        )
-                        .sort_values("total_adjusted", ascending=False)
-                    )
-                    _last_four_weeks = sorted(_score_context["week"].unique())[-4:]
-                    _recent_form = (
-                        _score_context[_score_context["week"].isin(_last_four_weeks)]
-                        .groupby("manager", as_index=False)
-                        .agg(avg_adjusted=("adjusted_score", "mean"), games=("week", "nunique"))
-                        .sort_values("avg_adjusted", ascending=False)
-                    )
-                    _league_average = float(_score_context["score"].mean())
-                    _highest_week = _weekly_environment.loc[
-                        _weekly_environment["average"].idxmax()
-                    ]
-                    _season_leader = _manager_totals.iloc[0]
-                    _recent_leader = _recent_form.iloc[0]
-
-                    _t1, _t2, _t3, _t4 = st.columns(4)
-                    with _t1:
-                        st.metric(
-                            "League Average", f"{_league_average:.2f} pts",
-                            f"{len(_weekly_environment)} completed weeks",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _t2:
-                        st.metric(
-                            "Highest-Scoring Week", f"Week {int(_highest_week['week'])}",
-                            f"{_highest_week['average']:.2f} pts / team",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _t3:
-                        st.metric(
-                            "Adjusted Scoring Leader", _season_leader["manager"],
-                            f"{_season_leader['total_adjusted']:+.2f} cumulative pts",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-                    with _t4:
-                        st.metric(
-                            "Best Recent Form", _recent_leader["manager"],
-                            f"{_recent_leader['avg_adjusted']:+.2f} / week · last "
-                            f"{len(_last_four_weeks)}",
-                            delta_color="off", delta_arrow="off", border=True,
-                        )
-
-                    _fig_weekly_environment = go.Figure()
-                    _fig_weekly_environment.add_trace(go.Scatter(
-                        x=_weekly_environment["week"],
-                        y=_weekly_environment["q1"],
-                        mode="lines",
-                        line={"color": "rgba(96,165,250,0)"},
-                        hoverinfo="skip",
-                        showlegend=False,
-                    ))
-                    _fig_weekly_environment.add_trace(go.Scatter(
-                        x=_weekly_environment["week"],
-                        y=_weekly_environment["q3"],
-                        mode="lines",
-                        name="Middle 50% of scores",
-                        fill="tonexty",
-                        fillcolor="rgba(96,165,250,0.16)",
-                        line={"color": "rgba(96,165,250,0)"},
-                        hovertemplate="Week %{x}<br>75th percentile: %{y:.2f}<extra></extra>",
-                    ))
-                    _fig_weekly_environment.add_trace(go.Scatter(
-                        x=_weekly_environment["week"],
-                        y=_weekly_environment["average"],
-                        mode="lines+markers",
-                        name="League average",
-                        line={"color": "#34d399", "width": 3},
-                        marker={"size": 7},
-                        hovertemplate="Week %{x}<br>Average: %{y:.2f}<extra></extra>",
-                    ))
-                    _fig_weekly_environment.add_trace(go.Scatter(
-                        x=_weekly_environment["week"],
-                        y=_weekly_environment["median"],
-                        mode="lines+markers",
-                        name="League median",
-                        line={"color": "#fbbf24", "width": 2, "dash": "dot"},
-                        marker={"size": 6},
-                        hovertemplate="Week %{x}<br>Median: %{y:.2f}<extra></extra>",
-                    ))
-                    _fig_weekly_environment.update_layout(
-                        title=f"{_season_filter} Weekly Scoring Environment",
-                        height=470,
-                        template="plotly_dark",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(15,23,42,0.36)",
-                        margin={"l": 55, "r": 30, "t": 70, "b": 55},
-                        hovermode="x unified",
-                        legend={"orientation": "h", "y": 1.12, "x": 0},
-                        xaxis={
-                            "title": "Week", "dtick": 1,
-                            "gridcolor": "rgba(148,163,184,0.12)",
-                        },
-                        yaxis={
-                            "title": "Points per Team",
-                            "gridcolor": "rgba(148,163,184,0.16)",
-                        },
-                    )
-                    _lh_plotly(_fig_weekly_environment)
-
-                    _lowest_week = _weekly_environment.loc[
-                        _weekly_environment["average"].idxmin()
-                    ]
-                    _week_gap = float(_highest_week["average"] - _lowest_week["average"])
-                    _latest_week = _weekly_environment.iloc[-1]
-                    _latest_spread = float(_latest_week["q3"] - _latest_week["q1"])
-                    if len(_weekly_environment) == 1:
-                        _weekly_meaning = (
-                            "One completed week establishes the baseline; it is too early to call the season "
-                            "high- or low-scoring."
-                        )
-                    else:
-                        _weekly_meaning = (
-                            f"The {_week_gap:.2f}-point gap between the highest and lowest league averages "
-                            "shows how much opponent-independent scoring conditions changed week to week."
-                        )
-                    st.markdown(
-                        f" **What it means:** Week **{int(_highest_week['week'])}** produced the most scoring "
-                        f"at {_highest_week['average']:.2f} points per team; Week "
-                        f"**{int(_lowest_week['week'])}** produced the least at {_lowest_week['average']:.2f}. "
-                        f"{_weekly_meaning} In the latest completed week, the middle half of teams were spread "
-                        f"across {_latest_spread:.2f} points, which describes competitive separation rather "
-                        "than schedule luck."
-                    )
-
-                    _cumulative = _score_context.sort_values(["manager", "week"]).copy()
-                    _cumulative["cumulative_adjusted"] = _cumulative.groupby(
-                        "manager"
-                    )["adjusted_score"].cumsum()
-                    _preferred_trend_manager = st.session_state.get("lh_manager")
-                    if _preferred_trend_manager not in set(_cumulative["manager"]):
-                        _preferred_trend_manager = _season_leader["manager"]
-                    _trend_colors = [
-                        "#60a5fa", "#fbbf24", "#a78bfa", "#fb7185", "#22d3ee",
-                        "#f97316", "#c084fc", "#2dd4bf", "#f472b6", "#94a3b8",
-                    ]
-                    _fig_cumulative = go.Figure()
-                    for _trend_index, (_trend_manager, _manager_weeks) in enumerate(
-                        _cumulative.groupby("manager", sort=True)
-                    ):
-                        _is_highlighted = _trend_manager == _preferred_trend_manager
-                        _fig_cumulative.add_trace(go.Scatter(
-                            x=_manager_weeks["week"],
-                            y=_manager_weeks["cumulative_adjusted"],
-                            name=_trend_manager,
-                            mode="lines+markers",
-                            line={
-                                "color": "#34d399" if _is_highlighted else _trend_colors[
-                                    _trend_index % len(_trend_colors)
-                                ],
-                                "width": 4 if _is_highlighted else 2,
-                            },
-                            marker={"size": 7 if _is_highlighted else 5},
-                            opacity=1 if _is_highlighted else 0.72,
-                            customdata=_manager_weeks[["score", "league_average", "adjusted_score"]],
-                            hovertemplate=(
-                                "<b>%{fullData.name}</b> · Week %{x}<br>"
-                                "Cumulative vs league: %{y:+.2f}<br>Score: %{customdata[0]:.2f}<br>"
-                                "League average: %{customdata[1]:.2f}<br>Weekly edge: "
-                                "%{customdata[2]:+.2f}<extra></extra>"
-                            ),
-                        ))
-                    _fig_cumulative.add_hline(
-                        y=0, line_dash="dot", line_color="#94a3b8", line_width=1
-                    )
-                    _fig_cumulative.update_layout(
-                        title="Cumulative Points Above or Below the Weekly League Average",
-                        height=520,
-                        template="plotly_dark",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(15,23,42,0.36)",
-                        margin={"l": 55, "r": 30, "t": 70, "b": 55},
-                        hovermode="closest",
-                        legend={"title": "Manager"},
-                        xaxis={
-                            "title": "Week", "dtick": 1,
-                            "gridcolor": "rgba(148,163,184,0.12)",
-                        },
-                        yaxis={
-                            "title": "Cumulative Points vs League",
-                            "gridcolor": "rgba(148,163,184,0.16)",
-                        },
-                    )
-                    _lh_plotly(_fig_cumulative)
-
-                    _runner_up = _manager_totals.iloc[1] if len(_manager_totals) > 1 else None
-                    _lead_context = (
-                        f", {_season_leader['total_adjusted'] - _runner_up['total_adjusted']:.2f} points "
-                        f"ahead of **{_runner_up['manager']}**"
-                        if _runner_up is not None else ""
-                    )
-                    _highlight_row = _manager_totals[
-                        _manager_totals["manager"].eq(_preferred_trend_manager)
-                    ].iloc[0]
-                    _highlight_meaning = (
-                        f"The highlighted **{_preferred_trend_manager}** line sits at "
-                        f"{_highlight_row['total_adjusted']:+.2f}; positive means sustained scoring above "
-                        "the weekly field, while negative means the manager has been chasing that baseline."
-                    )
-                    st.markdown(
-                        f" **What it means:** **{_season_leader['manager']}** has accumulated "
-                        f"{_season_leader['total_adjusted']:+.2f} points versus the weekly league average"
-                        f"{_lead_context}. **{_recent_leader['manager']}** has the best recent form at "
-                        f"{_recent_leader['avg_adjusted']:+.2f} points per week across the last "
-                        f"{len(_last_four_weeks)} completed week(s), so the current momentum leader can differ "
-                        f"from the full-season leader. {_highlight_meaning}"
-                    )
-
-                    _weekly_details = _weekly_environment.rename(columns={
-                        "week": "Week", "average": "League Average",
-                        "median": "League Median", "q1": "25th Percentile",
-                        "q3": "75th Percentile", "teams": "Teams",
-                    })
-                    _manager_details = _manager_totals.rename(columns={
-                        "manager": "Manager", "avg_score": "Raw Avg Score",
-                        "total_adjusted": "Cumulative Pts vs League",
-                        "avg_adjusted": "Pts vs League / Wk", "games": "Games",
-                    })
-                    with st.expander("View complete score trend data"):
-                        st.markdown("**Weekly scoring environment**")
-                        st.dataframe(_weekly_details, hide_index=True, width="stretch")
-                        st.markdown("**Manager scoring trends**")
-                        st.dataframe(
-                            _manager_details,
-                            hide_index=True,
-                            width="stretch",
-                            column_config={
-                                "Raw Avg Score": st.column_config.NumberColumn(format="%.2f"),
-                                "Cumulative Pts vs League": st.column_config.NumberColumn(format="%+.2f"),
-                                "Pts vs League / Wk": st.column_config.NumberColumn(format="%+.2f"),
                             },
                         )
 

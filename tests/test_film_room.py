@@ -15,6 +15,7 @@ _HERE = Path(__file__).resolve().parents[1]
 _SITE_PAGES = _HERE / "site_pages"
 sys.path.insert(0, str(_HERE))
 
+from film_room import _embed_src  # noqa: E402
 from video_content import INTRO_VIDEO, VIDEOS  # noqa: E402
 
 
@@ -37,6 +38,12 @@ def _newest():
 
 def _md(at):
     return " ".join(str(m.value) for m in at.markdown)
+
+
+def test_embed_uses_dark_player_not_white_card():
+    src = _embed_src("7674314953565670687")
+    assert src == "https://www.tiktok.com/player/v1/7674314953565670687"
+    assert "embed/v2" not in src
 
 
 def test_default_is_newest_episode(tmp_path):
