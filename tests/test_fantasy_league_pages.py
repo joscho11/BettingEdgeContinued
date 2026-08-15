@@ -119,10 +119,10 @@ def test_league_history_rejects_implausible_ids_before_fetch():
 
 def test_rivalry_score_swatch_bands_and_card_html():
     locked = page_league_history._rivalry_score_swatch(12.0, locked=True)
-    assert locked[0] == "#FBBF24"
-    assert page_league_history._rivalry_score_swatch(70.0)[0] == "#FB7185"
-    assert page_league_history._rivalry_score_swatch(50.0)[0] == "#FBBF24"
-    assert page_league_history._rivalry_score_swatch(49.9)[0] == "#7DD3FC"
+    assert locked[0] == "#60A5FA"
+    assert page_league_history._rivalry_score_swatch(70.0)[0] == "#35D08A"
+    assert page_league_history._rivalry_score_swatch(50.0)[0] == "#FACC15"
+    assert page_league_history._rivalry_score_swatch(49.9)[0] == "#F87171"
     html = page_league_history._rivalry_slate_card_html({
         "manager_a": "Alice",
         "manager_b": "Bob",

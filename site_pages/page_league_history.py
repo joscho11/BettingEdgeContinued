@@ -39,8 +39,8 @@ _LEAGUE_HISTORY_TABS = (
 
 # Rivalries color is semantic, not decoration. Classic = established (brand green),
 # Maximum Drama = close fights (rose), Fresh Blood = new pairings (sky). Score
-# bands on the slate use the same rose / gold / sky ramp. Locked matchups take
-# gold regardless of score. Full hairline borders only; no side stripes.
+# bands: green 70+, yellow 50-69, red below 50. Locked matchups take blue.
+# Full hairline borders only; no side stripes.
 _RIVALRY_MODE_SWATCH = {
     "Classic Rivalries": ("#35D08A", "rgba(53,208,138,0.14)"),
     "Maximum Drama": ("#FB7185", "rgba(251,113,133,0.16)"),
@@ -51,12 +51,12 @@ _RIVALRY_MODE_SWATCH = {
 def _rivalry_score_swatch(score: float, locked: bool = False) -> tuple[str, str, str]:
     """Return (ink, border, fill) for a rivalry-week card."""
     if locked:
-        return "#FBBF24", "rgba(251,191,36,0.70)", "rgba(251,191,36,0.12)"
+        return "#60A5FA", "rgba(96,165,250,0.70)", "rgba(96,165,250,0.14)"
     if score >= 70:
-        return "#FB7185", "rgba(251,113,133,0.55)", "rgba(251,113,133,0.12)"
+        return "#35D08A", "rgba(53,208,138,0.55)", "rgba(53,208,138,0.12)"
     if score >= 50:
-        return "#FBBF24", "rgba(251,191,36,0.50)", "rgba(251,191,36,0.10)"
-    return "#7DD3FC", "rgba(56,189,248,0.40)", "rgba(14,165,233,0.08)"
+        return "#FACC15", "rgba(250,204,21,0.55)", "rgba(250,204,21,0.12)"
+    return "#F87171", "rgba(248,113,113,0.55)", "rgba(248,113,113,0.12)"
 
 
 def _rivalry_slate_card_html(row) -> str:
@@ -89,10 +89,10 @@ def _rivalry_slate_card_html(row) -> str:
 
 def _rivalry_score_legend_html() -> str:
     chips = (
-        ("#FB7185", "rgba(251,113,133,0.16)", "70+ fit"),
-        ("#FBBF24", "rgba(251,191,36,0.16)", "50-69"),
-        ("#7DD3FC", "rgba(56,189,248,0.16)", "below 50"),
-        ("#FBBF24", "rgba(251,191,36,0.16)", "Locked"),
+        ("#35D08A", "rgba(53,208,138,0.16)", "70+ fit"),
+        ("#FACC15", "rgba(250,204,21,0.16)", "50-69"),
+        ("#F87171", "rgba(248,113,113,0.16)", "below 50"),
+        ("#60A5FA", "rgba(96,165,250,0.16)", "Locked"),
     )
     parts = []
     for ink, fill, label in chips:
@@ -1291,8 +1291,8 @@ def render():
                             f"{_matchup_count} matchups for "
                             f"{len(_active_rivalry_managers)} current managers · "
                             f"average score {_average_score}. "
-                            "Rose is 70+ fit, gold is 50-69, sky is below 50. "
-                            "Locked matchups stay gold."
+                            "Green is 70+ fit, yellow is 50-69, red is below 50. "
+                            "Locked matchups stay blue."
                         )
                         st.markdown(
                             _rivalry_score_legend_html(),
