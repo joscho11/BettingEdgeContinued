@@ -68,8 +68,9 @@ _LEADERBOARD_METRIC_HELP = {
         "That is last place. Counted the same way as championship titles. "
         "Ties share the card. Three or more leaders show as an N-way tie."
     ),
-    "Most Toilet Bracket Appearances": (
-        "Seasons spent in the consolation (losers) bracket. Ties share the card. "
+    "Most Toilet Bracket Finals Appearances": (
+        "Toilet bowl championship games reached, as champ or runner-up. "
+        "Same idea as Most Finals Appearances. Ties share the card. "
         "Three or more leaders show as an N-way tie."
     ),
     "Lowest Scoring Team": (
@@ -84,7 +85,7 @@ _LEADERBOARD_COUNT_CARDS = {
     "Most Finals Appearances",
     "Longest Active Playoff Streak",
     "Most Toilet Bowl Titles",
-    "Most Toilet Bracket Appearances",
+    "Most Toilet Bracket Finals Appearances",
 }
 
 _HOF_METRIC_HELP = {
@@ -606,7 +607,7 @@ def _fetch_one_season(league_id: str):
     toilet_bracket: list[str] = []
     if losers_raw and info.get("status") == "complete":
         seen_names: set[str] = set()
-        for rid in _intel.bracket_roster_ids(losers_raw):
+        for rid in _intel.bracket_finals_roster_ids(losers_raw):
             name = str(_by_rid(rid).get("username") or "").strip()
             if name and name not in {"?", "—"} and name not in seen_names:
                 seen_names.add(name)
@@ -674,6 +675,7 @@ def _fetch_one_season(league_id: str):
             if toilet_champions else {"username": "?", "team_name": ""}
         ),
         "toilet_champions": toilet_champions,
+        "toilet_finalists": toilet_bracket,
         "toilet_bracket": toilet_bracket,
         "standings": standings,
         "matchups": _matchups_season,
@@ -1077,8 +1079,8 @@ def render():
                          "No scores yet", None),
                          ("Most Toilet Bowl Titles", _toilet_names, _toilet_delta,
                          "No toilet champ yet", "0 last-place finishes"),
-                        ("Most Toilet Bracket Appearances", _toilet_app_names,
-                         _toilet_app_delta, "No consolation bracket", "0 appearances"),
+                        ("Most Toilet Bracket Finals Appearances", _toilet_app_names,
+                         _toilet_app_delta, "No consolation finals", "0 toilet-bowl games"),
                         ("Lowest Scoring Team", _low_names, _low_delta,
                          (
                              "Need 3 seasons"
@@ -1098,27 +1100,22 @@ def render():
                                         empty_value=_empty, empty_delta=_empty_delta,
                                         flip_at=3 if _label in _LEADERBOARD_COUNT_CARDS else None,
                                     )
-                    _caption_parts = []
-                    for _tie_label, _tie_names in (
+                    _caption_md = _league_intel.n_way_tie_bullets((
                         ("Most Titles", _title_names),
                         ("Most Finals Appearances", _final_names),
                         ("Longest Active Playoff Streak", _streak_names),
                         ("Most Toilet Bowl Titles", _toilet_names),
-                        ("Most Toilet Bracket Appearances", _toilet_app_names),
-                    ):
-                        if len(_tie_names) >= 3:
-                            _caption_parts.append(
-                                f"{_tie_label} is a {len(_tie_names)}-way tie: "
-                                f"{_league_intel.format_name_list(_tie_names)}."
-                            )
-                    if not _caption_parts and any(len(_names) > 1 for _names in (
+                        ("Most Toilet Bracket Finals Appearances", _toilet_app_names),
+                    ))
+                    if _caption_md:
+                        with st.container(key="jsa-lh-leaderboard-ties"):
+                            st.markdown(_caption_md)
+                    elif any(len(_names) > 1 for _names in (
                         _title_names, _win_names, _point_names,
                         _final_names, _streak_names,
                         _toilet_names, _toilet_app_names, _low_names,
                     )):
-                        _caption_parts.append("Tied leaders share a card.")
-                    if _caption_parts:
-                        st.caption(" ".join(_caption_parts))
+                        st.caption("Tied leaders share a card.")
 
                     if not _scored.empty:
                         _bubble = _scored[_scored["win_pct"].notna()].copy()

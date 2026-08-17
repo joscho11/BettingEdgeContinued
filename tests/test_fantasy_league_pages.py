@@ -152,6 +152,7 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "repeat(4,minmax(0,1fr))" in css.replace(" ", "")
     assert "::-webkit-scrollbar-thumb" in css
     assert "st-key-jsa-lh-leaderboard-cards" in css
+    assert "st-key-jsa-lh-leaderboard-ties" in css
     assert "st-key-jsa-lh-report-cards" in css
     assert "grid-auto-rows:1fr" in css.replace(" ", "")
     assert "st-key-jsa-lh-hof-cards" in css
@@ -350,7 +351,8 @@ def test_fetch_one_season_maps_losers_bracket_last_place(monkeypatch):
         year, payload = page_league_history._fetch_one_season(league_id)
         assert year == "2025"
         assert payload["toilet_champion"]["username"] == "ConsolationWinner"
-        assert payload["toilet_bracket"] == ["ConsolationWinner", "LastPlace", "Runner", "Third"]
+        assert payload["toilet_bracket"] == ["ConsolationWinner", "Runner"]
+        assert payload["toilet_finalists"] == ["ConsolationWinner", "Runner"]
     finally:
         page_league_history._fetch_one_season.clear()
 
@@ -608,6 +610,18 @@ def test_tied_leaders_share_a_headline_without_win_pct_tiebreak():
     assert league_intel.format_name_list(
         ["Alice", "Bob", "Carol"]
     ) == "Alice, Bob, and Carol"
+    assert league_intel.n_way_tie_bullets([
+        ("Most Titles", ["MilanPandey", "awf3", "theted123"]),
+        ("Longest Active Playoff Streak",
+         ["GarnerRandazzo", "JoScho", "awf3", "menglish8"]),
+        ("Most Toilet Bowl Titles", ["Jaboom1", "joshuasurprise", "theted123"]),
+    ]) == (
+        "- Most Titles is a 3-way tie: MilanPandey, awf3, and theted123.\n"
+        "- Longest Active Playoff Streak is a 4-way tie: "
+        "GarnerRandazzo, JoScho, awf3, and menglish8.\n"
+        "- Most Toilet Bowl Titles is a 3-way tie: "
+        "Jaboom1, joshuasurprise, and theted123."
+    )
 
 
 def test_active_playoff_streak_starts_at_latest_decided_season():
@@ -683,6 +697,7 @@ def test_losers_bracket_last_place_is_highest_assigned_finish():
     ]
     assert league_intel.last_place_roster_ids(bracket) == ["6"]
     assert league_intel.bracket_title_roster_ids(bracket) == ["12"]
+    assert league_intel.bracket_finals_roster_ids(bracket) == ["12", "5"]
     assert league_intel.bracket_roster_ids(bracket) == {"5", "6", "7", "12"}
     assert league_intel.bracket_placement_ranks(bracket) == {
         "12": 1, "5": 2, "7": 3, "6": 4,
@@ -1316,7 +1331,7 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         "Best Win %",
         "Most Points",
         "Most Toilet Bowl Titles",
-        "Most Toilet Bracket Appearances",
+        "Most Toilet Bracket Finals Appearances",
         "Lowest Scoring Team",
     ]
     _card_idx = [_lb_labels.index(label) for label in _card_order]

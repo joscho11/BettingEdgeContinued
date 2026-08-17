@@ -113,7 +113,7 @@ def _manager_stats_seed() -> dict:
         "titles": 0,
         "runner_ups": 0,
         "toilet_titles": 0,
-        "toilet_appearances": 0,
+        "toilet_appearances": 0,  # consolation championship games (champ or runner-up)
         "seasons": 0,
         "wins": 0,
         "losses": 0,
@@ -192,6 +192,30 @@ def bracket_title_roster_ids(bracket: Sequence[Mapping] | None) -> list[str]:
         seen.add(rid)
         winners.append(rid)
     return winners
+
+
+def bracket_finals_roster_ids(bracket: Sequence[Mapping] | None) -> list[str]:
+    """Both teams in each p=1 game. Championship or toilet-bowl final."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for match in bracket or []:
+        if not isinstance(match, dict):
+            continue
+        try:
+            if int(match.get("p")) != 1:
+                continue
+        except (TypeError, ValueError):
+            continue
+        for key in ("w", "l", "t1", "t2"):
+            value = match.get(key)
+            if value is None or value == "":
+                continue
+            rid = str(value).strip()
+            if not rid or rid in {"None", "?"} or rid in seen:
+                continue
+            seen.add(rid)
+            ids.append(rid)
+    return ids
 
 
 def infer_roster_owner_id(
@@ -341,7 +365,10 @@ def manager_leaderboard_frame(
             if toilet:
                 stats.setdefault(toilet, _manager_stats_seed())["toilet_titles"] += 1
         seen_toilet = set()
-        for name in season_data.get("toilet_bracket") or []:
+        finalists = list(season_data.get("toilet_finalists") or [])
+        if not finalists:
+            finalists = list(season_data.get("toilet_bracket") or [])
+        for name in finalists:
             manager = _manager(name)
             if not manager or manager in seen_toilet:
                 continue
@@ -462,6 +489,23 @@ def format_name_list(names: Sequence[str]) -> str:
     if len(labels) <= 2:
         return format_tied_names(labels)
     return f"{', '.join(labels[:-1])}, and {labels[-1]}"
+
+
+def n_way_tie_bullets(
+    groups: Sequence[tuple[str, Sequence[str]]],
+    *,
+    flip_at: int = 3,
+) -> str:
+    """One markdown bullet per N-way scorecard tie."""
+    lines: list[str] = []
+    for label, names in groups:
+        labels = [str(name).strip() for name in names if str(name).strip()]
+        if len(labels) < flip_at:
+            continue
+        lines.append(
+            f"- {label} is a {len(labels)}-way tie: {format_name_list(labels)}."
+        )
+    return "\n".join(lines)
 
 
 def scorecard_headline(names: Sequence[str], *, flip_at: int | None = None) -> str:

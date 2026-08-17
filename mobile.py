@@ -457,11 +457,14 @@ details summary{
 
 /* 10b-desktop. Leaderboard is 4-up. Streamlit columns default min-width:auto,
    so a long name or a two-name tie runs off the tile. Grid + minmax(0,1fr)
-   lets the value wrap inside the card. pre-line keeps a stacked two-name tie. */
+   lets the value wrap inside the card. pre-line keeps a stacked two-name tie.
+   Stretch wrappers to 1fr so a longer label does not drop that card's bottom
+   border below the rest of the row. */
 @media (min-width: 641px){
   [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
     display:grid !important;
     grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-rows:1fr !important;
     gap:.45rem !important;
     align-items:stretch !important;
   }
@@ -470,10 +473,36 @@ details summary{
     max-width:none !important;
     width:auto !important;
     flex:none !important;
+    display:flex !important;
+    padding:0 !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stElementContainer"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stFullScreenFrame"]{
+    width:100% !important;
+    height:100% !important;
+    min-height:0 !important;
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
   }
   [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"]{
+    flex:1 1 auto !important;
+    height:100% !important;
     min-height:8.25rem !important;
+    display:flex !important;
+    flex-direction:column !important;
+    box-sizing:border-box !important;
     overflow:visible !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div{
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+    height:100% !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
+    margin-top:auto !important;
   }
   [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"],
   [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"] *{
@@ -488,6 +517,18 @@ details summary{
     font-size:clamp(0.75rem, 1.1vw, 1rem) !important;
     line-height:1.15 !important;
   }
+}
+
+[class*="st-key-jsa-lh-leaderboard-ties"] [data-testid="stMarkdownContainer"],
+[class*="st-key-jsa-lh-leaderboard-ties"] [data-testid="stMarkdownContainer"] p,
+[class*="st-key-jsa-lh-leaderboard-ties"] [data-testid="stMarkdownContainer"] li{
+  font-size:.85rem !important;
+  color:var(--jsa-dim, #93A0B1) !important;
+  line-height:1.45 !important;
+}
+[class*="st-key-jsa-lh-leaderboard-ties"] ul{
+  margin:.2rem 0 0 1.15rem !important;
+  padding:0 !important;
 }
 
 /* 10b. Leaderboard + Report Cards scorecards: even 2-up pairs, reserved
