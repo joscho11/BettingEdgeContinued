@@ -94,8 +94,8 @@ def test_every_episode_has_a_breakdown_file():
         assert item["video_id"] in item["tiktok_url"]
 
 
-def test_league_history_episode_is_newest():
+def test_jefferson_episode_is_newest():
     newest = _newest()
-    assert newest["slug"] == "league-history"
-    assert newest["video_id"] == "7674717547266133278"
-    assert newest["date"] == "2026-08-16"
+    assert newest["slug"] == "jefferson-deep-dive"
+    assert newest["video_id"] == "7675129111659957534"
+    assert newest["date"] == "2026-08-17"

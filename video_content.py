@@ -132,4 +132,13 @@ VIDEOS = [
         "video_id": "7674717547266133278",
         "breakdown_file": "league_history.md",
     },
+    {
+        "slug": "jefferson-deep-dive",
+        "title": "Justin Jefferson's Fantasy Outlook 2026",
+        "subtitle": "2026 · WR, Minnesota",
+        "date": "2026-08-17",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7675129111659957534",
+        "video_id": "7675129111659957534",
+        "breakdown_file": "jefferson_deep_dive.md",
+    },
 ]
