@@ -52,7 +52,12 @@ def test_weekly_predictions_hides_paused_agent_chrome(tmp_path):
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Agent Confidence:" not in md
     assert "Matchup Analysis" not in md
-    assert "Model Consensus:" in md
+    assert "Tuesday HIGH" in md
+    assert "Model Consensus:" not in md
+    assert "No totals on this season" in " ".join(str(s.value) for s in at.success)
+    assert "jsa-tot-badge" not in md
+    assert "NE @ SEA" in md
+    assert "MATCHUP" in md
 
 
 def test_ats_blurb_lives_on_the_betting_pages(tmp_path):

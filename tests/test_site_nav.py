@@ -54,21 +54,18 @@ def test_default_is_weekly_predictions():
         f"Draft Board must no longer be the default; titles={_titles(at)!r}"
 
 
-def test_preseason_demo_banner_shows_then_hides():
-    # pre-season: the Weekly Predictions demo banner is shown and points to the board
-    os.environ["BOARD_REFRESH_SEASON_START"] = "2099-01-01"
+def test_live_2026_banner_on_default_weekly_predictions():
     at = _run()
+    successes = " ".join(str(s.value) for s in at.success)
+    assert "Live 2026" in successes, f"live 2026 banner missing: {successes!r}"
+    assert "one-sided 95% Wilson" in successes
+    assert "No medium tier" in successes
+    assert "No totals on this season" in successes
     infos = " ".join(str(i.value) for i in at.info)
-    assert "demo until the 2026 season" in infos, "pre-season demo banner missing"
-    assert "Draft Board has frozen Model Proj and daily Sleeper market data" in infos, \
-        "banner must point visitors to the current Draft Board snapshot"
-    # in-season: the banner is gone
-    os.environ["BOARD_REFRESH_SEASON_START"] = "2000-01-01"
-    at = _run()
-    infos = " ".join(str(i.value) for i in at.info)
-    assert "demo until the 2026 season" not in infos, \
-        "demo banner must auto-hide once the season has started"
-    os.environ.pop("BOARD_REFRESH_SEASON_START", None)
+    assert "demo until the 2026 season" not in infos
+    titles = _titles(at)
+    assert "2026" in titles
+    assert "Week 1" in titles
 
 
 def test_sidebar_is_empty_and_footer_present():
@@ -143,7 +140,7 @@ def test_every_page_renders_offline_clean(tmp_path):
 
 if __name__ == "__main__":
     test_default_is_weekly_predictions()
-    test_preseason_demo_banner_shows_then_hides()
+    test_live_2026_banner_on_default_weekly_predictions()
     test_sidebar_is_empty_and_footer_present()
     test_header_has_brand_and_tip_jar()
     test_phone_nav_button_is_three_bars()

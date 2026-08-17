@@ -24,13 +24,14 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE / "betting"))
 from dashboard_utils import load_tracker, load_totals_tracker  # pure, Streamlit-free
 from calibration import build_calibration
+from live_2026 import attach_slate
 
 
 @st.cache_data(ttl=300)
 def load_predictions():
-    """Spread predictions tracker. Raises FileNotFoundError if absent — the calling
-    page decides how to degrade (st.error + st.stop), never this loader."""
-    return load_tracker(str(_HERE))
+    """Spread predictions tracker plus 2026 matchups that are not yet stamped."""
+    df = load_tracker(str(_HERE))
+    return attach_slate(df, _HERE)
 
 
 @st.cache_data(ttl=300)

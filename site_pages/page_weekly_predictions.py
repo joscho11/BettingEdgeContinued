@@ -8,42 +8,49 @@ import html as _html
 import itertools as _it
 import json
 import os
-from datetime import date
 from datetime import datetime as dt
 
 import pandas as pd
 import streamlit as st
 
 import dashboard_data
-import nav_registry
 import page_common
 from dashboard_utils import metric_card, get_confidence, _md_to_html
+from live_2026 import (
+    LIVE_HIGH_N,
+    LIVE_HIGH_WILSON_LOWER,
+    LIVE_HIGH_WINS,
+    has_pick,
+    is_live_season,
+    row_display_high,
+    row_high_dropped,
+)
 from page_common import load_agent_analysis, _MODE_BADGE_COLORS
-from seasonal_config import board_refresh_season_start
 
 
-def _preseason():
-    """True until 2026 kickoff (env-overridable, same source as the board)."""
-    return date.today() < board_refresh_season_start()
-
-
-def _demo_notice():
-    """Pre-season demo banner: this page shows past games until Week 1, and points
-    visitors to the live Draft Board. Auto-hides once the season starts."""
+def _demo_2025_notice():
+    """2025 weeks 10-end stay on the old consensus model. Not live 2026."""
     st.info(
-        "👋 **Heads up. Weekly Predictions is a demo until the 2026 season kicks "
-        "off.** The games below are from 2025, shown so you can see how the model "
-        "works. Live 2026 predictions start at Week 1 (September 9). In the meantime, take a look "
-        "around the top nav. My **2026 Draft Board has frozen Model Proj and "
-        "daily Sleeper market data**.")
-    board = nav_registry.PAGES.get("draft-board")
-    if board is not None:
-        st.page_link(board, label="Open the Draft Board", icon="📋")
+        "**Demo test.** 2025 weeks 10 through the end of the season are a "
+        "historical walkthrough of the old three-model consensus. They are "
+        "unchanged. Live 2026 uses a different Tuesday model."
+    )
+
+
+def _live_notice():
+    st.success(
+        "**Live 2026. Tuesday model.** Every game gets a pick. "
+        "**HIGH** (green) is a 3+ point disagreement with the Tuesday 9am line. "
+        "If the line moves and that gap falls under 3, HIGH is dropped. "
+        "No medium tier. No totals on this season. "
+        f"HIGH clears break-even on a one-sided 95% Wilson interval "
+        f"({LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_WINS / LIVE_HIGH_N * 100:.2f}%, "
+        f"lower bound {LIVE_HIGH_WILSON_LOWER * 100:.2f}%, 2021-2025 walk-forward, "
+        f"last regular-season week skipped). Picks lock Tuesday 9:00 ET."
+    )
 
 
 def render():
-    if _preseason():
-        _demo_notice()
     try:
         df = dashboard_data.load_predictions()
     except FileNotFoundError:
@@ -58,28 +65,39 @@ def render():
     _calib = dashboard_data.load_calibration(df)
     totals_df = dashboard_data.load_totals()
     def _season_week_controls(cols_container, key_prefix, with_week=True, with_edge=False):
-        return page_common._season_week_controls(df, cols_container, key_prefix, with_week, with_edge)
+        return page_common._season_week_controls(
+            df, cols_container, key_prefix, with_week, with_edge, default_week=1)
     st.markdown(page_common.ATS_BLURB, unsafe_allow_html=True)
     season, week, edge_threshold = _season_week_controls(
         st.columns(3), "wp", with_week=True, with_edge=True)
+    live = is_live_season(season)
+    if live:
+        _live_notice()
+    else:
+        _demo_2025_notice()
 
     week_df    = df[(df['season'] == season) & (df['week'] == week)].copy()
     results_in = week_df['actual_margin'].notna().any()
+    _any_pick  = bool(len(week_df) and week_df.apply(has_pick, axis=1).any())
 
-    # Build a quick lookup: game_id → totals row (HIGH picks only)
-    _totals_week = (
-        totals_df[(totals_df['season'] == season) & (totals_df['week'] == week)]
-        if not totals_df.empty else pd.DataFrame()
-    )
-    _totals_lookup = (
-        _totals_week.set_index('game_id').to_dict('index')
-        if not _totals_week.empty else {}
-    )
+    if live:
+        _totals_lookup = {}
+    else:
+        _totals_week = (
+            totals_df[(totals_df['season'] == season) & (totals_df['week'] == week)]
+            if not totals_df.empty else pd.DataFrame()
+        )
+        _totals_lookup = (
+            _totals_week.set_index('game_id').to_dict('index')
+            if not _totals_week.empty else {}
+        )
 
     st.title(f"🏈 Week {week} Predictions: {season} Season")
 
     _wk_correct_col = 'ens_model_correct' if ('ens_model_correct' in week_df.columns and week_df['ens_model_correct'].notna().any()) else 'model_correct'
-    if results_in:
+    if live and not _any_pick:
+        st.info("Matchups are locked. Picks lock Tuesday 9:00 ET after the line freeze.")
+    elif results_in:
         correct = int(week_df[_wk_correct_col].sum())
         total   = int(week_df[_wk_correct_col].notna().sum())
         _n_settled = total
@@ -97,14 +115,18 @@ def render():
         st.info("Games not yet played. Check back after the week's results are in.")
 
     if not week_df.empty and 'mode' in week_df.columns:
-        _latest   = week_df.sort_values('logged_at').iloc[-1]
+        _latest   = week_df.sort_values('logged_at')
+        _latest   = _latest.iloc[-1]
         mode      = _latest['mode']
         logged_at = _latest['logged_at']
+        if pd.isna(logged_at):
+            logged_at = "not yet"
         mode_labels = {
             'monday':   ('🟡', 'Early Lines',       'Updated Monday with initial lines'),
             'thursday': ('🟠', 'Injury Reports In', 'Updated Thursday with injury data'),
-            'sunday':   ('🟢', 'Final Predictions', 'Final update — games starting soon'),
+            'sunday':   ('🟢', 'Final Predictions', 'Final update, games starting soon'),
             'backfill': ('🔵', 'Backfilled',        'Historical predictions'),
+            'matchup':  ('⚪', 'Schedule',          'Matchups locked. Picks lock Tuesday 9:00 ET'),
         }
         icon, label, desc = mode_labels.get(mode, ('⚪', 'Manual Run', ''))
         _badge_color = _MODE_BADGE_COLORS.get(mode, '#888')
@@ -121,16 +143,28 @@ def render():
     _primary_edge = 'ens_model_edge'       if ('ens_model_edge'       in week_df.columns and week_df['ens_model_edge'].notna().any())       else 'model_edge'
     _pred_col     = 'ens_predicted_margin' if ('ens_predicted_margin' in week_df.columns and week_df['ens_predicted_margin'].notna().any()) else 'predicted_margin'
     _correct_col  = 'ens_model_correct'    if ('ens_model_correct'    in week_df.columns and week_df['ens_model_correct'].notna().any())    else 'model_correct'
-    filtered_df  = week_df[week_df[_primary_edge].abs() >= edge_threshold].copy()
-    hidden_count = len(week_df) - len(filtered_df)
+    if live:
+        filtered_df  = week_df.copy()
+        hidden_count = 0
+    else:
+        filtered_df  = week_df[week_df[_primary_edge].abs() >= edge_threshold].copy()
+        hidden_count = len(week_df) - len(filtered_df)
 
     with st.container(key="jsa-metric-even-wp"):
         col1, col2, col3, col4 = st.columns(4)
         col1.markdown(metric_card("Total Games", len(week_df)), unsafe_allow_html=True)
-        col2.markdown(metric_card("Showing", len(filtered_df), f"edge ≥ {edge_threshold} pts"), unsafe_allow_html=True)
+        if live:
+            _n_high = int(week_df.apply(row_display_high, axis=1).sum()) if not week_df.empty else 0
+            col2.markdown(metric_card("HIGH picks", _n_high, "green highlight, 3+ vs Tuesday"),
+                          unsafe_allow_html=True)
+        else:
+            col2.markdown(metric_card("Showing", len(filtered_df), f"edge ≥ {edge_threshold} pts"), unsafe_allow_html=True)
         _avg_edge = week_df[_primary_edge].abs().mean()
-        col3.markdown(metric_card("Avg Ensemble Edge", f"{_avg_edge:.1f} pts",
-                                  color="green" if _avg_edge >= 1.5 else "blue"), unsafe_allow_html=True)
+        if pd.isna(_avg_edge):
+            col3.markdown(metric_card("Avg Ensemble Edge", "—"), unsafe_allow_html=True)
+        else:
+            col3.markdown(metric_card("Avg Ensemble Edge", f"{_avg_edge:.1f} pts",
+                                      color="green" if _avg_edge >= 1.5 else "blue"), unsafe_allow_html=True)
 
         if results_in and len(filtered_df) > 0:
             _settled_mask = filtered_df[_correct_col].notna()
@@ -148,7 +182,7 @@ def render():
     cached          = load_agent_analysis(week, season)
     game_analysis   = cached.get('game_analysis',   {}) if cached else {}
     game_confidence = cached.get('game_confidence', {}) if cached else {}
-    _show_agent     = bool(cached and (game_analysis or game_confidence))
+    _show_agent     = (not live) and bool(cached and (game_analysis or game_confidence))
 
     if _show_agent:
         st.markdown("""
@@ -163,8 +197,17 @@ def render():
             </div>
         """, unsafe_allow_html=True)
 
-    _has_consensus_col = 'consensus_tier' in week_df.columns and week_df['consensus_tier'].notna().any()
-    if _has_consensus_col:
+    _has_consensus_col = (not live) and 'consensus_tier' in week_df.columns and week_df['consensus_tier'].notna().any()
+    if live:
+        st.markdown("""
+            <div class='jsa-legend' style='display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap;'>
+                <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Tuesday HIGH</span>
+                <span style='font-size:12px;background:#1a3a1a;border:1px solid #00c853;
+                            border-radius:4px;padding:2px 8px;color:#00c853;'>HIGH</span>
+                <span style='font-size:11px;color:#555;'>Green card = 3+ points vs the Tuesday 9am line, and the live line still 3+. Every other game still shows a pick. No medium tier. A line move can drop HIGH. It cannot create HIGH.</span>
+            </div>
+        """, unsafe_allow_html=True)
+    elif _has_consensus_col:
         st.markdown("""
             <div class='jsa-legend' style='display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap;'>
                 <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Model Consensus:</span>
@@ -216,9 +259,24 @@ def render():
                 f"Lower the slider to see all games."
             )
 
-        filtered_df = filtered_df.sort_values(_primary_edge, key=abs, ascending=False)
+        if live:
+            filtered_df = filtered_df.copy()
+            filtered_df["_live_high"] = filtered_df.apply(row_display_high, axis=1)
+            _sort_cols = ["_live_high"]
+            _asc = [False]
+            if "gameday" in filtered_df.columns:
+                _sort_cols.append("gameday")
+                _asc.append(True)
+            if "gametime" in filtered_df.columns:
+                _sort_cols.append("gametime")
+                _asc.append(True)
+            filtered_df = filtered_df.sort_values(_sort_cols, ascending=_asc)
+        else:
+            filtered_df = filtered_df.sort_values(_primary_edge, key=abs, ascending=False)
 
         def fmt(val):
+            if val is None or pd.isna(val):
+                return "—"
             return f"{val:+.1f}"
 
         def name_style(is_rec):
@@ -269,15 +327,15 @@ def render():
             top_predicted = fmt(-predicted)
             bot_predicted = fmt(predicted)
 
-            if edge > 0:
-                rec_team  = home
-                rec_color = "#00c853"
-            elif edge < 0:
-                rec_team  = away
-                rec_color = "#2979ff"
-            else:
+            if pd.isna(edge) or edge == 0:
                 rec_team  = None
                 rec_color = "#888888"
+            elif edge > 0:
+                rec_team  = home
+                rec_color = "#00c853"
+            else:
+                rec_team  = away
+                rec_color = "#2979ff"
 
             top_is_rec = rec_team == top_team
             bot_is_rec = rec_team == bot_team
@@ -302,19 +360,43 @@ def render():
 
             result_label = ("✅ WIN" if _row_correct else "❌ LOSS") if results_available else ""
 
-            if tier == 'HIGH':
+            if live:
+                is_high = bool(row_display_high(row))
+                dropped = bool(row_high_dropped(row))
+                if is_high:
+                    tier_html = "&nbsp;&nbsp;<span style='background:#1a3a1a;border:1px solid #00c853;border-radius:4px;padding:1px 6px;font-size:11px;color:#00c853;font-weight:700'>HIGH PICK</span>"
+                elif dropped:
+                    tier_html = "&nbsp;&nbsp;<span style='background:#3a2a12;border:1px solid #ff9800;border-radius:4px;padding:1px 6px;font-size:11px;color:#ff9800'>LINE MOVED · no longer HIGH</span>"
+                    is_high = False
+                elif has_pick(row):
+                    tier_html = ""
+                    is_high = False
+                else:
+                    tier_html = "&nbsp;&nbsp;<span style='background:#1e1e1e;border:1px solid #666;border-radius:4px;padding:1px 6px;font-size:11px;color:#aaa'>MATCHUP</span>"
+                    is_high = False
+            elif tier == 'HIGH':
+                is_high = True
                 tier_html = "&nbsp;&nbsp;<span style='background:#1a3a1a;border:1px solid #00c853;border-radius:4px;padding:1px 6px;font-size:11px;color:#00c853'>HIGH</span>"
             elif tier == 'MEDIUM':
+                is_high = False
                 tier_html = "&nbsp;&nbsp;<span style='background:#3a3a1a;border:1px solid #ffd600;border-radius:4px;padding:1px 6px;font-size:11px;color:#ffd600'>MED</span>"
             elif tier == 'PASS':
+                is_high = False
                 tier_html = "&nbsp;&nbsp;<span style='background:#3a1a1a;border:1px solid #ff4444;border-radius:4px;padding:1px 6px;font-size:11px;color:#ff4444'>PASS</span>"
             else:
+                is_high = False
                 tier_html = ''
 
             _gc_meta = "jsa-gc-meta jsa-gc-scored" if results_available else "jsa-gc-meta"
+            if is_high:
+                _gc_meta += " jsa-gc-high"
+            _meta_box = (
+                "background:#0c1a12;border:1.5px solid #00c853;border-radius:8px;padding:8px 10px;"
+                if is_high else ""
+            )
             with st.container(key=f"jsa-gc-{_gc_i}"):
                 st.markdown(
-                    f"<div class='{_gc_meta}' style='font-size:13px;color:#888;margin-bottom:6px'>"
+                    f"<div class='{_gc_meta}' style='font-size:13px;color:#888;margin-bottom:6px;{_meta_box}'>"
                     f"<b style='color:#ccc'>{_html.escape(str(away))} @ {_html.escape(str(home))}</b>"
                     f"&nbsp;&nbsp;·&nbsp;&nbsp;{_html.escape(str(row['gameday']))}"
                     f"{tier_html}"
@@ -409,8 +491,11 @@ def render():
                             unsafe_allow_html=True
                         )
 
-                # ── Totals badge (below matchup analysis) ────────────────────────────
-                _tot_row = _totals_lookup.get(row.get('game_id'))
+                # ── Totals badge (below matchup analysis). 2026 live has no totals. ──
+                if live:
+                    _tot_row = None
+                else:
+                    _tot_row = _totals_lookup.get(row.get('game_id'))
                 if _tot_row and _tot_row.get('consensus_tier') == 'HIGH':
                     # Coerce defensively — a corrupted/hand-edited CSV could carry strings.
                     _xgb_tot  = pd.to_numeric(_tot_row.get('xgb_predicted_total'), errors='coerce')
@@ -443,7 +528,7 @@ def render():
                 st.divider()
 
     # ── Agent vs Model Evaluation ─────────────────────────────────────────────
-    if _show_agent and game_analysis:
+    if (not live) and _show_agent and game_analysis:
         st.divider()
         st.subheader(f"📊 Week {week}: Agent vs Model")
 
@@ -507,7 +592,3 @@ def render():
                 )
         else:
             st.info("Results not yet available for this week. Check back after games are played.")
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2: SEASON PERFORMANCE
-# ══════════════════════════════════════════════════════════════════════════════

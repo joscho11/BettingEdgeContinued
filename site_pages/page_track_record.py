@@ -16,6 +16,7 @@ import streamlit as st
 import dashboard_data
 import page_common
 from dashboard_utils import metric_card, get_confidence, _md_to_html
+from live_2026 import is_live_season
 from page_common import load_agent_analysis, _MODE_BADGE_COLORS
 
 _HERE = Path(__file__).resolve().parents[1]
@@ -43,15 +44,29 @@ def render():
     st.markdown(page_common.ATS_BLURB, unsafe_allow_html=True)
     season, _, _ = _season_week_controls(
         [st.columns([1, 2])[0]], "tr", with_week=False, with_edge=False)
+    live = is_live_season(season)
 
     st.title(f"📈 {season} Track Record")
+    if live:
+        st.success(
+            "**Live 2026.** Track Record fills in after games grade. "
+            "HIGH is the only confidence tier. No medium. No totals on this season."
+        )
+    else:
+        st.info(
+            "**Demo test.** 2025 weeks 10 through the end of the season are the old "
+            "three-model consensus, left unchanged."
+        )
     season_df = df[
         (df['season'] == season) &
         (df['actual_margin'].notna())
     ].copy()
 
     if season_df.empty:
-        st.warning("No completed games found for this season.")
+        if live:
+            st.info("No graded 2026 games yet. Weekly Predictions has the full-season matchups.")
+        else:
+            st.warning("No completed games found for this season.")
     else:
 
         # ── Season summary metrics ────────────────────────────────────
@@ -250,7 +265,7 @@ def render():
         )
         st.plotly_chart(fig_edge, width="stretch")
 
-        if _has_ct:
+        if _has_ct and not live:
             st.divider()
             st.subheader("Consensus Tier Accuracy")
             st.caption("All 3 models agree on direction · Ensemble edge ≥3 pts = HIGH, ≥1 pt = MEDIUM, else PASS")
@@ -339,7 +354,10 @@ def render():
             losses = int(len(graded) - wins)
             return wins * 100 - losses * 110, wins, losses
 
-        if _has_ct:
+        if live:
+            _high_sub = season_df[season_df[_s_edge].abs() >= 3]
+            _med_or_high_sub = _high_sub
+        elif _has_ct:
             _high_sub = season_df[season_df['consensus_tier'] == 'HIGH']
             _med_or_high_sub = season_df[season_df['consensus_tier'].isin(['HIGH', 'MEDIUM'])]
         else:
@@ -350,19 +368,30 @@ def render():
         _profit_all,  _a_w, _a_l = _units_profit(season_df)
 
         with st.container(key="jsa-metric-even-profit"):
-            p1, p2, p3 = st.columns(3)
-            p1.markdown(metric_card("Profit (HIGH only)",
-                                    f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
-                                    color="green" if _profit_high > 0 else "red"),
-                        unsafe_allow_html=True)
-            p2.markdown(metric_card("Profit (HIGH + MED)",
-                                    f"{_hm_w}-{_hm_l}", f"{_profit_hm:+,} units",
-                                    color="green" if _profit_hm > 0 else "red"),
-                        unsafe_allow_html=True)
-            p3.markdown(metric_card("Profit (all picks)",
-                                    f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
-                                    color="green" if _profit_all > 0 else "red"),
-                        unsafe_allow_html=True)
+            if live:
+                p1, p2 = st.columns(2)
+                p1.markdown(metric_card("Profit (HIGH only)",
+                                        f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
+                                        color="green" if _profit_high > 0 else "red"),
+                            unsafe_allow_html=True)
+                p2.markdown(metric_card("Profit (all picks)",
+                                        f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
+                                        color="green" if _profit_all > 0 else "red"),
+                            unsafe_allow_html=True)
+            else:
+                p1, p2, p3 = st.columns(3)
+                p1.markdown(metric_card("Profit (HIGH only)",
+                                        f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
+                                        color="green" if _profit_high > 0 else "red"),
+                            unsafe_allow_html=True)
+                p2.markdown(metric_card("Profit (HIGH + MED)",
+                                        f"{_hm_w}-{_hm_l}", f"{_profit_hm:+,} units",
+                                        color="green" if _profit_hm > 0 else "red"),
+                            unsafe_allow_html=True)
+                p3.markdown(metric_card("Profit (all picks)",
+                                        f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
+                                        color="green" if _profit_all > 0 else "red"),
+                            unsafe_allow_html=True)
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -430,7 +459,7 @@ def render():
         # ── Totals model performance ──────────────────────────────────────────
         totals_season = (
             totals_df[(totals_df['season'] == season) & totals_df['model_correct'].notna()]
-            if not totals_df.empty else pd.DataFrame()
+            if (not live) and not totals_df.empty else pd.DataFrame()
         )
         if not totals_season.empty:
             st.divider()

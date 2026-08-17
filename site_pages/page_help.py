@@ -72,7 +72,7 @@ Edge is the gap between what the model predicts and what Vegas set as the spread
 
 If the model thinks the Chiefs will win by 10 but the spread is only 7.5, that's a 2.5 point edge on the Chiefs. The model is saying Vegas underpriced the Chiefs.
 
-The bigger the edge, the more the model disagrees with the market. Games with a small edge (under 1 point) are basically coin flips in the model's eyes. Use the **Min Edge (pts)** slider at the top of the Weekly Predictions page to filter down to only the games where the model has real conviction.
+The bigger the edge, the more the model disagrees with the market. Games with a small edge (under 1 point) are basically coin flips in the model's eyes. On 2026, every game still shows; HIGH is the green highlight. On the 2025 demo weeks, use the **Min Edge (pts)** slider to filter.
 
 You want to be betting games where the model has conviction, not games where it's a coin flip.
         """)
@@ -134,7 +134,7 @@ Everything lives in the top navigation bar, grouped into three menus:
 - **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, and DFS Optimizer.
 - **More**: Film Room, League History, and this Help & Guide.
 
-The site opens on **Weekly Predictions** every time. There is no sidebar. Each page carries its own controls (like the Season, Week, and Min Edge pickers) right at the top.
+The site opens on **Weekly Predictions** every time. There is no sidebar. Each page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) right at the top.
         """)
 
     with st.expander("How do I read the game cards?"):
@@ -143,11 +143,15 @@ Each card shows one matchup for the week. Here's what the columns mean:
 
 **SPREAD** is the Vegas line. A negative number means that team is favored.
 
-**PREDICTED** is the model's version of the line — also shown sportsbook-style (favorite negative, underdog positive). When the model's number is *more* extreme than the Vegas spread on a side, that's where the edge is. Example: Vegas has SEA -7 but the model says SEA -11.3 — the model likes SEA by 4.3 more points than Vegas, so it recommends betting SEA.
+**PREDICTED** is the model's version of the line, also shown sportsbook-style (favorite negative, underdog positive). When the model's number is *more* extreme than the Vegas spread on a side, that's where the edge is. Example: Vegas has SEA -7 but the model says SEA -11.3. The model likes SEA by 4.3 more points than Vegas, so it recommends betting SEA.
 
 **SCORE** shows the final score after the game is played. It's blank until results come in.
 
 **BET X** shows which side the model recommends. The bold team name is who the model likes.
+
+**2026 live:** every game still gets a pick. **HIGH** (green card) is the only highlighted tier: a 3+ point disagreement with the Tuesday 9am line, and the live line still 3+. If the line moves and that gap falls under 3, HIGH is dropped. It cannot be created mid-week. There is no medium tier. Totals are not on the 2026 week page.
+
+**2025 demo test:** weeks 10 through the end of that season still use the old HIGH / MED / PASS consensus badges. Those weeks are unchanged.
 
 After results are in, each card will show either WIN or LOSS based on whether the model's pick covered.
         """)
@@ -156,31 +160,34 @@ After results are in, each card will show either WIN or LOSS based on whether th
         st.markdown("""
 **Paused as of August 2026.** The colored High / Medium / Skip buttons are not on the game cards right now. The agent's line-movement tool never had a real market feed, so I disabled the weekly agent run and took the cached week down.
 
-What you see on Weekly Predictions is **Model Consensus** (HIGH / MED / PASS): whether the three spread models agree on a side, plus how large the ensemble edge is. That is the live filter.
+What you see on **2026** Weekly Predictions is **Tuesday HIGH**: a green highlight when the model disagrees with the Tuesday 9am line by 3+ points and the live line still does. Every other game still shows the pick. There is no medium tier.
+
+The **2025 demo test** weeks still show **Model Consensus** (HIGH / MED / PASS): whether the three spread models agree on a side, plus how large the ensemble edge is.
+
+The expander "What is the LLM agent and what does it do?" has the full pause note. When an approved agent artifact is present again, High means the model edge is strong and outside signals lined up, Medium means mixed signals, and Skip means pass.
 
 The expander "What is the LLM agent and what does it do?" has the full pause note. When an approved agent artifact is present again, High means the model edge is strong and outside signals lined up, Medium means mixed signals, and Skip means pass.
         """)
 
     with st.expander("What is the Min Edge filter?"):
         st.markdown("""
-The **Min Edge (pts)** slider at the top of the Weekly Predictions page controls which games show up.
+On **2026**, every game is shown. HIGH picks are the green highlight. The Min Edge slider does not hide 2026 games.
+
+On the **2025 demo** weeks, the **Min Edge (pts)** slider at the top of Weekly Predictions controls which games show up.
 
 At 0.0 (the default) you see every game. At 1.0 you only see games where the model disagrees with Vegas by at least 1 point. At 3.0 you're only seeing the high conviction plays.
-
-Slide it up to filter down to your highest-confidence plays.
         """)
 
     with st.expander("How often does the site update?"):
         st.markdown("""
-During the season the site runs on an automated schedule through GitHub Actions.
+**2026 live.** Picks lock Tuesday 9:00 ET off the frozen line. After that, the only change on the week page is dropping HIGH if the live line shrinks the gap under 3 points. A later line cannot promote a game into HIGH. Totals stay off this season's week page.
 
-Tuesday morning it fills in the previous week's results and posts initial predictions for the upcoming week using the opening Vegas lines. Thursday night it refreshes those predictions after injury reports drop. Sunday morning it locks in final predictions before kickoff. Then the cycle repeats on Tuesday.
+**2025 demo test** used the older Monday / Thursday / Sunday refresh. Those weeks are frozen as a walkthrough.
 
 During the offseason the weekly predictions pause. The pre-season **Draft Board** refreshes
 Sleeper ADP and Sleeper projections daily for its fixed 180-player universe; draft-price
 ranks, Sleeper ranks, and both gap columns move with those updates. Model Proj points and
 ranks remain frozen until the dated early-September public-information snapshot.
-Weekly predictions spin back up when the season kicks off in September.
         """)
 
     with st.expander("What is the Track Record page?"):
@@ -189,7 +196,7 @@ The Track Record page is where you can see how the model has done across the who
 
 It shows a week by week bar chart of ATS win percentage, a cumulative trend line showing how accuracy has moved over time, and a breakdown of how high edge games performed compared to low edge games.
 
-There's also a best and worst weeks section, a full season table, and a separate Over/Under model section showing how the totals picks performed.
+There's also a best and worst weeks section, a full season table, and (on the 2025 demo) a separate Over/Under section. 2026 Track Record does not include totals.
         """)
 
     with st.expander("What is the Season Totals (Beta) page?"):
@@ -215,7 +222,7 @@ A pick is only flagged as **UNDER** when both the XGBoost and Ridge models indep
 - Walk-forward CV (2020–2025, n=575): **55.7%** hit rate, comfortably above the 52.4% break-even.
 - Live 2025 (weeks 10–17, n=46): **52.2%** hit rate, essentially at break-even. The sample is too small to distinguish real edge from CV noise (95% CI is roughly 37–67%).
 
-That's why the badges on the game cards are amber/dashed instead of green — the model says UNDER, but I haven't yet confirmed live that it's actually profitable. I track it through the 2026 season and reassess after a full season of real evidence (~96 picks). **Don't bet these picks; treat them as something to watch.**
+That's why the badges on the **2025 demo** game cards are amber/dashed instead of green. The model says UNDER, but I haven't yet confirmed live that it's actually profitable. **2026 Weekly Predictions does not show totals.** Don't bet these picks; treat them as something to watch.
         """)
 
     with st.expander("What is the Weekly Fantasy page?"):
@@ -511,9 +518,22 @@ market ranks and both displayed gap columns, but do not change Model Proj.
     # ── Section 7: Behind the Scenes ─────────────────────────────────────────
     st.subheader("🔧 Behind the Scenes")
 
+    with st.expander("How does the 2026 Tuesday model work?"):
+        st.markdown("""
+**2026 is live.** The site uses a Tuesday-line model: 75% XGBoost + 25% Ridge, with the Tuesday US-median spread as an input. Every game gets a pick. **HIGH** is the only highlighted tier: the model disagrees with the Tuesday 9am line by 3+ points, and the live line still does.
+
+If the line moves and that gap falls under 3, HIGH is dropped. A later line cannot create HIGH. There is no medium tier. Last regular-season week is skipped for HIGH. Totals are not on the 2026 week page.
+
+The HIGH book clears break-even on a one-sided 95% Wilson interval: 201/349 = 57.59%, lower bound 53.20%, walk-forward 2021-2025, last regular-season week skipped. All-bets does not clear. STANDARD is not the live claim.
+
+Picks lock Tuesday 9:00 ET. Matchups for weeks 1-18 are on the site now. Week 1 is the first live ticket once that Tuesday freeze lands.
+        """)
+
     with st.expander("How does the prediction model work?"):
         st.markdown("""
-The site runs two independent prediction systems: one for the **spread** (ATS picks) and one for the **over/under total**.
+The site ran two independent prediction systems in the **2025 demo test**: one for the **spread** (ATS picks) and one for the **over/under total**. 2026 live uses a different Tuesday model (see the expander above) and does not show totals.
+
+**2025 spread model (demo test, weeks 10 through the end of that season)**
 
 **Spread model**
 

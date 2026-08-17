@@ -84,6 +84,7 @@ jobs:
           tests/test_site_nav.py
           tests/test_board_page.py
           tests/test_betting_pages.py
+          tests/test_live_2026.py
           tests/test_fantasy_league_pages.py
           tests/test_help_page.py
           tests/test_film_room.py
@@ -237,6 +238,7 @@ jobs:
           tests/test_site_nav.py
           tests/test_board_page.py
           tests/test_betting_pages.py
+          tests/test_live_2026.py
           tests/test_fantasy_league_pages.py
           tests/test_help_page.py
           tests/test_film_room.py

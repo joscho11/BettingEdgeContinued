@@ -37,7 +37,7 @@ def load_agent_analysis(week: int, season: int) -> dict:
     return None
 
 
-def _season_week_controls(df, cols_container, key_prefix, with_week=True, with_edge=False):
+def _season_week_controls(df, cols_container, key_prefix, with_week=True, with_edge=False, default_week=None):
     """Render a tab's own Season (+ optional Week, Min-edge) controls in its body.
     Returns (season, week, edge_threshold). df-based options preserve prior behavior."""
     _seasons = sorted(df['season'].unique(), reverse=True)
@@ -47,7 +47,10 @@ def _season_week_controls(df, cols_container, key_prefix, with_week=True, with_e
     _i = 1
     if with_week:
         _weeks = sorted(df[df['season'] == _season]['week'].unique(), reverse=True)
-        _dwk = next((i for i, w in enumerate(_weeks) if w == 10), 0)
+        if default_week is not None and default_week in set(_weeks):
+            _dwk = _weeks.index(default_week)
+        else:
+            _dwk = next((i for i, w in enumerate(_weeks) if w == 10), 0)
         _week = cols_container[_i].selectbox("Week", _weeks, index=_dwk,
                                              key=f"{key_prefix}_week")
         _i += 1
@@ -64,6 +67,7 @@ _MODE_BADGE_COLORS = {
     'thursday': '#ff9800',
     'sunday':   '#00c853',
     'backfill': '#3D95CE',
+    'matchup':  '#888888',
 }
 
 # ATS blurb — moved byte-identical from the retired sidebar onto the Betting pages.
