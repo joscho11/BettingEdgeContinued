@@ -154,6 +154,7 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "st-key-jsa-lh-leaderboard-cards" in css
     assert "st-key-jsa-lh-leaderboard-ties" in css
     assert "st-key-jsa-lh-report-cards" in css
+    assert "3.9rem" in css
     assert "grid-auto-rows:1fr" in css.replace(" ", "")
     assert "st-key-jsa-lh-hof-cards" in css
     assert "st-key-jsa-scatter-desktop" in css

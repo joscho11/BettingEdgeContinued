@@ -597,6 +597,105 @@ details summary{
   }
 }
 
+/* 10b-phone. Leaderboard 2-up: same wrapper-stretch as Report Cards. The
+   consolation-finals label is three lines on a ~160px tile; flex 50% let
+   that one card's bottom drop. Grid 1fr plus a reserved label band keeps
+   pairs even. Wrap labels at spaces, not mid-word. */
+@media (max-width: 640px){
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    grid-auto-rows:1fr !important;
+    align-items:stretch !important;
+    gap:.45rem !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    flex:none !important;
+    display:flex !important;
+    padding:0 !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stElementContainer"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stFullScreenFrame"]{
+    width:100% !important;
+    height:100% !important;
+    min-height:0 !important;
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"]{
+    flex:1 1 auto !important;
+    height:100% !important;
+    min-height:11.25rem !important;
+    display:flex !important;
+    flex-direction:column !important;
+    box-sizing:border-box !important;
+    overflow:visible !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div{
+    display:grid !important;
+    grid-template-rows:3.9rem minmax(1.7rem,auto) 1fr !important;
+    flex:1 1 auto !important;
+    height:100% !important;
+    min-height:0 !important;
+    width:100% !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricLabel"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricLabel"] *{
+    min-height:3.9rem !important;
+    align-content:start !important;
+    font-size:.7rem !important;
+    line-height:1.2 !important;
+    overflow-wrap:break-word !important;
+    word-break:normal !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"]{
+    min-height:1.7rem !important;
+    display:flex !important;
+    align-items:flex-end !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"] > div > div:has([data-testid="stMetricDelta"]){
+    width:100% !important;
+    max-width:100% !important;
+    min-height:2.6rem !important;
+    margin-top:auto !important;
+    display:flex !important;
+    align-items:stretch !important;
+    align-self:end !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricDelta"]{
+    display:flex !important;
+    align-items:center !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-height:2.6rem !important;
+    box-sizing:border-box !important;
+    border-radius:8px !important;
+    flex-shrink:1 !important;
+    white-space:normal !important;
+    overflow:hidden !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricDelta"] *{
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-ties"] [data-testid="stMarkdownContainer"],
+  [class*="st-key-jsa-lh-leaderboard-ties"] [data-testid="stMarkdownContainer"] p,
+  [class*="st-key-jsa-lh-leaderboard-ties"] [data-testid="stMarkdownContainer"] li{
+    font-size:.78rem !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-ties"] ul{
+    margin:.1rem 0 0 1rem !important;
+    padding:0 !important;
+  }
+}
+
 /* 10d. Report Cards: 2x2 equal cells. Streamlit wraps each metric in
    stElementContainer, so height:100% on stMetric never saw a stretched
    parent and label/value/delta stacked to their own text. Grid the row,
