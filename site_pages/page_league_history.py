@@ -422,6 +422,24 @@ def _sleeper_get(url: str):
         return None
 
 
+def _hydrate_sleeper_user(user_id: str, user_map: dict) -> None:
+    """Fill a departed owner's display name via Sleeper's user endpoint."""
+    uid = str(user_id or "").strip()
+    if not uid or uid in user_map:
+        return
+    payload = _sleeper_get(f"https://api.sleeper.app/v1/user/{uid}")
+    if not isinstance(payload, dict):
+        return
+    name = str(payload.get("display_name") or payload.get("username") or "").strip()
+    if not name:
+        return
+    meta = payload.get("metadata") or {}
+    user_map[uid] = {
+        "username": name,
+        "team_name": meta.get("team_name") if isinstance(meta, dict) else "",
+    }
+
+
 @st.cache_data(ttl=3600, max_entries=_HISTORY_CACHE_ENTRIES)
 def _league_history_chain(start_league_id: str) -> list[dict]:
     """Walk previous_league_id links. Newest season first."""
@@ -502,12 +520,27 @@ def _fetch_one_season(league_id: str):
     )
 
     user_map = {
-        u["user_id"]: {
+        str(u["user_id"]): {
             "username": u.get("display_name") or "—",
             "team_name": (u.get("metadata") or {}).get("team_name") or "",
         }
-        for u in users_raw if isinstance(u, dict)
+        for u in users_raw
+        if isinstance(u, dict) and u.get("user_id") is not None
     }
+
+    from fantasy import league_intelligence as _intel
+
+    draft_list = draft_picks if isinstance(draft_picks, list) else []
+    rosters_list = rosters_raw if isinstance(rosters_raw, list) else []
+    need_tx = any(
+        isinstance(ro, dict) and not _intel.infer_roster_owner_id(
+            ro.get("roster_id"),
+            roster_owner_id=ro.get("owner_id"),
+            draft_picks=draft_list,
+        )
+        for ro in rosters_list
+    )
+    tx_rows = _fetch_season_transactions(current_id) if need_tx else []
 
     playoff_finish = {}
     champion_rid = None
@@ -530,11 +563,18 @@ def _fetch_one_season(league_id: str):
                     playoff_finish[l] = p + 1
 
     standings = []
-    for ro in rosters_raw:
+    for ro in rosters_list:
         if not isinstance(ro, dict):
             continue
         rid = str(ro.get("roster_id", ""))
-        owner_id = ro.get("owner_id")
+        owner_id = _intel.infer_roster_owner_id(
+            ro.get("roster_id"),
+            roster_owner_id=ro.get("owner_id"),
+            draft_picks=draft_list,
+            transactions=tx_rows,
+        )
+        if owner_id:
+            _hydrate_sleeper_user(owner_id, user_map)
         u = user_map.get(owner_id, {"username": "—", "team_name": ""})
         s = ro.get("settings") or {}
         fpts = s.get("fpts", 0) + s.get("fpts_decimal", 0) / 100
@@ -561,8 +601,6 @@ def _fetch_one_season(league_id: str):
 
     champ = _by_rid(champion_rid) if champion_rid else {"username": "?", "team_name": ""}
     ruup = _by_rid(runner_up_rid) if runner_up_rid else {"username": "?", "team_name": ""}
-
-    from fantasy import league_intelligence as _intel
 
     toilet_champions = []
     toilet_bracket: list[str] = []

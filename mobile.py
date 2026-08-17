@@ -167,7 +167,8 @@ details summary{
    two-up grid reads as a grid instead of a ragged pair.
    Streamlit renders metric text with truncate:true (nowrap + ellipsis). Combined
    with JetBrains Mono on a 2-up phone tile, "Joshua Palmer" becomes "josh…".
-   Kill truncate, drop mono, wrap the full name. Desktop metrics stay untouched. */
+   Kill truncate, drop mono, wrap the full name. Leaderboard cards also wrap on
+   desktop so a long manager name or a two-name tie stays inside the tile. */
 .jsa-mcard{ padding:10px 12px !important; min-height:4.9rem; }
 .jsa-mcard .jsa-mcard-label{ font-size:9.5px !important; letter-spacing:.5px !important; }
 .jsa-mcard .jsa-mcard-value{ font-size:18px !important; }
@@ -454,6 +455,41 @@ details summary{
   }
 }
 
+/* 10b-desktop. Leaderboard is 4-up. Streamlit columns default min-width:auto,
+   so a long name or a two-name tie runs off the tile. Grid + minmax(0,1fr)
+   lets the value wrap inside the card. pre-line keeps a stacked two-name tie. */
+@media (min-width: 641px){
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]){
+    display:grid !important;
+    grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+    gap:.45rem !important;
+    align-items:stretch !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    flex:none !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetric"]{
+    min-height:8.25rem !important;
+    overflow:visible !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"] *{
+    white-space:pre-line !important;
+    overflow:visible !important;
+    text-overflow:unset !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    max-width:100% !important;
+    width:100% !important;
+    font-family:"Space Grotesk", system-ui, sans-serif !important;
+    font-size:clamp(0.75rem, 1.1vw, 1rem) !important;
+    line-height:1.15 !important;
+  }
+}
+
 /* 10b. Leaderboard + Report Cards scorecards: even 2-up pairs, reserved
    label band, delta at the bottom. Leaderboard is eight cards in two rows
    of four, so mobile 2-up wrapping stays even. */
@@ -470,7 +506,12 @@ details summary{
   ) [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]{
     flex:0 0 calc(50% - .225rem) !important;
     max-width:calc(50% - .225rem) !important;
+    min-width:0 !important;
     display:flex !important;
+  }
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"],
+  [class*="st-key-jsa-lh-leaderboard-cards"] [data-testid="stMetricValue"] *{
+    white-space:pre-line !important;
   }
   :is(
     [class*="st-key-jsa-lh-leaderboard-cards"],

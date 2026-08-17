@@ -194,6 +194,43 @@ def bracket_title_roster_ids(bracket: Sequence[Mapping] | None) -> list[str]:
     return winners
 
 
+def infer_roster_owner_id(
+    roster_id,
+    *,
+    roster_owner_id=None,
+    draft_picks: Sequence[Mapping] | None = None,
+    transactions: Sequence[Mapping] | None = None,
+) -> str:
+    """Recover a departed Sleeper owner from the roster, draft, or transactions."""
+    owner = str(roster_owner_id or "").strip()
+    if owner and owner not in {"None", "0", "nan"}:
+        return owner
+    rid = str(roster_id or "").strip()
+    if not rid:
+        return ""
+    for pick in draft_picks or []:
+        if not isinstance(pick, dict):
+            continue
+        if str(pick.get("roster_id") or "").strip() != rid:
+            continue
+        picked_by = str(pick.get("picked_by") or "").strip()
+        if picked_by and picked_by not in {"None", "0"}:
+            return picked_by
+    counts: dict[str, int] = {}
+    for tx in transactions or []:
+        if not isinstance(tx, dict):
+            continue
+        rids = {str(x).strip() for x in (tx.get("roster_ids") or [])}
+        if rid not in rids:
+            continue
+        creator = str(tx.get("creator") or "").strip()
+        if creator and creator not in {"None", "0", rid}:
+            counts[creator] = counts.get(creator, 0) + 1
+    if not counts:
+        return ""
+    return max(counts, key=counts.get)
+
+
 def _season_sort_key(season) -> tuple:
     text = str(season)
     try:
@@ -428,10 +465,16 @@ def format_name_list(names: Sequence[str]) -> str:
 
 
 def scorecard_headline(names: Sequence[str], *, flip_at: int | None = None) -> str:
-    """Name-first until ``flip_at`` managers, then an N-way tie label."""
+    """Name-first until ``flip_at`` managers, then an N-way tie label.
+
+    Two names stack so a 4-up scorecard can keep both inside the tile.
+    Captions still use ``format_tied_names`` ("A & B").
+    """
     labels = [str(name).strip() for name in names if str(name).strip()]
     if flip_at and len(labels) >= flip_at:
         return f"{len(labels)}-way tie"
+    if len(labels) == 2:
+        return f"{labels[0]}\n{labels[1]}"
     return format_tied_names(labels)
 
 

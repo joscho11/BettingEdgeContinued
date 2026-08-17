@@ -148,6 +148,8 @@ def test_rivalry_score_swatch_bands_and_card_html():
     assert "white-space:normal" in css.replace(" ", "")
     assert "overflow-wrap:anywhere" in css.replace(" ", "")
     assert "text-overflow:ellipsis" not in css
+    assert "white-space:pre-line" in css.replace(" ", "")
+    assert "repeat(4,minmax(0,1fr))" in css.replace(" ", "")
     assert "::-webkit-scrollbar-thumb" in css
     assert "st-key-jsa-lh-leaderboard-cards" in css
     assert "st-key-jsa-lh-report-cards" in css
@@ -353,6 +355,99 @@ def test_fetch_one_season_maps_losers_bracket_last_place(monkeypatch):
         page_league_history._fetch_one_season.clear()
 
 
+def test_infer_roster_owner_id_prefers_roster_then_draft_then_transactions():
+    assert league_intel.infer_roster_owner_id(12, roster_owner_id="u12") == "u12"
+    assert league_intel.infer_roster_owner_id(
+        12, roster_owner_id=None,
+        draft_picks=[{"roster_id": 12, "picked_by": "u-draft"}],
+        transactions=[{"creator": "u-tx", "roster_ids": [12]}],
+    ) == "u-draft"
+    assert league_intel.infer_roster_owner_id(
+        12, roster_owner_id=None,
+        draft_picks=[{"roster_id": 12, "picked_by": ""}],
+        transactions=[
+            {"creator": "u-rare", "roster_ids": [12]},
+            {"creator": "u-main", "roster_ids": [12]},
+            {"creator": "u-main", "roster_ids": [12]},
+        ],
+    ) == "u-main"
+    assert league_intel.infer_roster_owner_id(12, roster_owner_id=None) == ""
+
+
+def test_fetch_recovers_departed_toilet_champion(monkeypatch):
+    league_id = "1255197436951932928"
+    users = [
+        {"user_id": "u6", "display_name": "LastPlace", "metadata": {}},
+        {"user_id": "u5", "display_name": "Runner", "metadata": {}},
+        {"user_id": "u7", "display_name": "Third", "metadata": {}},
+    ]
+    rosters = [
+        {"roster_id": 6, "owner_id": "u6", "settings": {"wins": 0, "losses": 1, "fpts": 10}},
+        {"roster_id": 12, "owner_id": None, "settings": {"wins": 0, "losses": 1, "fpts": 20}},
+        {"roster_id": 5, "owner_id": "u5", "settings": {"wins": 0, "losses": 1, "fpts": 30}},
+        {"roster_id": 7, "owner_id": "u7", "settings": {"wins": 0, "losses": 1, "fpts": 40}},
+    ]
+    losers = [
+        {"r": 2, "m": 3, "t1": 12, "t2": 5, "w": 12, "l": 5, "p": 1},
+    ]
+
+    def _sleeper_get(url):
+        if url.endswith(f"/league/{league_id}"):
+            return {
+                "name": "Test league", "season": "2023", "status": "complete",
+                "settings": {"playoff_week_start": 15}, "previous_league_id": "0",
+            }
+        if url.endswith("/users"):
+            return users
+        if url.endswith("/rosters"):
+            return rosters
+        if url.endswith("/losers_bracket"):
+            return losers
+        if url.endswith("/user/u-gone"):
+            return {"user_id": "u-gone", "display_name": "Jaboom1", "username": "jaboom1"}
+        return []
+
+    class _Executor:
+        def __init__(self, max_workers):
+            self.max_workers = max_workers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+        def map(self, fn, values):
+            return map(fn, values)
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return []
+
+    monkeypatch.setattr(page_league_history, "_sleeper_get", _sleeper_get)
+    monkeypatch.setattr(page_league_history._cf, "ThreadPoolExecutor", _Executor)
+    monkeypatch.setattr(page_league_history.req, "get", lambda *_args, **_kwargs: _Response())
+    monkeypatch.setattr(
+        page_league_history, "_fetch_season_transactions",
+        lambda _league_id: [{"creator": "u-gone", "roster_ids": [12]}],
+    )
+    page_league_history._fetch_one_season.clear()
+    try:
+        year, payload = page_league_history._fetch_one_season(league_id)
+        assert year == "2023"
+        assert payload["toilet_champion"]["username"] == "Jaboom1"
+        standing = next(
+            row for row in payload["standings"] if str(row["roster_id"]) == "12"
+        )
+        assert standing["username"] == "Jaboom1"
+        assert standing["owner_id"] == "u-gone"
+    finally:
+        page_league_history._fetch_one_season.clear()
+
+
 def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
     seasons = {}
     for season in ("2023", "2024", "2025"):
@@ -505,7 +600,8 @@ def test_tied_leaders_share_a_headline_without_win_pct_tiebreak():
     assert league_intel.format_tied_names(["Alice"]) == "Alice"
     assert league_intel.format_tied_names(["Alice", "Bob"]) == "Alice & Bob"
     assert league_intel.format_tied_names(["Alice", "Bob", "Carol"]) == "Alice, Bob +1"
-    assert league_intel.scorecard_headline(["Alice", "Bob"], flip_at=3) == "Alice & Bob"
+    assert league_intel.scorecard_headline(["Alice", "Bob"], flip_at=3) == "Alice\nBob"
+    assert league_intel.scorecard_headline(["VeryLongManagerName"]) == "VeryLongManagerName"
     assert league_intel.scorecard_headline(
         ["Alice", "Bob", "Carol"], flip_at=3,
     ) == "3-way tie"
@@ -646,6 +742,28 @@ def test_toilet_scorecards_count_last_place_and_bracket_appearances():
     assert league_intel.scorecard_headline(
         ["Alice", "Bob", "Carol"], flip_at=3,
     ) == "3-way tie"
+
+
+def test_three_toilet_champs_at_one_are_an_n_way_tie():
+    seasons = {
+        "2023": {
+            "toilet_champion": {"username": "Jaboom1"},
+            "standings": [{"username": "Jaboom1", "wins": 0, "losses": 1}],
+        },
+        "2024": {
+            "toilet_champion": {"username": "theted123"},
+            "standings": [{"username": "theted123", "wins": 0, "losses": 1}],
+        },
+        "2025": {
+            "toilet_champion": {"username": "joshuasurprise"},
+            "standings": [{"username": "joshuasurprise", "wins": 0, "losses": 1}],
+        },
+    }
+    leaders = league_intel.manager_leaderboard_frame(seasons, [])
+    names, value = league_intel.tied_leaders(leaders, "toilet_titles", min_value=1)
+    assert names == ["Jaboom1", "joshuasurprise", "theted123"]
+    assert value == 1.0
+    assert league_intel.scorecard_headline(names, flip_at=3) == "3-way tie"
 
 
 def test_lowest_ppg_scorecard_needs_more_than_two_seasons():
@@ -1203,6 +1321,8 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
     ]
     _card_idx = [_lb_labels.index(label) for label in _card_order]
     assert _card_idx == list(range(_card_idx[0], _card_idx[0] + 8))
+    _finals = next(metric for metric in at.metric if metric.label == "Most Finals Appearances")
+    assert _finals.value == "Alice\nBob"
     assert not any(metric.label == "Most Finals" for metric in at.metric)
     assert not any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
     assert not any(metric.label == "Most Seasons" for metric in at.metric)
