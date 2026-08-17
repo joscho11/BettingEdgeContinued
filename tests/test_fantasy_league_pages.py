@@ -347,7 +347,7 @@ def test_fetch_one_season_maps_losers_bracket_last_place(monkeypatch):
     try:
         year, payload = page_league_history._fetch_one_season(league_id)
         assert year == "2025"
-        assert payload["toilet_champion"]["username"] == "LastPlace"
+        assert payload["toilet_champion"]["username"] == "ConsolationWinner"
         assert payload["toilet_bracket"] == ["ConsolationWinner", "LastPlace", "Runner", "Third"]
     finally:
         page_league_history._fetch_one_season.clear()
@@ -586,6 +586,7 @@ def test_losers_bracket_last_place_is_highest_assigned_finish():
         {"r": 2, "m": 4, "t1": 6, "t2": 7, "w": 7, "l": 6, "p": 3},
     ]
     assert league_intel.last_place_roster_ids(bracket) == ["6"]
+    assert league_intel.bracket_title_roster_ids(bracket) == ["12"]
     assert league_intel.bracket_roster_ids(bracket) == {"5", "6", "7", "12"}
     assert league_intel.bracket_placement_ranks(bracket) == {
         "12": 1, "5": 2, "7": 3, "6": 4,

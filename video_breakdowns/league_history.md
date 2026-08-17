@@ -35,4 +35,4 @@ First load walks standings, drafts, and weekly scores for each linked year. A 3-
 
 ## 4. Not in the video
 
-The leaderboard now has eight cards, not the five named in the walkthrough. Added: Most Toilet Bowl Titles (last in that year's consolation bracket), Most Toilet Bracket Appearances, and Lowest Scoring Team (regular-season points per game, All Time needs more than 2 seasons).
+The leaderboard now has eight cards, not the five named in the walkthrough. Added: Most Toilet Bowl Titles (winner of that year's consolation championship, which is last place), Most Toilet Bracket Appearances, and Lowest Scoring Team (regular-season points per game, All Time needs more than 2 seasons).

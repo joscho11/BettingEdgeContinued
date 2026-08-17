@@ -64,9 +64,9 @@ _LEADERBOARD_METRIC_HELP = {
         "Three or more leaders show as an N-way tie."
     ),
     "Most Toilet Bowl Titles": (
-        "Last place in that season's consolation (losers) bracket. "
-        "Counted the same way as championship titles. Ties share the card. "
-        "Three or more leaders show as an N-way tie."
+        "Winner of that season's consolation championship, the toilet bowl. "
+        "That is last place. Counted the same way as championship titles. "
+        "Ties share the card. Three or more leaders show as an N-way tie."
     ),
     "Most Toilet Bracket Appearances": (
         "Seasons spent in the consolation (losers) bracket. Ties share the card. "
@@ -574,7 +574,7 @@ def _fetch_one_season(league_id: str):
                 seen_names.add(name)
                 toilet_bracket.append(name)
         toilet_bracket.sort()
-        for rid in _intel.last_place_roster_ids(losers_raw):
+        for rid in _intel.bracket_title_roster_ids(losers_raw):
             row = _by_rid(rid)
             toilet_champions.append({
                 "username": row.get("username") or "?",

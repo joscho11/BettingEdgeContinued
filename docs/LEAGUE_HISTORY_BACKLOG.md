@@ -40,7 +40,7 @@
   the caption. Most Points is regular-season weekly scores only, not era-adjusted.
   Active playoff streak counts consecutive playoff seasons through the latest completed
   postseason in the window. An in-progress season does not reset it.
-  Toilet Bowl Titles count last place in that season's consolation (losers) bracket, same tie rules as championship titles.
+  Toilet Bowl Titles count the winner of that season's consolation championship (the toilet bowl). That is last place. Same tie rules as championship titles.
   Toilet Bracket Appearances count seasons in that bracket.
   Lowest Scoring Team is regular-season points per game. All Time needs more than 2 seasons.
 - Hall of Fame record cards each have an info icon. All eight sit at the top in two rows

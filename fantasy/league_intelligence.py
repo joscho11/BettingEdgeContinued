@@ -163,12 +163,35 @@ def bracket_placement_ranks(bracket: Sequence[Mapping] | None) -> dict[str, int]
 
 
 def last_place_roster_ids(bracket: Sequence[Mapping] | None) -> list[str]:
-    """Roster ids who finished last in this bracket (highest assigned place)."""
+    """Roster ids with the highest assigned place. Not the toilet-bowl title."""
     ranks = bracket_placement_ranks(bracket)
     if not ranks:
         return []
     worst = max(ranks.values())
     return sorted(rid for rid, place in ranks.items() if place == worst)
+
+
+def bracket_title_roster_ids(bracket: Sequence[Mapping] | None) -> list[str]:
+    """Winner of each p=1 game. Same rule as a Sleeper championship game."""
+    winners: list[str] = []
+    seen: set[str] = set()
+    for match in bracket or []:
+        if not isinstance(match, dict):
+            continue
+        place, winner = match.get("p"), match.get("w")
+        if winner is None or winner == "":
+            continue
+        try:
+            if int(place) != 1:
+                continue
+        except (TypeError, ValueError):
+            continue
+        rid = str(winner)
+        if rid in seen:
+            continue
+        seen.add(rid)
+        winners.append(rid)
+    return winners
 
 
 def _season_sort_key(season) -> tuple:
