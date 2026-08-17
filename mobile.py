@@ -455,8 +455,8 @@ details summary{
 }
 
 /* 10b. Leaderboard + Report Cards scorecards: even 2-up pairs, reserved
-   label band, delta at the bottom. Leaderboard is five cards, so the last
-   one must not stretch full-width. */
+   label band, delta at the bottom. Leaderboard is eight cards in two rows
+   of four, so mobile 2-up wrapping stays even. */
 @media (max-width: 640px){
   :is(
     [class*="st-key-jsa-lh-leaderboard-cards"],

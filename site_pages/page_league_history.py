@@ -63,6 +63,28 @@ _LEADERBOARD_METRIC_HELP = {
         "An in-progress season does not count against it. Ties share the card. "
         "Three or more leaders show as an N-way tie."
     ),
+    "Most Toilet Bowl Titles": (
+        "Last place in that season's consolation (losers) bracket. "
+        "Counted the same way as championship titles. Ties share the card. "
+        "Three or more leaders show as an N-way tie."
+    ),
+    "Most Toilet Bracket Appearances": (
+        "Seasons spent in the consolation (losers) bracket. Ties share the card. "
+        "Three or more leaders show as an N-way tie."
+    ),
+    "Lowest Scoring Team": (
+        "Regular-season points per game. Playoffs are excluded. "
+        "All Time needs more than 2 seasons, so a one-year disaster does not take it. "
+        "Ties share the card."
+    ),
+}
+
+_LEADERBOARD_COUNT_CARDS = {
+    "Most Titles",
+    "Most Finals Appearances",
+    "Longest Active Playoff Streak",
+    "Most Toilet Bowl Titles",
+    "Most Toilet Bracket Appearances",
 }
 
 _HOF_METRIC_HELP = {
@@ -472,6 +494,7 @@ def _fetch_one_season(league_id: str):
     users_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/users") or []
     rosters_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/rosters") or []
     bracket_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/winners_bracket") or []
+    losers_raw = _sleeper_get(f"https://api.sleeper.app/v1/league/{current_id}/losers_bracket") or []
     draft_id = str(info.get("draft_id") or "")
     draft_picks = (
         _sleeper_get(f"https://api.sleeper.app/v1/draft/{draft_id}/picks") or []
@@ -539,6 +562,25 @@ def _fetch_one_season(league_id: str):
     champ = _by_rid(champion_rid) if champion_rid else {"username": "?", "team_name": ""}
     ruup = _by_rid(runner_up_rid) if runner_up_rid else {"username": "?", "team_name": ""}
 
+    from fantasy import league_intelligence as _intel
+
+    toilet_champions = []
+    toilet_bracket: list[str] = []
+    if losers_raw and info.get("status") == "complete":
+        seen_names: set[str] = set()
+        for rid in _intel.bracket_roster_ids(losers_raw):
+            name = str(_by_rid(rid).get("username") or "").strip()
+            if name and name not in {"?", "—"} and name not in seen_names:
+                seen_names.add(name)
+                toilet_bracket.append(name)
+        toilet_bracket.sort()
+        for rid in _intel.last_place_roster_ids(losers_raw):
+            row = _by_rid(rid)
+            toilet_champions.append({
+                "username": row.get("username") or "?",
+                "team_name": row.get("team_name", ""),
+            })
+
     _lg_settings = info.get("settings") or {}
     _playoff_start = int(_lg_settings.get("playoff_week_start") or 15)
     _wk_data = _fetch_league_weeks(current_id, "matchups")
@@ -589,6 +631,12 @@ def _fetch_one_season(league_id: str):
         "status": info.get("status"),
         "champion": {"username": champ["username"], "team_name": champ.get("team_name", "")},
         "runner_up": {"username": ruup["username"], "team_name": ruup.get("team_name", "")},
+        "toilet_champion": (
+            toilet_champions[0]
+            if toilet_champions else {"username": "?", "team_name": ""}
+        ),
+        "toilet_champions": toilet_champions,
+        "toilet_bracket": toilet_bracket,
         "standings": standings,
         "matchups": _matchups_season,
         "draft_picks": draft_picks if isinstance(draft_picks, list) else [],
@@ -897,6 +945,18 @@ def render():
                     _streak_names, _streak_n = _league_intel.tied_leaders(
                         _leader_df, "active_playoff_streak", min_value=1,
                     )
+                    _toilet_names, _toilet_n = _league_intel.tied_leaders(
+                        _leader_df, "toilet_titles", min_value=1,
+                    )
+                    _toilet_app_names, _toilet_app_n = _league_intel.tied_leaders(
+                        _leader_df, "toilet_appearances", min_value=1,
+                    )
+                    _low_pool = _leader_df[_leader_df["avg_score"].notna()].copy()
+                    if _season_filter == "All Time":
+                        _low_pool = _low_pool[_low_pool["seasons"].gt(2)]
+                    _low_names, _low_n = _league_intel.tied_leaders(
+                        _low_pool, "avg_score", ascending=True,
+                    )
                     _adj_names, _adj_n = _league_intel.tied_leaders(
                         _scored, "avg_above_league",
                     )
@@ -939,6 +999,32 @@ def render():
                             f"{_streak_n_int} {_streak_word}"
                             + (" each" if len(_streak_names) > 1 else "")
                         )
+                    _toilet_delta = None
+                    if _toilet_names:
+                        _toilet_n_int = int(_toilet_n)
+                        _toilet_word = (
+                            "last-place finish" if _toilet_n_int == 1 else "last-place finishes"
+                        )
+                        _toilet_delta = (
+                            f"{_toilet_n_int} {_toilet_word}"
+                            + (" each" if len(_toilet_names) > 1 else "")
+                        )
+                    _toilet_app_delta = None
+                    if _toilet_app_names:
+                        _toilet_app_n_int = int(_toilet_app_n)
+                        _toilet_app_word = (
+                            "appearance" if _toilet_app_n_int == 1 else "appearances"
+                        )
+                        _toilet_app_delta = (
+                            f"{_toilet_app_n_int} {_toilet_app_word}"
+                            + (" each" if len(_toilet_app_names) > 1 else "")
+                        )
+                    _low_delta = None
+                    if _low_names and _low_n is not None:
+                        _low_delta = (
+                            f"{_low_n:.2f} ppg"
+                            + (" each" if len(_low_names) > 1 else "")
+                        )
 
                     _cards = [
                         ("Most Titles", _title_names, _title_delta,
@@ -951,27 +1037,36 @@ def render():
                          "No games yet", None),
                         ("Most Points", _point_names, _point_delta,
                          "No scores yet", None),
+                         ("Most Toilet Bowl Titles", _toilet_names, _toilet_delta,
+                         "No toilet champ yet", "0 last-place finishes"),
+                        ("Most Toilet Bracket Appearances", _toilet_app_names,
+                         _toilet_app_delta, "No consolation bracket", "0 appearances"),
+                        ("Lowest Scoring Team", _low_names, _low_delta,
+                         (
+                             "Need 3 seasons"
+                             if _season_filter == "All Time" else "No scores yet"
+                         ),
+                         None),
                     ]
                     with st.container(key="jsa-lh-leaderboard-cards"):
-                        _metric_cols = st.columns(len(_cards))
-                        for _col, (_label, _names, _delta, _empty, _empty_delta) in zip(
-                            _metric_cols, _cards,
-                        ):
-                            with _col:
-                                _leaderboard_metric(
-                                    _label, _names, _delta,
-                                    empty_value=_empty, empty_delta=_empty_delta,
-                                    flip_at=3 if _label in {
-                                        "Most Titles",
-                                        "Most Finals Appearances",
-                                        "Longest Active Playoff Streak",
-                                    } else None,
-                                )
+                        for _row in (_cards[:4], _cards[4:]):
+                            _metric_cols = st.columns(4)
+                            for _col, (_label, _names, _delta, _empty, _empty_delta) in zip(
+                                _metric_cols, _row,
+                            ):
+                                with _col:
+                                    _leaderboard_metric(
+                                        _label, _names, _delta,
+                                        empty_value=_empty, empty_delta=_empty_delta,
+                                        flip_at=3 if _label in _LEADERBOARD_COUNT_CARDS else None,
+                                    )
                     _caption_parts = []
                     for _tie_label, _tie_names in (
                         ("Most Titles", _title_names),
                         ("Most Finals Appearances", _final_names),
                         ("Longest Active Playoff Streak", _streak_names),
+                        ("Most Toilet Bowl Titles", _toilet_names),
+                        ("Most Toilet Bracket Appearances", _toilet_app_names),
                     ):
                         if len(_tie_names) >= 3:
                             _caption_parts.append(
@@ -981,6 +1076,7 @@ def render():
                     if not _caption_parts and any(len(_names) > 1 for _names in (
                         _title_names, _win_names, _point_names,
                         _final_names, _streak_names,
+                        _toilet_names, _toilet_app_names, _low_names,
                     )):
                         _caption_parts.append("Tied leaders share a card.")
                     if _caption_parts:

@@ -35,11 +35,14 @@
 - Lineup production and bench production remain separate.
 - Manager identity is keyed by Sleeper user ID so display-name changes do not split history.
 - Conclusions show the number of drafts or player-seasons behind them.
-- Leaderboard scorecards are Most Titles, Most Finals Appearances, Longest Active Playoff Streak, Best Win %, and Most Points, each with
-  an info icon. Three or more title, finals, or active-streak leaders render as an N-way tie, with names in
+- Leaderboard scorecards are eight cards in two rows of four: Most Titles, Most Finals Appearances, Longest Active Playoff Streak, Best Win %, Most Points, Most Toilet Bowl Titles, Most Toilet Bracket Appearances, and Lowest Scoring Team, each with
+  an info icon. Three or more title, finals, active-streak, toilet-title, or toilet-appearance leaders render as an N-way tie, with names in
   the caption. Most Points is regular-season weekly scores only, not era-adjusted.
   Active playoff streak counts consecutive playoff seasons through the latest completed
   postseason in the window. An in-progress season does not reset it.
+  Toilet Bowl Titles count last place in that season's consolation (losers) bracket, same tie rules as championship titles.
+  Toilet Bracket Appearances count seasons in that bracket.
+  Lowest Scoring Team is regular-season points per game. All Time needs more than 2 seasons.
 - Hall of Fame record cards each have an info icon. All eight sit at the top in two rows
   of four. Luckiest Win is all-play (share of teams the winner would have beaten that
   week), not the lowest winning score.

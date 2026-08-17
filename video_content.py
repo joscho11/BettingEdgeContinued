@@ -123,4 +123,13 @@ VIDEOS = [
         "video_id": "7674314953565670687",
         "breakdown_file": "qb_te_draft_timing.md",
     },
+    {
+        "slug": "league-history",
+        "title": "Who's the best manager in your league?",
+        "subtitle": "2026 · Sleeper League History walkthrough",
+        "date": "2026-08-16",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7674717547266133278",
+        "video_id": "7674717547266133278",
+        "breakdown_file": "league_history.md",
+    },
 ]

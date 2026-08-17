@@ -84,3 +84,18 @@ def test_switching_episode_swaps_the_embed(tmp_path):
     assert len(watch) == 1
     assert other["tiktok_url"] in str(watch[0].value)
     assert newest["tiktok_url"] not in str(watch[0].value)
+
+
+def test_every_episode_has_a_breakdown_file():
+    for item in VIDEOS:
+        path = _HERE / "video_breakdowns" / item["breakdown_file"]
+        assert path.is_file(), item["slug"]
+        assert item["video_id"]
+        assert item["video_id"] in item["tiktok_url"]
+
+
+def test_league_history_episode_is_newest():
+    newest = _newest()
+    assert newest["slug"] == "league-history"
+    assert newest["video_id"] == "7674717547266133278"
+    assert newest["date"] == "2026-08-16"

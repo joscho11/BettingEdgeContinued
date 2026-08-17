@@ -285,6 +285,74 @@ def test_league_history_caps_matchup_workers_without_network(monkeypatch):
         page_league_history._fetch_one_season.clear()
 
 
+def test_fetch_one_season_maps_losers_bracket_last_place(monkeypatch):
+    league_id = "1255197436951932928"
+    users = [
+        {"user_id": "u6", "display_name": "LastPlace", "metadata": {}},
+        {"user_id": "u12", "display_name": "ConsolationWinner", "metadata": {}},
+        {"user_id": "u5", "display_name": "Runner", "metadata": {}},
+        {"user_id": "u7", "display_name": "Third", "metadata": {}},
+    ]
+    rosters = [
+        {"roster_id": 6, "owner_id": "u6", "settings": {"wins": 0, "losses": 1, "fpts": 10}},
+        {"roster_id": 12, "owner_id": "u12", "settings": {"wins": 0, "losses": 1, "fpts": 20}},
+        {"roster_id": 5, "owner_id": "u5", "settings": {"wins": 0, "losses": 1, "fpts": 30}},
+        {"roster_id": 7, "owner_id": "u7", "settings": {"wins": 0, "losses": 1, "fpts": 40}},
+    ]
+    losers = [
+        {"r": 1, "m": 1, "t1": 6, "t2": 12, "w": 12, "l": 6, "p": None},
+        {"r": 1, "m": 2, "t1": 5, "t2": 7, "w": 5, "l": 7, "p": None},
+        {"r": 2, "m": 3, "t1": 12, "t2": 5, "w": 12, "l": 5, "p": 1},
+        {"r": 2, "m": 4, "t1": 6, "t2": 7, "w": 7, "l": 6, "p": 3},
+    ]
+
+    def _sleeper_get(url):
+        if url.endswith(f"/league/{league_id}"):
+            return {
+                "name": "Test league", "season": "2025", "status": "complete",
+                "settings": {"playoff_week_start": 15}, "previous_league_id": "0",
+            }
+        if url.endswith("/users"):
+            return users
+        if url.endswith("/rosters"):
+            return rosters
+        if url.endswith("/losers_bracket"):
+            return losers
+        return []
+
+    class _Executor:
+        def __init__(self, max_workers):
+            self.max_workers = max_workers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+        def map(self, fn, values):
+            return map(fn, values)
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return []
+
+    monkeypatch.setattr(page_league_history, "_sleeper_get", _sleeper_get)
+    monkeypatch.setattr(page_league_history._cf, "ThreadPoolExecutor", _Executor)
+    monkeypatch.setattr(page_league_history.req, "get", lambda *_args, **_kwargs: _Response())
+    page_league_history._fetch_one_season.clear()
+    try:
+        year, payload = page_league_history._fetch_one_season(league_id)
+        assert year == "2025"
+        assert payload["toilet_champion"]["username"] == "LastPlace"
+        assert payload["toilet_bracket"] == ["ConsolationWinner", "LastPlace", "Runner", "Third"]
+    finally:
+        page_league_history._fetch_one_season.clear()
+
+
 def test_league_intelligence_normalizes_drafts_and_explains_room_tendencies():
     seasons = {}
     for season in ("2023", "2024", "2025"):
@@ -405,6 +473,8 @@ def test_manager_leaderboard_adjusts_scores_within_each_league_week():
     assert leaders.loc["Bob", "total_points"] == 210.0
     assert leaders.loc["Alice", "active_playoff_streak"] == 2
     assert leaders.loc["Bob", "active_playoff_streak"] == 2
+    assert leaders.loc["Alice", "toilet_titles"] == 0
+    assert leaders.loc["Bob", "toilet_appearances"] == 0
 
 
 def test_tied_leaders_share_a_headline_without_win_pct_tiebreak():
@@ -424,6 +494,9 @@ def test_tied_leaders_share_a_headline_without_win_pct_tiebreak():
     names, value = league_intel.tied_leaders(frame, "avg_above_league")
     assert names == ["Carol"]
     assert value == 3.0
+    names, value = league_intel.tied_leaders(frame, "avg_above_league", ascending=True)
+    assert names == ["Alice", "Bob"]
+    assert value == 1.0
     names, value = league_intel.tied_leaders(frame, "seasons")
     assert names == ["Alice", "Bob"]
     assert league_intel.tied_leaders(frame, "titles", min_value=3) == ([], None)
@@ -503,6 +576,127 @@ def test_active_playoff_streak_three_way_tie_uses_title_rule():
     assert names == ["Alice", "Bob", "Carol"]
     assert value == 1.0
     assert league_intel.scorecard_headline(names, flip_at=3) == "3-way tie"
+
+
+def test_losers_bracket_last_place_is_highest_assigned_finish():
+    bracket = [
+        {"r": 1, "m": 1, "t1": 6, "t2": 12, "w": 12, "l": 6, "p": None},
+        {"r": 1, "m": 2, "t1": 5, "t2": 7, "w": 5, "l": 7, "p": None},
+        {"r": 2, "m": 3, "t1": 12, "t2": 5, "w": 12, "l": 5, "p": 1},
+        {"r": 2, "m": 4, "t1": 6, "t2": 7, "w": 7, "l": 6, "p": 3},
+    ]
+    assert league_intel.last_place_roster_ids(bracket) == ["6"]
+    assert league_intel.bracket_roster_ids(bracket) == {"5", "6", "7", "12"}
+    assert league_intel.bracket_placement_ranks(bracket) == {
+        "12": 1, "5": 2, "7": 3, "6": 4,
+    }
+    assert league_intel.last_place_roster_ids([]) == []
+    assert league_intel.bracket_roster_ids(None) == set()
+
+
+def test_toilet_scorecards_count_last_place_and_bracket_appearances():
+    seasons = {
+        "2023": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0},
+                {"username": "Bob", "wins": 0, "losses": 1},
+                {"username": "Carol", "wins": 0, "losses": 1},
+            ],
+            "champion": {"username": "Alice"},
+            "toilet_champion": {"username": "Bob"},
+            "toilet_bracket": ["Bob", "Carol"],
+        },
+        "2024": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0},
+                {"username": "Bob", "wins": 0, "losses": 1},
+                {"username": "Carol", "wins": 0, "losses": 1},
+            ],
+            "champion": {"username": "Alice"},
+            "toilet_champions": [{"username": "Carol"}],
+            "toilet_bracket": ["Bob", "Carol"],
+        },
+        "2025": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0},
+                {"username": "Bob", "wins": 1, "losses": 0},
+                {"username": "Carol", "wins": 0, "losses": 1},
+            ],
+            "champion": {"username": "Bob"},
+            "toilet_champion": {"username": "Carol"},
+            "toilet_bracket": ["Carol"],
+        },
+    }
+    leaders = league_intel.manager_leaderboard_frame(seasons, []).set_index("manager")
+    assert leaders.loc["Alice", "titles"] == 2
+    assert leaders.loc["Bob", "toilet_titles"] == 1
+    assert leaders.loc["Carol", "toilet_titles"] == 2
+    assert leaders.loc["Bob", "toilet_appearances"] == 2
+    assert leaders.loc["Carol", "toilet_appearances"] == 3
+    assert leaders.loc["Alice", "toilet_appearances"] == 0
+    names, value = league_intel.tied_leaders(leaders.reset_index(), "toilet_titles", min_value=1)
+    assert names == ["Carol"]
+    assert value == 2.0
+    names, value = league_intel.tied_leaders(
+        leaders.reset_index(), "toilet_appearances", min_value=1,
+    )
+    assert names == ["Carol"]
+    assert value == 3.0
+    assert league_intel.scorecard_headline(
+        ["Alice", "Bob", "Carol"], flip_at=3,
+    ) == "3-way tie"
+
+
+def test_lowest_ppg_scorecard_needs_more_than_two_seasons():
+    seasons = {
+        "2023": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0},
+                {"username": "Bob", "wins": 0, "losses": 1},
+                {"username": "Carol", "wins": 0, "losses": 1},
+            ],
+        },
+        "2024": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0},
+                {"username": "Bob", "wins": 0, "losses": 1},
+                {"username": "Carol", "wins": 0, "losses": 1},
+            ],
+        },
+        "2025": {
+            "standings": [
+                {"username": "Alice", "wins": 1, "losses": 0},
+                {"username": "Bob", "wins": 0, "losses": 1},
+            ],
+        },
+    }
+    games = []
+    for season, alice, bob, carol in (
+        ("2023", 110.0, 90.0, 40.0),
+        ("2024", 100.0, 80.0, 50.0),
+        ("2025", 90.0, 70.0, None),
+    ):
+        games.append({
+            "season": season, "week": 1, "username": "Alice", "score": alice,
+            "is_playoff": False,
+        })
+        games.append({
+            "season": season, "week": 1, "username": "Bob", "score": bob,
+            "is_playoff": False,
+        })
+        if carol is not None:
+            games.append({
+                "season": season, "week": 1, "username": "Carol", "score": carol,
+                "is_playoff": False,
+            })
+    leaders = league_intel.manager_leaderboard_frame(seasons, games)
+    established = leaders[leaders["seasons"].gt(2)]
+    names, value = league_intel.tied_leaders(established, "avg_score", ascending=True)
+    assert names == ["Bob"]
+    assert value == 80.0
+    names, value = league_intel.tied_leaders(leaders, "avg_score", ascending=True)
+    assert names == ["Carol"]
+    assert leaders.set_index("manager").loc["Carol", "seasons"] == 2
 
 
 def test_matchup_record_book_uses_weekly_all_play_for_luck():
@@ -1002,12 +1196,18 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         "Longest Active Playoff Streak",
         "Best Win %",
         "Most Points",
+        "Most Toilet Bowl Titles",
+        "Most Toilet Bracket Appearances",
+        "Lowest Scoring Team",
     ]
     _card_idx = [_lb_labels.index(label) for label in _card_order]
-    assert _card_idx == list(range(_card_idx[0], _card_idx[0] + 5))
+    assert _card_idx == list(range(_card_idx[0], _card_idx[0] + 8))
     assert not any(metric.label == "Most Finals" for metric in at.metric)
     assert not any(metric.label == "Best Adjusted Scorer" for metric in at.metric)
     assert not any(metric.label == "Most Seasons" for metric in at.metric)
+    for _lb_label, _lb_help in page_league_history._LEADERBOARD_METRIC_HELP.items():
+        _lb_metric = next(metric for metric in at.metric if metric.label == _lb_label)
+        assert _lb_metric.help == _lb_help
     assert not any(
         "does not break a title tie" in str(caption.value) for caption in at.caption
     )

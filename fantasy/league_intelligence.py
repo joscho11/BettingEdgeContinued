@@ -108,6 +108,69 @@ def _playoff_finish_rank(finish) -> int | None:
         return None
 
 
+def _manager_stats_seed() -> dict:
+    return {
+        "titles": 0,
+        "runner_ups": 0,
+        "toilet_titles": 0,
+        "toilet_appearances": 0,
+        "seasons": 0,
+        "wins": 0,
+        "losses": 0,
+        "best_finish": None,
+        "fpts": 0.0,
+    }
+
+
+def bracket_roster_ids(bracket: Sequence[Mapping] | None) -> set[str]:
+    """Every roster id that appeared in a Sleeper winners or losers bracket."""
+    ids: set[str] = set()
+    for match in bracket or []:
+        if not isinstance(match, dict):
+            continue
+        for key in ("t1", "t2", "w", "l"):
+            value = match.get(key)
+            if value is None or value == "":
+                continue
+            text = str(value).strip()
+            if text and text not in {"None", "?"}:
+                ids.add(text)
+    return ids
+
+
+def bracket_placement_ranks(bracket: Sequence[Mapping] | None) -> dict[str, int]:
+    """Map roster id to place. Winner of a p-game gets p, loser gets p+1."""
+    ranks: dict[str, int] = {}
+    for match in bracket or []:
+        if not isinstance(match, dict):
+            continue
+        place, winner, loser = match.get("p"), match.get("w"), match.get("l")
+        if place in (None, "") or winner is None or loser is None:
+            continue
+        try:
+            place = int(place)
+        except (TypeError, ValueError):
+            continue
+        winner, loser = str(winner), str(loser)
+        current = ranks.get(winner)
+        if current is None or place < current:
+            ranks[winner] = place
+        current = ranks.get(loser)
+        loser_place = place + 1
+        if current is None or loser_place < current:
+            ranks[loser] = loser_place
+    return ranks
+
+
+def last_place_roster_ids(bracket: Sequence[Mapping] | None) -> list[str]:
+    """Roster ids who finished last in this bracket (highest assigned place)."""
+    ranks = bracket_placement_ranks(bracket)
+    if not ranks:
+        return []
+    worst = max(ranks.values())
+    return sorted(rid for rid, place in ranks.items() if place == worst)
+
+
 def _season_sort_key(season) -> tuple:
     text = str(season)
     try:
@@ -169,7 +232,8 @@ def manager_leaderboard_frame(
     manager with the opponents playing under the same settings and scoring era.
     """
     columns = [
-        "manager", "titles", "finals", "seasons", "wins", "losses",
+        "manager", "titles", "finals", "toilet_titles", "toilet_appearances",
+        "seasons", "wins", "losses",
         "win_pct", "best_finish", "avg_score", "avg_above_league",
         "total_points", "games", "active_playoff_streak",
     ]
@@ -184,10 +248,7 @@ def manager_leaderboard_frame(
             manager = _manager(standing.get("username"))
             if not manager:
                 continue
-            row = stats.setdefault(manager, {
-                "titles": 0, "runner_ups": 0, "seasons": 0,
-                "wins": 0, "losses": 0, "best_finish": None, "fpts": 0.0,
-            })
+            row = stats.setdefault(manager, _manager_stats_seed())
             row["seasons"] += 1
             row["wins"] += int(standing.get("wins") or 0)
             row["losses"] += int(standing.get("losses") or 0)
@@ -207,15 +268,25 @@ def manager_leaderboard_frame(
         champion = _manager((season_data.get("champion") or {}).get("username"))
         runner_up = _manager((season_data.get("runner_up") or {}).get("username"))
         if champion:
-            stats.setdefault(champion, {
-                "titles": 0, "runner_ups": 0, "seasons": 0,
-                "wins": 0, "losses": 0, "best_finish": None, "fpts": 0.0,
-            })["titles"] += 1
+            stats.setdefault(champion, _manager_stats_seed())["titles"] += 1
         if runner_up:
-            stats.setdefault(runner_up, {
-                "titles": 0, "runner_ups": 0, "seasons": 0,
-                "wins": 0, "losses": 0, "best_finish": None, "fpts": 0.0,
-            })["runner_ups"] += 1
+            stats.setdefault(runner_up, _manager_stats_seed())["runner_ups"] += 1
+        toilet_rows = list(season_data.get("toilet_champions") or [])
+        if not toilet_rows:
+            single = season_data.get("toilet_champion") or {}
+            if single:
+                toilet_rows = [single]
+        for toilet_row in toilet_rows:
+            toilet = _manager(toilet_row.get("username"))
+            if toilet:
+                stats.setdefault(toilet, _manager_stats_seed())["toilet_titles"] += 1
+        seen_toilet = set()
+        for name in season_data.get("toilet_bracket") or []:
+            manager = _manager(name)
+            if not manager or manager in seen_toilet:
+                continue
+            seen_toilet.add(manager)
+            stats.setdefault(manager, _manager_stats_seed())["toilet_appearances"] += 1
 
     weekly_scores: dict[tuple[str, int], list[float]] = {}
     regular_records: list[tuple[str, str, int, float]] = []
@@ -258,6 +329,8 @@ def manager_leaderboard_frame(
             "manager": manager,
             "titles": int(values["titles"]),
             "finals": int(values["titles"] + values["runner_ups"]),
+            "toilet_titles": int(values["toilet_titles"]),
+            "toilet_appearances": int(values["toilet_appearances"]),
             "seasons": int(values["seasons"]),
             "wins": wins,
             "losses": losses,
@@ -286,11 +359,13 @@ def tied_leaders(
     *,
     name_col: str = "manager",
     min_value: float | None = None,
+    ascending: bool = False,
 ) -> tuple[list[str], float | None]:
     """Return every manager tied at the top of ``column``, sorted by name.
 
     A secondary stat must not break the tie. Title count 2 and 2 is a shared
-    headline even if one manager has a better win rate.
+    headline even if one manager has a better win rate. ``ascending=True``
+    picks the lowest value instead (lowest points per game).
     """
     if frame is None or frame.empty or column not in frame.columns:
         return [], None
@@ -303,7 +378,7 @@ def tied_leaders(
         work = work.loc[work["_rank"].ge(min_value)]
     if work.empty:
         return [], None
-    top = work["_rank"].max()
+    top = work["_rank"].min() if ascending else work["_rank"].max()
     names = sorted({str(name) for name in work.loc[work["_rank"].eq(top), name_col]})
     return names, float(top)
 
