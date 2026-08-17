@@ -42,6 +42,8 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 ROOT = Path(__file__).resolve().parent.parent
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(ROOT))
+from cowork_data import BETTING_LINES_XLSX
 
 import features as _F  # noqa: E402
 
@@ -221,7 +223,7 @@ def main() -> int:
         },
         "input_hashes": {
             "nfl_allpro_1997_2025.csv": sha256(HERE / "nfl_allpro_1997_2025.csv"),
-            "data/nfl.xlsx": sha256(HERE / "data" / "nfl.xlsx"),
+            "data/nfl.xlsx": sha256(BETTING_LINES_XLSX),
         },
         "environment": {
             "python": sys.version.split()[0],

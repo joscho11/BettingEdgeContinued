@@ -249,7 +249,7 @@ An integer-linear-program optimizer for DraftKings NFL Classic, using the weekly
 
 ### Dashboard
 
-A Streamlit multipage site with a top nav in three groups. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, DFS Optimizer. **More**: Film Room, League History, Help & Guide.
+A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Board (landing page), Rookie Board, Weekly Fantasy, DFS Optimizer. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **More**: Film Room, League History, Help & Guide.
 
 - **Draft Board**: my pre-season board for the independent model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Model Proj is 75% independent v6 and 25% Sleeper's published projection. Sleeper ADP and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. Model Proj points and ranks remain frozen until the planned early-September snapshot. The mix is backtested on 2021-2025 and **not** live-validated. Its first live test is 2026. On that backtest it beat ADP ordering in 5 of 6 seasons. Independent v6 alone did not. The gaps are neutral rank differences shown for context, not calls about any player.
 

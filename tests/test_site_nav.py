@@ -1,8 +1,8 @@
 """Batch-1 proof for the multipage nav skeleton (app.py).
 
-Asserts: the default landing page is Weekly Predictions (always — the seasonal
-default was retired 2026-07-14), the sidebar renders EMPTY (nav is top, footer is
-in page flow), the shared footer is present, and the shared modules are import-safe.
+Asserts: the default landing page is the 2026 Draft Board, Fantasy sits left of
+Betting in the top nav, the sidebar renders EMPTY (nav is top, footer is in page
+flow), the shared footer is present, and the shared modules are import-safe.
 Hermetic: APP_OFFLINE=1 so no network. Run: pytest test_site_nav.py
 """
 import ast
@@ -43,29 +43,21 @@ def _titles(at):
     return " ".join(str(t.value) for t in at.title)
 
 
-def test_default_is_weekly_predictions():
-    # Weekly Predictions is the fixed landing page year-round (ruling 2026-07-14);
-    # the real page titles "🏈 Week N Predictions: SEASON Season" (only this page
-    # carries "Predictions").
+def test_default_is_draft_board():
     at = _run()
-    assert "Predictions" in _titles(at), \
-        f"default landing page should be Weekly Predictions; titles={_titles(at)!r}"
-    assert "Draft Board" not in _titles(at), \
-        f"Draft Board must no longer be the default; titles={_titles(at)!r}"
-
-
-def test_live_2026_banner_on_default_weekly_predictions():
-    at = _run()
-    successes = " ".join(str(s.value) for s in at.success)
-    assert "Live 2026" in successes, f"live 2026 banner missing: {successes!r}"
-    assert "one-sided 95% Wilson" in successes
-    assert "No medium tier" in successes
-    assert "No totals on this season" in successes
-    infos = " ".join(str(i.value) for i in at.info)
-    assert "demo until the 2026 season" not in infos
     titles = _titles(at)
-    assert "2026" in titles
-    assert "Week 1" in titles
+    assert "Draft Board" in titles, \
+        f"default landing page should be the 2026 Draft Board; titles={titles!r}"
+    assert "Predictions" not in titles, \
+        f"Weekly Predictions must no longer be the default; titles={titles!r}"
+
+
+def test_nav_groups_fantasy_then_betting():
+    src = Path(ENTRY).read_text(encoding="utf-8")
+    assert src.index('"Fantasy"') < src.index('"Betting"'), \
+        "Fantasy must sit left of Betting in the top nav"
+    assert "url_path=\"draft-board\", default=True" in src
+    assert "url_path=\"weekly-predictions\", default=True" not in src
 
 
 def test_sidebar_is_empty_and_footer_present():
@@ -139,11 +131,11 @@ def test_every_page_renders_offline_clean(tmp_path):
 
 
 if __name__ == "__main__":
-    test_default_is_weekly_predictions()
-    test_live_2026_banner_on_default_weekly_predictions()
+    test_default_is_draft_board()
+    test_nav_groups_fantasy_then_betting()
     test_sidebar_is_empty_and_footer_present()
     test_header_has_brand_and_tip_jar()
     test_phone_nav_button_is_three_bars()
     test_shared_modules_import_safe()
     test_nonselected_pages_are_lazy_imported()
-    print("OK  nav skeleton: WP fixed default, empty sidebar, header brand+tip jar, footer repo link")
+    print("OK  nav skeleton: Draft Board default, Fantasy then Betting, empty sidebar, header brand+tip jar, footer repo link")

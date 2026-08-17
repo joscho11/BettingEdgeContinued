@@ -130,11 +130,11 @@ work, not a description of an input to my model.
         st.markdown("""
 Everything lives in the top navigation bar, grouped into three menus:
 
-- **Betting**: Weekly Predictions (the page you land on), Track Record, and Season Totals (Beta).
-- **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, and DFS Optimizer.
+- **Fantasy**: Draft Board (the page you land on), Rookie Board, Weekly Fantasy, and DFS Optimizer.
+- **Betting**: Weekly Predictions, Track Record, and Season Totals (Beta).
 - **More**: Film Room, League History, and this Help & Guide.
 
-The site opens on **Weekly Predictions** every time. There is no sidebar. Each page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) right at the top.
+The site opens on the **2026 Draft Board** every time. There is no sidebar. Each page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) right at the top.
         """)
 
     with st.expander("How do I read the game cards?"):

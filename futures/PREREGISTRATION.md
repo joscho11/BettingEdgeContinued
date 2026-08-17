@@ -689,14 +689,9 @@ So the protection moves from restricting the work to labelling the result, per A
 
 #### A4.4. Named-book lines admitted
 
-`futures/data/win_totals_2026_named_books.csv`, captured 2026-08-05, carries DraftKings and FanDuel
-2026 win totals with `book` populated. DraftKings has both sides priced and is therefore the first
-G3-C-shaped source this project holds; FanDuel has the over side only and is a cross-check.
+`futures/data/win_totals_2026_named_books.csv`, captured 2026-08-05, originally carried DraftKings and FanDuel 2026 win totals with `book` populated. DraftKings had both sides priced; FanDuel had the over side only.
 
-This does **not** open gate C. G3-C requires named-book rows across the *evaluation* seasons, and
-the historical archive is still unattributed. One deploy season of named-book lines cannot backtest
-anything. Its use here is to supply M5's 2026 anchor, which A2.2 already permits, and to begin a
-forward named-book record.
+**2026-08-17 (Joseph):** DraftKings is the main book. This file was overwritten with the 2026-08-17 DraftKings featured O/U (32 teams, both sides). FanDuel rows were dropped. FanDuel remains on disk only where DK did not post the market (miss playoffs). This still does **not** open gate C. G3-C requires named-book rows across the *evaluation* seasons, and the historical archive is still unattributed. One deploy season of named-book lines cannot backtest anything. Its use here is to supply M5's 2026 anchor, which A2.2 already permits, and to begin a forward named-book record.
 
 #### A4.5. What survives from v1, unchanged
 

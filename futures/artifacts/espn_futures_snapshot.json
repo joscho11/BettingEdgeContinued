@@ -1,0 +1,111 @@
+{
+  "captured_at": "2026-08-17T16:16:01.271315+00:00",
+  "season": 2026,
+  "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2026/futures?limit=50&lang=en&region=us",
+  "raw_file": "futures/data/espn/raw/20260817T160933Z_futures.json",
+  "sha256": "c3c99cf24b93d48ed72c5376971d5cf4e20510f286326b981e2a0c77e4a4ca93",
+  "n_rows": 832,
+  "n_targets_logged": 16,
+  "missing_outcome_names": 0,
+  "n_teams_resolved": 32,
+  "n_athletes_resolved": 445,
+  "unmapped_espn_markets": [],
+  "by_target": [
+    {
+      "target_id": 1,
+      "target_name": "Super Bowl winner",
+      "n_quotes": 32,
+      "n_outcomes": 32
+    },
+    {
+      "target_id": 4,
+      "target_name": "AFC winner",
+      "n_quotes": 16,
+      "n_outcomes": 16
+    },
+    {
+      "target_id": 5,
+      "target_name": "NFC winner",
+      "n_quotes": 16,
+      "n_outcomes": 16
+    },
+    {
+      "target_id": 6,
+      "target_name": "Division winner",
+      "n_quotes": 32,
+      "n_outcomes": 32
+    },
+    {
+      "target_id": 17,
+      "target_name": "Passing yards leader",
+      "n_quotes": 35,
+      "n_outcomes": 35
+    },
+    {
+      "target_id": 18,
+      "target_name": "Rushing yards leader",
+      "n_quotes": 61,
+      "n_outcomes": 61
+    },
+    {
+      "target_id": 19,
+      "target_name": "Receiving yards leader",
+      "n_quotes": 94,
+      "n_outcomes": 94
+    },
+    {
+      "target_id": 32,
+      "target_name": "MVP",
+      "n_quotes": 104,
+      "n_outcomes": 104
+    },
+    {
+      "target_id": 33,
+      "target_name": "Offensive Player of the Year",
+      "n_quotes": 108,
+      "n_outcomes": 108
+    },
+    {
+      "target_id": 34,
+      "target_name": "Defensive Player of the Year",
+      "n_quotes": 82,
+      "n_outcomes": 82
+    },
+    {
+      "target_id": 35,
+      "target_name": "Offensive Rookie of the Year",
+      "n_quotes": 42,
+      "n_outcomes": 42
+    },
+    {
+      "target_id": 36,
+      "target_name": "Defensive Rookie of the Year",
+      "n_quotes": 47,
+      "n_outcomes": 47
+    },
+    {
+      "target_id": 37,
+      "target_name": "Coach of the Year",
+      "n_quotes": 12,
+      "n_outcomes": 12
+    },
+    {
+      "target_id": 38,
+      "target_name": "Comeback Player of the Year",
+      "n_quotes": 40,
+      "n_outcomes": 40
+    },
+    {
+      "target_id": 39,
+      "target_name": "Protector of the Year",
+      "n_quotes": 79,
+      "n_outcomes": 79
+    },
+    {
+      "target_id": 40,
+      "target_name": "Team to win most regular-season games",
+      "n_quotes": 32,
+      "n_outcomes": 32
+    }
+  ]
+}

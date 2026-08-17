@@ -1,12 +1,11 @@
 """Live entrypoint — the multipage site (st.navigation, top nav).
 
 The 8-tab monolith was migrated to page modules across site-revamp Batch 3 and swapped
-in here (3e). This thin entrypoint wires the ratified nav groups/labels/icons/url_paths,
-the fixed default landing page (Weekly Predictions, always — Joseph's ruling 2026-07-14
-retired the seasonal Draft-Board-pre-season default), the cross-link registry, and the
-shared footer; there is no sidebar. Page modules are imported only when selected so a
-request does not initialize every page's dependencies. Shared data/chrome come from
-dashboard_data / dashboard_chrome / page_common.
+in here (3e). This thin entrypoint wires the nav groups/labels/icons/url_paths, the
+default landing page (2026 Draft Board), Fantasy-then-Betting-then-More top nav, the
+cross-link registry, and the shared footer; there is no sidebar. Page modules are
+imported only when selected so a request does not initialize every page's dependencies.
+Shared data/chrome come from dashboard_data / dashboard_chrome / page_common.
 """
 import importlib
 import sys
@@ -77,9 +76,9 @@ chrome.site_pageview_once()
 
 # ── Pages — all real now (stubs retired in Batch 3d); url_paths per design 4b ──
 board_pg = st.Page(_lazy_render("page_draft_board"), title="Draft Board", icon="📋",
-                   url_path="draft-board")
+                   url_path="draft-board", default=True)
 wp_pg = st.Page(_lazy_render("page_weekly_predictions"), title="Weekly Predictions", icon="🏈",
-                url_path="weekly-predictions", default=True)
+                url_path="weekly-predictions")
 wf_pg = st.Page(_lazy_render("page_weekly_fantasy"), title="Weekly Fantasy", icon="🏆",
                 url_path="weekly-fantasy")
 dfs_pg = st.Page(_lazy_render("page_dfs"), title="DFS Optimizer", icon="🎯",
@@ -119,8 +118,8 @@ chrome.render_header()
 mobile.inject()
 
 nav = st.navigation(
-    {"Betting": [wp_pg, tr_pg, fut_pg],
-     "Fantasy": [board_pg, rb_pg, wf_pg, dfs_pg],
+    {"Fantasy": [board_pg, rb_pg, wf_pg, dfs_pg],
+     "Betting": [wp_pg, tr_pg, fut_pg],
      "More": [film_pg, lh_pg, help_pg]},
     position="top",
 )

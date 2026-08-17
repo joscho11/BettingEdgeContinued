@@ -34,7 +34,9 @@ import nflreadpy as nfl
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
-DATA = REPO / "futures" / "data"
+sys.path.insert(0, str(REPO))
+from cowork_data import FUTURES_DATA
+DATA = FUTURES_DATA
 ART = REPO / "futures" / "artifacts"
 
 PREDICT_SEASON = 2026

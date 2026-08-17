@@ -32,10 +32,12 @@ warnings.filterwarnings("ignore")
 
 REPO = Path(__file__).resolve().parents[1]
 FUT = REPO / "futures"
+sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(FUT / "season_team_totals"))
+from cowork_data import FUTURES_DATA
 import m4_engine as eng  # noqa: E402
 
-DATA, ART = FUT / "data", FUT / "artifacts"
+DATA, ART = FUTURES_DATA, FUT / "artifacts"
 SEED, N_SIMS_INNER, N_SIMS = 20260802, 4000, 20000
 ALPHA_GRID = (0.01, 0.1, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1000.0)
 FALLBACK_ALPHA = 10.0

@@ -48,6 +48,8 @@ def test_help_site_org_and_paused_copy(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Season Totals (Beta)" in md
+    assert "2026 Draft Board" in md
+    assert "the page you land on" in md
     assert "does not beat the archived market consensus" in md
     assert "Coming soon" in md
     assert "currently uses mock data" not in md

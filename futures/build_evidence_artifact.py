@@ -28,10 +28,12 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "futures"))
 sys.path.insert(0, str(REPO / "futures" / "season_team_totals"))
 import eval_v2 as E  # noqa: E402
 import m4_engine as eng  # noqa: E402
+from cowork_data import FUTURES_DATA
 
 ART = REPO / "futures" / "artifacts"
 OUT = ART / "season_totals_evidence.json"
@@ -50,7 +52,7 @@ def main() -> None:
     complete = [int(s) for s in audit["outcomes"]["complete_seasons"]]
     feats = list(meta["features"]["columns"])          # the PRODUCTION feature set, v1
     comp = json.loads((ART / "model_comparison.json").read_text(encoding="utf-8"))
-    wt = pd.read_csv(REPO / "futures" / "data" / "win_totals.csv")[
+    wt = pd.read_csv(FUTURES_DATA / "win_totals.csv")[
         ["season", "team", "price_over", "price_under"]]
 
     tie = float((games["result"] == 0).mean())

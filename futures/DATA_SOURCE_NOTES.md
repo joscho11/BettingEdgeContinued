@@ -246,3 +246,23 @@ the only route to G3-C, and no amendment substitutes for it.
 
 Run `-p TIER_B_ARCHIVE False` to reproduce the pre-amendment gate exactly; it returns **NO-GO** with
 0 valid rows, which is the frozen behaviour verified on 2026-08-03.
+
+---
+
+## 10. The Odds API (2026-08-17)
+
+Live `/sports` catalog: the only NFL future is Super Bowl winner
+(`americanfootball_nfl_super_bowl_winner`, description "Super Bowl Winner 2026/2027").
+`americanfootball_nfl` has `has_outrights=false`. **Team season win totals are not in this API.**
+
+Snapshot command: `python futures/snapshot_odds_api_futures.py` (1 credit, `regions=us`).
+First run 2026-08-17T14:38:11Z: 224 quotes, 7 books, all 32 teams mapped, quota 8269 remaining.
+
+| path | what |
+|---|---|
+| `futures/data/odds_api/nfl_outrights.csv` | tidy quotes, append-only |
+| `futures/data/odds_api/raw/<stamp>_americanfootball_nfl_super_bowl_winner.json` | raw payload |
+| `futures/artifacts/odds_api_futures_snapshot.json` | last-run manifest |
+
+2026 win totals stay in `futures/data/win_totals_2026_named_books.csv` (DraftKings-only as of 2026-08-17; FanDuel dropped from the canonical file).
+This snapshot does not open gate C.

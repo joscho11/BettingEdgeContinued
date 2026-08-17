@@ -60,7 +60,16 @@ def test_weekly_predictions_hides_paused_agent_chrome(tmp_path):
     assert "MATCHUP" in md
 
 
-def test_ats_blurb_lives_on_the_betting_pages(tmp_path):
+def test_weekly_predictions_live_2026_banner(tmp_path):
+    at = _render_page(tmp_path, "page_weekly_predictions")
+    successes = " ".join(str(s.value) for s in at.success)
+    assert "Live 2026" in successes
+    assert "one-sided 95% Wilson" in successes
+    assert "No medium tier" in successes
+    assert "No totals on this season" in successes
+    titles = " ".join(str(t.value) for t in at.title)
+    assert "2026" in titles
+    assert "Week 1" in titles
     for module in ("page_weekly_predictions", "page_track_record"):
         at = _render_page(tmp_path, module)
         md = " ".join(str(m.value) for m in at.markdown)
@@ -74,5 +83,6 @@ if __name__ == "__main__":
         test_weekly_predictions_renders_and_owns_controls(p)
         test_track_record_renders_and_owns_controls(p)
         test_weekly_predictions_hides_paused_agent_chrome(p)
+        test_weekly_predictions_live_2026_banner(p)
         test_ats_blurb_lives_on_the_betting_pages(p)
     print("OK  betting pages: render clean, own their controls, ATS blurb present")

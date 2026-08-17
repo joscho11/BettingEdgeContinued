@@ -20,8 +20,9 @@ from pathlib import Path
 import pandas as pd
 
 from odds_client import NFL_TEAMS
-
-DATA = Path(__file__).resolve().parent / "data" / "nfl.xlsx"
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from cowork_data import BETTING_LINES_XLSX as DATA
 
 # historical / relocated names not in the current-32 map, mapped to current franchise abbr
 TEAM_ALIASES = {
