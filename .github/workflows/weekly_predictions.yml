@@ -69,11 +69,11 @@ jobs:
           fi
 
       # 2026-08-18: in-repo spread papermill archived. 2026 live stamps from
-      # cowork_OS/spread_v3_beta (not in this public repo). Do not restore
+      # cowork_OS/spread_v3_prod (not in this public repo). Do not restore
       # betting/predict_betting.ipynb. Do not write betting/models/.
       - name: Spread predictions (moved off this repo)
         run: |
-          echo "2026 spread stamps from spread_v3_beta. GHA papermill retired."
+          echo "2026 spread stamps from spread_v3_prod. GHA papermill retired."
           echo "MODE=${{ env.MODE }}"
 
       - name: Run totals predictions

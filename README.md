@@ -200,14 +200,14 @@ Live test (2025 weeks 10 through 17, 46 picks): **52.2%**, essentially at break-
 
 ### Fantasy Football Projections
 
-Half-PPR points for QB, RB, WR, and TE the night before each slate, plus per-stat prop projections for passing, rushing, and receiving yards and receptions. Three notebooks build the models and a fourth runs weekly inference.
+Half-PPR points for QB, RB, WR, and TE. v1 training is archived. 2026 work is `weekly_projections_v2`. 2025 site CSVs are a demo.
 
 | Notebook | Role |
 |----------|------|
-| `data_pipeline.ipynb` | Pulls and joins player stats, expected points, schedules, injuries, and depth charts from nflreadpy into `raw_dataset.csv` (about 35k rows by 84 columns) |
-| `features.ipynb` | Builds rolling 3 and 5 week averages and their trend, points allowed to each position for matchup difficulty, opponent strength of schedule, coach win percentage, Vegas implied team total, weather, and depth-chart availability into `features_dataset.csv` (about 40k rows by 97 columns) |
-| `model.ipynb` | Trains per-position XGBoost regressors on next week's score, saves to `models/{position}_model.pkl` |
-| `predict_fantasy.ipynb` | Weekly inference. Loads the models, pulls the upcoming week, writes `fantasy_projections/projections_{season}_week{n}.csv` |
+| `archive/.../fantasy_weekly/data_pipeline.ipynb` | Archived. Pulled nflreadpy into `raw_dataset.csv` |
+| `fantasy/features.ipynb` | Rolling averages and matchup features into `features_dataset.csv` |
+| `archive/.../fantasy_weekly/model.ipynb` | Archived train path |
+| `archive/.../fantasy_weekly/predict_fantasy.ipynb` | Archived weekly inference |
 
 Same leakage discipline as the betting side: every rolling window uses `shift(1).rolling(N)` so a player's current-week stats never leak into their current-week prediction.
 
@@ -229,11 +229,11 @@ Same leakage discipline as the betting side: every rolling window uses `shift(1)
 not.** WR is essentially indistinguishable from just averaging a player's last three games.
 
 
-Beats the rolling-average baseline at every position. TE has the lowest error because TE scoring is the most concentrated and predictable week to week.
+Training notebooks (`data_pipeline.ipynb`, `model.ipynb`, `predict_fantasy.ipynb`, `retrain_models.py`) were archived 2026-08-18 to `archive/legacy-inrepo-2026-08-18/fantasy_weekly/`. 2026 weekly work is `cowork_OS/weekly_projections_v2`. The 2025 CSVs on the site stay as a demo.
 
 **Per-stat prop models** are 8 separate XGBoost regressors (QB pass and rush yards, RB rush and rec yards, WR receptions and rec yards, TE receptions and rec yards). Each uses the same features as its position model but a different target. The values are independent, so they will not sum exactly to the main projected points. They exist as a reference for prop bets, where the question is whether the projected stat clears the sportsbook line.
 
-The canonical retrain path is `fantasy/retrain_models.py`, which trains all 12 models in one consistent run. 2025 is currently the holdout, which keeps a clean out-of-sample season to improve against.
+The archived canonical retrain path is `archive/legacy-inrepo-2026-08-18/fantasy_weekly/retrain_models.py`. 2025 remains the holdout for the frozen v1 pkls.
 
 ### DFS Lineup Optimizer
 
@@ -330,46 +330,36 @@ film_room.py                           # Film Room renderer (embedded TikToks + 
 video_content.py                       # Registry of published videos (embed ids + breakdown files)
 video_breakdowns/                      # Long-form written breakdowns (markdown), one per video
 docs/                                  # Long-form specs kept out of the root
-archive/                               # Retired material, on no live path (closed code review, design audits)
+archive/                               # Retired material, on no live path (incl. legacy-inrepo-2026-08-18)
 betting/
   features.py                          # Shared 85-feature engineering (single source of truth, importable)
   test_features.py                     # Hermetic synthetic-data tests for features.py (run in CI)
-  features.ipynb                       # Thin documentation notebook (design rationale; imports features.py)
-  predict_betting.ipynb                # Weekly ATS prediction pipeline (papermill; imports features.py)
   predict_totals.ipynb                 # Weekly over/under pipeline (imports features.py + totals_features)
   totals_features.ipynb                # 14 totals-specific features (single source of truth)
   totals_model.ipynb                   # Totals walk-forward CV + production retrain
-  model_comparison.ipynb               # Spread model architecture comparison + walk-forward CV
-  sports_betting_agent.ipynb           # LLM agent (weekly qualitative analysis)
-  models/
-    ensemble_prod_model.pkl            # Primary spread model: Ensemble fixed75
-    xgboost_prod_model.pkl             # XGBoost direction voter
-    lgbm_prod_model.pkl                # LightGBM direction voter
-    totals_xgboost.pkl, totals_ridge.pkl  # Totals model
+  sports_betting_agent.ipynb           # LLM agent (DISABLED 2026-08-03)
+  ARCHIVED_SPREAD.md                   # Pointer: 2026 spread is cowork_OS/spread_v3_beta
+  models/                              # Frozen 2025 demo + Help hashes. Do not overwrite.
   predictions_tracker.csv              # Spread predictions and results (auto-committed)
   totals_tracker.csv                   # Totals predictions and results (auto-committed)
   nfl_allpro_1997_2025.csv             # All-Pro roster data (updated manually each January)
   nfl_weather_2014_2025.csv            # Kickoff-hour temp and wind (Meteostat)
-  agent_analysis_2025_week{n}.json     # Cached agent output per week
+  quarantine/                          # Disabled agent artifact (not on the public path)
   experiments/                         # Reusable analysis scripts and result snapshots
   archive/                             # Retired notebooks and model files
 fantasy/
-  data_pipeline.ipynb                  # Pull and join player stats from nflreadpy
+  ARCHIVED_WEEKLY.md                   # Pointer: weekly training archived 2026-08-18
+  GUIDE.md                             # Weekly fantasy guide (v1 numbers; 2026 work is weekly_projections_v2)
   features.ipynb                       # Feature engineering, writes features_dataset.csv
-  model.ipynb                          # Train per-position and per-stat models
-  retrain_models.py                    # Canonical retrain of all 12 fantasy models
-  predict_fantasy.ipynb                # Weekly half-PPR projections (papermill)
-  models/                              # Per-position and per-stat XGBoost pkl files
-  fantasy_projections/                 # Weekly projection CSVs
+  models/                              # Frozen weekly pkls (Help hashes). Do not overwrite for 2026.
+  fantasy_projections/                 # Weekly CSVs (2025 demo; 2026+ from weekly_projections_v2)
   dfs/
     optimizer.ipynb                    # ILP formulation and helper reference
     dfs_pipeline.ipynb                 # Weekly DFS workflow (papermill)
-  projections/                         # From-scratch season-total half-PPR builds (the Model Proj column)
-    build_{rb,wr,te,qb}_projection.py  # One per position; each imports the RB engine, never modifies it
-    results/                           # {pos}_projection_2026.csv, *_rookie_board_projection.csv, and
-                                       #   analyst_projection_adjustments_2026.csv (45-row display overlay)
-    preregs/PREREG_*.md                # Frozen pre-registrations
-    GUIDE.md                           # Plain-language guide
+  projections/                         # Live board CSV from projections_v2. Training archived 2026-08-18.
+    ARCHIVED.md                        # Pointer
+    results/                           # Published 2026 board CSV (hardlink to workspace)
+    models/                            # Help SHAP hashes. Do not overwrite.
   talent/                              # Descriptive talent scores (SPEC R34-R41, shipped 2026-07-27)
     build_nfl_{qb,rb,wr,te}_score.py   # -> nfl_{pos}_score_2026.csv    (+ .provenance.json)
     build_college_{qb,rb,wr,te}_score.py  # -> college_{pos}_score_2026.csv (+ .provenance.json)

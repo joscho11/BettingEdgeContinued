@@ -80,11 +80,12 @@ pick. Its write-ups are cached each week and shown in the dashboard.
 | File | What it is |
 |---|---|
 | `betting/features.py` | The single source of truth for the 85-feature pipeline. All the models read from this. |
-| `betting/model_comparison.ipynb` | Where I compare model designs and retrain the production spread models. |
-| `betting/predict_betting.ipynb` | The weekly spread pipeline that pulls live data and writes predictions. |
+| `cowork_OS/spread_v3_prod/` | 2026 website spread. Leftover 75/25. HIGH 192/336, Wilson 0.5266. |
+| `archive/legacy-inrepo-2026-08-18/betting/model_comparison.ipynb` | Archived. Where I used to compare designs and retrain in-repo spread pkls. |
+| `archive/legacy-inrepo-2026-08-18/betting/predict_betting.ipynb` | Archived weekly spread papermill. Do not restore as prod. |
 | `betting/predict_totals.ipynb` | The weekly over/under pipeline. |
-| `betting/sports_betting_agent.ipynb` | The language-model game write-ups. |
-| `betting/models/*.pkl` | The trained models (saved model files). |
+| `betting/sports_betting_agent.ipynb` | LLM write-ups. Disabled 2026-08-03. Artifact quarantined. |
+| `betting/models/*.pkl` | Frozen 2025 demo + Help SHAP hashes. Do not overwrite. |
 | `betting/predictions_tracker.csv` | The running log of every spread pick and its result. |
 | `betting/test_features.py` | Automated tests that lock the feature pipeline (run on every change). |
 

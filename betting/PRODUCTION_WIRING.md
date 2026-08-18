@@ -17,7 +17,7 @@ checklist. Nothing here touches `app.py` or `.github/workflows/` until you say g
 
 ## The weekly sequence (once live)
 
-1. **Tue/Thu** — after `predict_betting.ipynb` writes the tracker:
+1. **Tue/Thu** — after `spread_v3_prod` stamps the 2026 tracker (`run_prod.py stamp`):
    `python betting/weekly_clv.py` → records `pick_line` for the week's games.
 2. **Sun (pre-kickoff)** — `python betting/weekly_clv.py --which closing` → records
    `closing_line` + computes `clv`.
