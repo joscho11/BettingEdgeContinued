@@ -57,6 +57,17 @@ def test_help_site_org_and_paused_copy(tmp_path):
     assert "same automated pipeline that runs the betting predictions" not in md
 
 
+def test_help_does_not_disclose_sleeper_mix(tmp_path):
+    at = _render(tmp_path)
+    blob = " ".join(
+        [str(m.value) for m in at.markdown]
+        + [str(c.value) for c in at.caption]
+    )
+    for phrase in ("25% Sleeper", "75/25", "mixed in at 25%",
+                   "75% independent v6 plus 25%", "no Sleeper mix"):
+        assert phrase not in blob, f"Sleeper mix leaked onto Help: {phrase}"
+
+
 def test_help_interpolates_shared_stats_byte_identical(tmp_path):
     import dashboard_data
     df = dashboard_data.load_predictions()
@@ -74,5 +85,6 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as d:
         test_help_renders_offline_clean(Path(d))
         test_help_site_org_and_paused_copy(Path(d))
+        test_help_does_not_disclose_sleeper_mix(Path(d))
         test_help_interpolates_shared_stats_byte_identical(Path(d))
     print("OK  Help page renders clean; shared stats interpolate byte-identical")

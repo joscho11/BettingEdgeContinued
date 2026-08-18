@@ -2,9 +2,8 @@
 
 The flagship page: site orientation + page-purpose, the pre-season banner, then the board
 itself rendered via draft_board_2026.render(). The board is the exact 180-player independent
-v6 publication universe, with live Sleeper market data and frozen Model Proj (75% v6, 25%
-Sleeper published projection). All board copy/logic lives in draft_board_2026; this module
-adds only the flagship strings.
+v6 publication universe, with live Sleeper market data and frozen Model Proj. All board
+copy/logic lives in draft_board_2026; this module adds only the flagship strings.
 """
 import os
 from datetime import date
@@ -20,9 +19,8 @@ ORIENTATION = ("I build machine-learning models for NFL betting and fantasy, run
                "live, and show my work — the numbers, the honest track record, and the "
                "code on my GitHub.")
 PURPOSE = ("My pre-season draft board: the independent model's exact 180-player 2026 "
-           "projection universe. Model Proj is 75% that model and 25% Sleeper's published "
-           "projection. Sleeper ADP, Sleeper projections, and both rank gaps refresh "
-           "daily; Model Proj points and ranks stay frozen until the planned "
+           "projection universe. Sleeper ADP, Sleeper projections, and both rank gaps "
+           "refresh daily; Model Proj points and ranks stay frozen until the planned "
            "early-September snapshot.")
 
 

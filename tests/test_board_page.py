@@ -520,6 +520,19 @@ def test_no_forbidden_language_in_rendered_copy():
     assert not hits, f"forbidden language in rendered board copy: {hits}"
 
 
+def test_rendered_copy_does_not_name_the_sleeper_mix():
+    at = _run()
+    import draft_board_2026 as board
+    text = " ".join(
+        [str(m.value) for m in at.markdown]
+        + [str(c.value) for c in at.caption]
+        + [m[3] for m in board.COLUMN_META]
+        + [m[3] for m in board._OUTSIDE_COLUMN_META]
+    ).lower()
+    for phrase in ("25% sleeper", "75/25", "75% independent"):
+        assert phrase not in text, f"Sleeper mix leaked onto the board: {phrase}"
+
+
 def test_csv_download_present():
     at = _run()
     dl = at.get("download_button")
@@ -699,6 +712,9 @@ def test_outside_market_copy_passes_the_forbidden_language_scan():
     )
     hits = _FORBIDDEN.findall(text)
     assert not hits, f"forbidden language in the outside-market copy: {hits}"
+    lower = text.lower()
+    for phrase in ("25% sleeper", "75/25", "75% independent"):
+        assert phrase not in lower, f"Sleeper mix leaked into outside-market copy: {phrase}"
     # The required disclosures, stated in the explorer itself.
     assert "no current Sleeper half-PPR ADP" in text
     assert "same underlying artifacts" in text
@@ -804,6 +820,7 @@ if __name__ == "__main__":
     test_semantic_gap_colors_and_active_sort_tint()
     test_sort_tint_actually_reaches_the_rendered_grid()
     test_no_forbidden_language_in_rendered_copy()
+    test_rendered_copy_does_not_name_the_sleeper_mix()
     test_csv_download_present()
     test_outside_market_is_disjoint_from_the_board_and_fully_projected()
     test_dontayvion_wicks_anchor_row()
