@@ -23,8 +23,11 @@ from live_2026 import (  # noqa: E402
     high_dropped,
     is_finale_week,
     is_live_season,
+    leftover_to_home_margin,
     row_display_high,
     row_high_dropped,
+    sportsbook_to_nflverse,
+    tracker_2025_payload,
     tuesday_high,
 )
 
@@ -42,8 +45,10 @@ def _wilson_one_sided_lower(wins: int, n: int, z: float) -> float:
 
 
 def test_2025_tracker_byte_identical():
-    digest = hashlib.md5(_TRACKER.read_bytes()).hexdigest()
+    digest = hashlib.md5(tracker_2025_payload(_TRACKER)).hexdigest()
     assert digest == TRACKER_2025_MD5, digest
+    if b",2026," not in _TRACKER.read_bytes():
+        assert hashlib.md5(_TRACKER.read_bytes()).hexdigest() == TRACKER_2025_MD5
 
 
 def test_slate_is_matchups_only():
@@ -115,6 +120,19 @@ def test_row_helpers_and_live_season():
 
 
 def test_one_sided_wilson_claim_matches_locked_book():
+    assert LIVE_HIGH_WINS == 192
+    assert LIVE_HIGH_N == 336
     lo = _wilson_one_sided_lower(LIVE_HIGH_WINS, LIVE_HIGH_N, LIVE_HIGH_WILSON_Z)
     assert round(lo, 4) == LIVE_HIGH_WILSON_LOWER
     assert lo > 0.524
+
+
+def test_leftover_converts_to_site_home_margin():
+    leftover = 4.0
+    sportsbook = -7.0
+    home = leftover_to_home_margin(leftover, sportsbook)
+    nflverse = sportsbook_to_nflverse(sportsbook)
+    assert home == 11.0
+    assert nflverse == 7.0
+    assert abs(home - nflverse) == abs(leftover)
+    assert tuesday_high(home, nflverse)

@@ -68,15 +68,13 @@ jobs:
             echo "MODE=sunday" >> $GITHUB_ENV
           fi
 
-      - name: Run spread predictions
-        run: papermill betting/predict_betting.ipynb /tmp/predict_out.ipynb -p MODE ${{ env.MODE }} -p TARGET_WEEK ${{ github.event.inputs.target_week || 'None' }}
-
-      - name: Upload failed spread notebook
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: failed-spread-notebook-${{ github.run_id }}
-          path: /tmp/predict_out.ipynb
+      # 2026-08-18: in-repo spread papermill archived. 2026 live stamps from
+      # cowork_OS/spread_v3_beta (not in this public repo). Do not restore
+      # betting/predict_betting.ipynb. Do not write betting/models/.
+      - name: Spread predictions (moved off this repo)
+        run: |
+          echo "2026 spread stamps from spread_v3_beta. GHA papermill retired."
+          echo "MODE=${{ env.MODE }}"
 
       - name: Run totals predictions
         if: success()

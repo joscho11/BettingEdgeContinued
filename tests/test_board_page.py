@@ -339,6 +339,31 @@ def test_deebo_samuel_team_override_is_sf():
     assert row["team"] == "SF"
 
 
+def test_keenan_allen_colts_override_is_identity_only():
+    """Keenan Allen signed with IND 2026-08-17. Label only; no projection rewrite.
+
+    He is outside the published 180 (Sleeper ADP ~223, WR94; the board caps at 72 WR).
+    The override still has to be IND so the outside-market list is not blank, and so a
+    later 180 rebuild does not show a blank team.
+    """
+    import draft_board_2026 as board
+
+    raw = pd.read_csv(
+        board.PROJ_RESULTS / "wr_projection_2026.csv",
+        usecols=["player_id", "team", "projection"],
+    )
+    src = raw[raw["player_id"].eq("00-0030279")]
+    assert len(src) == 1
+    assert pd.isna(src.iloc[0]["team"])
+    proj = float(src.iloc[0]["projection"])
+
+    assert board.TEAM_OVERRIDES_2026["00-0030279"] == "IND"
+    outside = board._load_outside_market_players().set_index("player_id")
+    assert outside.loc["00-0030279", "team"] == "IND"
+    assert float(outside.loc["00-0030279", "model_proj"]) == proj
+    assert "00-0030279" not in set(board._load_board_2026()["player_id"])
+
+
 @pytest.mark.skip(reason="Retired dashboard contract: V2 publishes immutable source values with no analyst overlay.")
 def test_overlay_audit_helper_and_caption_disclosure():
     """The on-page expander was removed at Joseph's request 2026-07-27. The programmatic
@@ -429,6 +454,18 @@ def test_exact_column_labels_present():
                  "Model Proj Position Rank", "Model Gap", "Sleeper Proj", "Model Proj",
                  "NFL Talent Score", "College Talent Score"):
         assert want in labels, f"missing exact column label: {want!r}"
+
+
+def test_talent_score_columns_right_align():
+    """Talent scores render as text so blanks stay empty, not the word None.
+    They must still right-align like the other numeric columns."""
+    import draft_board_2026 as board
+    cfg = board._column_config()
+    assert cfg["nfl_talent"]["alignment"] == "right"
+    assert cfg["college_talent"]["alignment"] == "right"
+    outside = board._outside_column_config()
+    assert outside["nfl_talent"]["alignment"] == "right"
+    assert outside["college_talent"]["alignment"] == "right"
 
 
 def test_semantic_gap_colors_and_active_sort_tint():
@@ -817,6 +854,7 @@ if __name__ == "__main__":
     test_overlay_audit_helper_and_caption_disclosure()
     test_overlay_participates_in_the_board_cache_fingerprint()
     test_exact_column_labels_present()
+    test_talent_score_columns_right_align()
     test_semantic_gap_colors_and_active_sort_tint()
     test_sort_tint_actually_reaches_the_rendered_grid()
     test_no_forbidden_language_in_rendered_copy()

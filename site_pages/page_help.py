@@ -11,6 +11,7 @@ import streamlit as st
 
 import dashboard_data
 from dashboard_utils import breakeven_verdict
+from live_2026 import LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS
 
 
 def render():
@@ -229,7 +230,9 @@ That's why the badges on the **2025 demo** game cards are amber/dashed instead o
         st.markdown("""
 The Weekly Fantasy page shows weekly half-PPR fantasy projections for every active QB, RB, WR, and TE. Each position has its own subtab.
 
-You can filter by team or health status and see projected fantasy points alongside position-specific stat projections (passing yards, rushing yards, receptions, receiving yards). Once the week's games are played, actual stats fill in automatically.
+**2025 weeks are a demo** from the previous weekly model. **Live weekly projections start at 2026 Week 1.**
+
+You can search by player and see projected fantasy points. Older demo weeks also show extra columns (team EPA, implied total, health, and some stat projections). Once the week's games are played, actual points fill in automatically.
 
 See the Fantasy Projections section below for more detail on how the models work.
         """)
@@ -281,39 +284,35 @@ Some older videos predate my validation work and make calls I wouldn't make toda
 
     with st.expander("How do the fantasy projections work?"):
         st.markdown("""
-The Weekly Fantasy page uses a separate machine learning system from the betting model. There are four XGBoost models — one for each position (QB, RB, WR, TE) — each trained on NFL player stats from 2020 through 2024 with the 2025 season held out as a real-world test.
+The Weekly Fantasy page uses a separate machine learning system from the betting model.
 
-Each model predicts **half-PPR fantasy points** for the upcoming week based on roughly 80 features, including:
+**2025 demo (weeks 10-17 on this page).** Those files came from four per-position XGBoost models trained on 2020-2024, with 2025 held out. They stay on the site as a walkthrough. They are not the 2026 live weekly model.
 
-- The player's recent production (3 and 5-game rolling averages for targets, carries, receiving yards, etc.)
-- Their team's offensive efficiency (EPA per play, yards per play, red zone rate)
-- The opponent's defensive quality (EPA allowed, pass rate faced, red zone defense)
-- Vegas implied team total — how many points Vegas expects the team to score
-- Injury and availability status for the player and their key teammates
-- Depth chart position
-- Home/away split, weather, and surface
+**2026 live, starting Week 1.** One half-PPR points model from the weekly-projections project. Same scoring: 0.5 per reception, yards and touchdowns as usual. The first live week is 2026 Week 1.
 
-The models are retrained each offseason as more data becomes available.
+The models are rebuilt in the offseason as more data lands.
         """)
 
     with st.expander("How accurate are the fantasy projections?"):
         st.markdown("""
-The models were evaluated on the full 2025 holdout season against a simple 3-week rolling average baseline:
+**2025 demo.** Those weeks were scored against a simple 3-week rolling average, on the previous per-position XGBoost system:
 
 | Position | Model MAE | Baseline MAE | Improvement |
 |----------|-----------|--------------|-------------|
-| QB | 7.0 pts | 7.5 pts | ✅ Better |
-| RB | 4.5 pts | 4.6 pts | ✅ Better |
-| WR | 3.9 pts | 4.1 pts | ✅ Better |
-| TE | 3.2 pts | 3.5 pts | ✅ Better |
+| QB | 7.0 pts | 7.5 pts | Better |
+| RB | 4.5 pts | 4.6 pts | Better |
+| WR | 3.9 pts | 4.1 pts | Better |
+| TE | 3.2 pts | 3.5 pts | Better |
 
-MAE (Mean Absolute Error) is the average number of points the projection was off by. So for WR, the model was off by about 3.9 points on average. Given the inherent variance in fantasy football, this is a reasonable result — but any individual week can be much higher or lower.
+MAE (Mean Absolute Error) is the average number of points the projection was off by. So for WR, the old demo model was off by about 3.9 points on average. Any individual week can be much higher or lower. Treat the numbers as a ranking tool, not a precise point forecast.
 
-The projections are most useful as a relative ranking tool rather than a precise point forecast. A player projected at 18 points is likely to outscore one projected at 10, but the exact numbers should be treated as estimates.
+**2026 live.** First live week is Week 1. That run uses the new weekly model, not the 2025 demo files.
         """)
 
     with st.expander("What are the prop stat columns?"):
         st.markdown("""
+These extra stat columns appear on the **2025 demo weeks**. 2026 live weeks show half-PPR points; the extra yard/reception columns only show when that file has them.
+
 In addition to projected fantasy points, each position tab shows position-specific stat projections from eight separate XGBoost models:
 
 | Column | Position | What it predicts |
@@ -514,12 +513,12 @@ market ranks and both displayed gap columns, but do not change Model Proj.
     st.subheader("🔧 Behind the Scenes")
 
     with st.expander("How does the 2026 Tuesday model work?"):
-        st.markdown("""
-**2026 is live.** The site uses a Tuesday-line model: 75% XGBoost + 25% Ridge, with the Tuesday US-median spread as an input. Every game gets a pick. **HIGH** is the only highlighted tier: the model disagrees with the Tuesday 9am line by 3+ points, and the live line still does.
+        st.markdown(f"""
+**2026 is live.** The site uses a Tuesday-line model: 75% XGBoost + 25% Ridge, with the Tuesday US-median spread as an input. Every game gets a pick. **HIGH** (green) is the only highlighted tier: the model disagrees with the Tuesday 9am line by 3+ points, and the live line still does.
 
 If the line moves and that gap falls under 3, HIGH is dropped. A later line cannot create HIGH. There is no medium tier. Last regular-season week is skipped for HIGH. Totals are not on the 2026 week page.
 
-The HIGH book clears break-even on a one-sided 95% Wilson interval: 201/349 = 57.59%, lower bound 53.20%, walk-forward 2021-2025, last regular-season week skipped. All-bets does not clear. STANDARD is not the live claim.
+The HIGH book clears break-even on a one-sided 95% Wilson interval: {LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%, lower bound {LIVE_HIGH_WILSON_LOWER * 100:.2f}%, walk-forward 2021-2025, last regular-season week skipped. That interval is above 52.4%. All-bets does not clear and is not the live claim.
 
 Picks lock Tuesday 9:00 ET. Matchups for weeks 1-18 are on the site now. Week 1 is the first live ticket once that Tuesday freeze lands.
         """)

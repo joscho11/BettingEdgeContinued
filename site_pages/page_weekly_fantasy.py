@@ -2,7 +2,6 @@
 lookup originated in app.py; own Season+Week controls (wf_*, filter independence) are
 preserved. Stale "tab" wording is verbatim.
 """
-import glob
 import html as _html
 import itertools as _it
 import json
@@ -21,6 +20,41 @@ from dashboard_utils import metric_card, get_confidence, _md_to_html
 from dashboard_chrome import _OFFLINE
 
 _HERE = Path(__file__).resolve().parents[1]
+DEMO_SEASON = 2025
+LIVE_FROM_SEASON = 2026
+_JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
+_SIBLING_PROJ_DIR = (
+    _HERE.parent / "weekly_projections_v2" / "independent_model" / "outputs"
+)
+
+
+def _parse_proj_name(name: str) -> tuple[int, int] | None:
+    stem = name.replace(".csv", "")
+    parts = stem.split("_")
+    try:
+        season = int(parts[1])
+        week = int(parts[2].replace("week", ""))
+    except (IndexError, ValueError):
+        return None
+    return season, week
+
+
+def available_projection_files() -> dict[tuple[int, int], Path]:
+    """2025 demo files stay in-repo. 2026+ may also sit in weekly_projections_v2 outputs."""
+    available: dict[tuple[int, int], Path] = {}
+    if _JSA_PROJ_DIR.is_dir():
+        for path in sorted(_JSA_PROJ_DIR.glob("projections_*.csv")):
+            parsed = _parse_proj_name(path.name)
+            if parsed is not None:
+                available[parsed] = path
+    if _SIBLING_PROJ_DIR.is_dir():
+        for path in sorted(_SIBLING_PROJ_DIR.glob("projections_*.csv")):
+            parsed = _parse_proj_name(path.name)
+            if parsed is None or parsed[0] < LIVE_FROM_SEASON:
+                continue
+            if parsed not in available:
+                available[parsed] = path
+    return available
 
 
 @st.cache_data(ttl=3600)
@@ -117,34 +151,35 @@ def render():
         st.columns(2), "wf", with_week=True, with_edge=False)
 
     st.title(f"🏆 Week {week} Fantasy Projections — Half-PPR")
+    st.caption(
+        "2025 weeks on this page are a demo from the previous weekly model. "
+        "Live weekly projections start at 2026 Week 1."
+    )
 
-    proj_files = sorted(glob.glob(str(_HERE / "fantasy" / "fantasy_projections" / "projections_*.csv")), reverse=True)
+    available = available_projection_files()
 
-    # Build a lookup of available projection files
-    available = {}
-    for f in proj_files:
-        try:
-            stem  = os.path.basename(f).replace(".csv", "")
-            parts = stem.split("_")
-            s = int(parts[1])
-            w = int(parts[2].replace("week", ""))
-            available[(s, w)] = f
-        except (IndexError, ValueError):
-            continue
-
-    if not proj_files:
+    if not available:
         st.info(
-            "No weekly fantasy projections on file yet. They resume at 2026 Week 1. "
-            "Use the Week selector above to open a past week if one is listed."
+            "No weekly fantasy projections on file yet. Live projections start at 2026 Week 1. "
+            "Use the Week selector above to open a past demo week if one is listed."
         )
     elif (season, week) not in available:
-        st.info(
-            f"No fantasy projections for Season {season} · Week {week}. "
-            f"Available weeks: {', '.join(f'W{w}' for (s, w) in sorted(available) if s == season) or 'none for this season'}. "
-            "Weekly projections resume at 2026 Week 1. Pick a listed week to preview a past slate."
-        )
+        listed = ", ".join(f"W{w}" for (s, w) in sorted(available) if s == season) or "none for this season"
+        if int(season) >= LIVE_FROM_SEASON:
+            st.info(
+                f"No file for {season} Week {week} yet. Live weekly projections start at 2026 Week 1. "
+                f"Available weeks: {listed}."
+            )
+        else:
+            st.info(
+                f"No fantasy projections for Season {season} · Week {week}. "
+                f"Available weeks: {listed}. "
+                "2025 on this page is a demo. Live projections start at 2026 Week 1."
+            )
     else:
-        proj_df = _load_proj_csv(available[(season, week)])
+        if int(season) == DEMO_SEASON:
+            st.info("This is a 2025 demo week from the previous weekly model.")
+        proj_df = _load_proj_csv(str(available[(season, week)]))
 
         # Actual results (available after week is played)
         _actuals       = load_actual_stats(season, week)
@@ -228,16 +263,16 @@ def render():
                 return styles
             return _style
 
-        _early_req = ["position", "depth_chart_position", "projected_pts"]
+        _early_req = ["position", "projected_pts"]
         _early_missing = [c for c in _early_req if c not in proj_df.columns]
         if _early_missing:
-            st.warning(f"Projection CSV is missing columns: {_early_missing}. Re-run predict_fantasy.ipynb.")
+            st.warning(f"Projection CSV is missing columns: {_early_missing}.")
             st.stop()
 
         for ptab, pos in zip([ptab_qb, ptab_rb, ptab_wr, ptab_te], ["QB", "RB", "WR", "TE"]):
             with ptab:
                 pos_subset = proj_df[proj_df["position"] == pos]
-                if pos == "QB":
+                if pos == "QB" and "depth_chart_position" in pos_subset.columns:
                     pos_subset = pos_subset[pos_subset["depth_chart_position"] == 1]
                     pos_subset = pos_subset.sort_values("projected_pts", ascending=False).drop_duplicates(subset="team")
                 top_n = 40 if pos in ("RB", "WR") else 20
@@ -255,15 +290,18 @@ def render():
                 has_wr_stats = pos == "WR" and "pred_wr_rec_yards" in pos_df.columns
                 has_te_stats = pos == "TE" and "pred_te_rec_yards" in pos_df.columns
 
-                _req_cols = ["player_id", "player_display_name", "team", "opponent_team",
-                             "projected_pts", "injury_status_score",
-                             "is_home", "off_epa_roll4", "off_epa_rank",
-                             "implied_team_total"]
-                _missing_req = [c for c in _req_cols if c not in pos_df.columns]
+                _core_cols = ["player_id", "player_display_name", "team", "opponent_team",
+                              "projected_pts"]
+                _missing_req = [c for c in _core_cols if c not in pos_df.columns]
                 if _missing_req:
-                    st.warning(f"Projection CSV is missing columns: {_missing_req}. Re-run predict_fantasy.ipynb.")
+                    st.warning(f"Projection CSV is missing columns: {_missing_req}.")
                     continue
-                display = pos_df[_req_cols].copy()
+                keep = list(_core_cols)
+                for extra in ("injury_status_score", "is_home", "off_epa_roll4",
+                              "off_epa_rank", "implied_team_total"):
+                    if extra in pos_df.columns:
+                        keep.append(extra)
+                display = pos_df[keep].copy()
                 if has_qb_stats:
                     display["Proj Pass Yds"] = pos_df["pred_qb_pass_yards"].fillna(0).round(0).astype(int)
                     display["Proj Rush Yds"] = pos_df["pred_qb_rush_yards"].fillna(0).round(0).astype(int)
@@ -277,23 +315,39 @@ def render():
                     display["Proj Receptions"] = pos_df["pred_te_receptions"].fillna(0).round(1)
                     display["Proj Rec Yds"]    = pos_df["pred_te_rec_yards"].fillna(0).round(0).astype(int)
 
-                sep = display["is_home"].map(lambda h: "vs" if h in (1, True, 1.0) else "@")
-                display["Player"]      = display["player_display_name"] + " - " + display["team"]
-                display["Opponent"]    = sep + " " + display["opponent_team"]
-                display["Health"]      = display["injury_status_score"].map(injury_icon)
-                display["Proj Pts"]    = display["projected_pts"].round(1)
-                display["Off EPA"]     = display["off_epa_roll4"].round(3)
-                display["EPA Rank"]    = display["off_epa_rank"].map(ordinal)
-                display["Team Total"]  = display["implied_team_total"].round(1)
-
-                if has_qb_stats:
-                    base_cols = ["Player", "Opponent", "Proj Pts", "Proj Pass Yds", "Proj Rush Yds", "Off EPA", "EPA Rank", "Team Total", "Health"]
-                elif has_rb_yds:
-                    base_cols = ["Player", "Opponent", "Proj Pts", "Proj Rush Yds", "Proj Rec Yds", "Off EPA", "EPA Rank", "Team Total", "Health"]
-                elif has_wr_stats or has_te_stats:
-                    base_cols = ["Player", "Opponent", "Proj Pts", "Proj Receptions", "Proj Rec Yds", "Off EPA", "EPA Rank", "Team Total", "Health"]
+                display["Player"] = display["player_display_name"] + " - " + display["team"]
+                if "is_home" in display.columns:
+                    sep = display["is_home"].map(lambda h: "vs" if h in (1, True, 1.0) else "@")
+                    display["Opponent"] = sep + " " + display["opponent_team"].astype(str)
                 else:
-                    base_cols = ["Player", "Opponent", "Proj Pts", "Off EPA", "EPA Rank", "Team Total", "Health"]
+                    display["Opponent"] = display["opponent_team"]
+                display["Proj Pts"] = display["projected_pts"].round(1)
+                has_health = "injury_status_score" in display.columns
+                has_epa = "off_epa_roll4" in display.columns and "off_epa_rank" in display.columns
+                has_total = "implied_team_total" in display.columns
+                if has_health:
+                    display["Health"] = display["injury_status_score"].map(injury_icon)
+                if has_epa:
+                    display["Off EPA"] = display["off_epa_roll4"].round(3)
+                    display["EPA Rank"] = display["off_epa_rank"].map(ordinal)
+                if has_total:
+                    display["Team Total"] = display["implied_team_total"].round(1)
+
+                extra_stat = []
+                if has_qb_stats:
+                    extra_stat = ["Proj Pass Yds", "Proj Rush Yds"]
+                elif has_rb_yds:
+                    extra_stat = ["Proj Rush Yds", "Proj Rec Yds"]
+                elif has_wr_stats or has_te_stats:
+                    extra_stat = ["Proj Receptions", "Proj Rec Yds"]
+                tail = []
+                if has_epa:
+                    tail.extend(["Off EPA", "EPA Rank"])
+                if has_total:
+                    tail.append("Team Total")
+                if has_health:
+                    tail.append("Health")
+                base_cols = ["Player", "Opponent", "Proj Pts"] + extra_stat + tail
 
                 if actuals_in:
                     _actual_raw = display["player_id"].map(_half_ppr_dict)
@@ -337,7 +391,7 @@ def render():
                     "Health":     st.column_config.TextColumn("Health",
                                       help="Player's injury status from the weekly NFL injury report.\n\n✅ Healthy  🟡 Questionable  ⚠️ Doubtful  ❌ Out\n\nNote: sorts alphabetically due to a Streamlit limitation."),
                     "Proj Pts":   st.column_config.NumberColumn("Proj Pts",   format="%.1f",
-                                      help="Projected half-PPR fantasy points for this week, generated by my XGBoost model. Half-PPR scoring: 0.5 pts per reception, 1 pt per 10 rush/rec yards, 6 pts per TD."),
+                                      help="Projected half-PPR fantasy points for this week. Half-PPR scoring: 0.5 pts per reception, 1 pt per 10 rush/rec yards, 6 pts per TD."),
                     "Off EPA":    st.column_config.NumberColumn("Off EPA",    format="%+.3f",
                                       help="Team's offensive Expected Points Added (EPA) per play, averaged over the last 4 games. EPA measures how many points each play is worth above expectation. Higher = more efficient offense."),
                     "Team Total": st.column_config.NumberColumn("Team Total", format="%.1f",

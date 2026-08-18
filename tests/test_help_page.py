@@ -57,6 +57,15 @@ def test_help_site_org_and_paused_copy(tmp_path):
     assert "same automated pipeline that runs the betting predictions" not in md
 
 
+def test_help_states_live_high_wilson_claim(tmp_path):
+    at = _render(tmp_path)
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "192/336" in md
+    assert "57.14%" in md
+    assert "52.66%" in md
+    assert "201/349" not in md
+
+
 def test_help_does_not_disclose_sleeper_mix(tmp_path):
     at = _render(tmp_path)
     blob = " ".join(

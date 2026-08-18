@@ -98,7 +98,7 @@ jobs:
           tests/test_no_credential_leak.py
           tests/test_page_futures.py
           tests/test_page_rookie_board.py
-          fantasy/projections/test_fold_guards.py
+          tests/test_weekly_fantasy_source.py
 
       # Talent build suites REMOVED FROM CI 2026-08-08: the build code, specs and tests
       # were untracked from this public repo (PFF-derived talent scaffolding is local-only
@@ -251,3 +251,4 @@ jobs:
           tests/test_no_credential_leak.py
           tests/test_page_futures.py
           tests/test_page_rookie_board.py
+          tests/test_weekly_fantasy_source.py

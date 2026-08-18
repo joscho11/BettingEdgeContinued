@@ -52,7 +52,19 @@ ANALYST_PROJECTION_ADJUSTMENTS = (
 TEAM_OVERRIDES_2026 = {
     "MEN516487": "LV",   # Fernando Mendoza, Raiders, 2026-08-12
     "00-0035719": "SF",  # Deebo Samuel, re-signed, live Ourlads RWR1
+    "00-0030279": "IND", # Keenan Allen, Colts one-year, 2026-08-17
 }
+
+
+def _stamp_team_overrides(indexed: pd.DataFrame) -> pd.DataFrame:
+    """Identity metadata only. Does not change a projection, rank, or gap."""
+    keys = indexed.index.intersection(list(TEAM_OVERRIDES_2026))
+    if len(keys):
+        indexed = indexed.copy()
+        indexed.loc[keys, "team"] = pd.Index(keys).map(TEAM_OVERRIDES_2026)
+    return indexed
+
+
 # Descriptive talent artifacts (fantasy/talent/, provenance-stamped). NFL Talent scores players
 # with NFL history against NFL players at their own position; College Talent scores 2026 rookies
 # (all four positions) against past prospects who reached the NFL. Disjoint by construction
@@ -214,7 +226,8 @@ def _load_projections():
                 )
             out.loc[corrected.index, "team"] = corrected
         out = out.reset_index()
-    return out.set_index("player_id")
+    indexed = out.set_index("player_id") if "player_id" in out.columns else out
+    return _stamp_team_overrides(indexed)
 
 
 @st.cache_data
@@ -793,7 +806,10 @@ def _column_config(active_sort_key: str | None = None, ascending: bool = True):
             help_ = f"Current sort field ({'low to high' if ascending else 'high to low'}). {help_}"
         if key in _TALENT_KEYS:
             extra = {k: v for k, v in extra.items() if k != "format"}
-            cfg[key] = st.column_config.TextColumn(label, help=help_, **extra)
+            # Displayed as text so missing scores stay blank, not the word None.
+            # Right-align so they sit with the other numeric columns.
+            cfg[key] = st.column_config.TextColumn(
+                label, help=help_, alignment="right", **extra)
             continue
         col = st.column_config.NumberColumn if kind == _NUM else st.column_config.TextColumn
         cfg[key] = col(label, help=help_, **extra)
@@ -920,7 +936,10 @@ def _outside_column_config():
     for key, kind, label, help_, extra in _OUTSIDE_COLUMN_META:
         if key in _TALENT_KEYS:
             extra = {k: v for k, v in extra.items() if k != "format"}
-            cfg[key] = st.column_config.TextColumn(label, help=help_, **extra)
+            # Displayed as text so missing scores stay blank, not the word None.
+            # Right-align so they sit with the other numeric columns.
+            cfg[key] = st.column_config.TextColumn(
+                label, help=help_, alignment="right", **extra)
             continue
         col = st.column_config.NumberColumn if kind == _NUM else st.column_config.TextColumn
         cfg[key] = col(label, help=help_, **extra)

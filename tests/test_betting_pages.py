@@ -65,6 +65,9 @@ def test_weekly_predictions_live_2026_banner(tmp_path):
     successes = " ".join(str(s.value) for s in at.success)
     assert "Live 2026" in successes
     assert "one-sided 95% Wilson" in successes
+    assert "192/336" in successes
+    assert "57.14%" in successes
+    assert "52.66%" in successes
     assert "No medium tier" in successes
     assert "No totals on this season" in successes
     titles = " ".join(str(t.value) for t in at.title)

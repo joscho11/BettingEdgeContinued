@@ -1,7 +1,12 @@
 # A guide to the weekly fantasy model
 
-This is the plain-language tour of the weekly fantasy football projection system — the part of
-the project that predicts how many fantasy points each player will score *next week*. It's
+**Status 2026-08-18.** This document describes the **2025 demo** weekly system that
+still sits on the site for weeks 10-17 of that season. Live weekly projections
+starting **2026 Week 1** come from `cowork_OS/weekly_projections_v2` as prediction
+CSVs only; that model's code does not live in this repo. Do not overwrite the
+2025 CSVs in `fantasy/fantasy_projections/`.
+
+This is the plain-language tour of that 2025 demo system. It's
 separate from the pre-season Draft Board, whose projection engine is documented in
 `fantasy/projections/GUIDE.md`, whose talent columns are in `fantasy/talent/GUIDE.md`, and whose
 closed band-research campaign is in `fantasy/seasonal_projections/GUIDE.md`.

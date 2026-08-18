@@ -1,7 +1,9 @@
 """2026 live Tuesday-model display rules. Not the 2025 3-voter demo.
 
+Production is spread_v3_beta leftover 75/25, scored vs the Tuesday 9:00 ET line.
 HIGH is |predicted home margin - Tuesday spread| >= 3, last REG week skipped.
 A later line can drop HIGH. It cannot create HIGH. No MEDIUM tier.
+All-bets stays off the claim.
 """
 from __future__ import annotations
 
@@ -14,14 +16,42 @@ HIGH_GAP = 3.0
 LAST_REG_WEEK = 18
 SLATE_NAME = "slate_2026.csv"
 
-# Walk-forward skip-HIGH book vs the Tuesday line, 2021-2025. One-sided 95% Wilson.
-LIVE_HIGH_WINS = 201
-LIVE_HIGH_N = 349
+# spread_v3_beta NB04 skip-HIGH book vs the Tuesday line, 2021-2025.
+# One-sided 95% Wilson. All-bets 706/1292 Wilson 0.5236 is diagnostic, not this claim.
+LIVE_HIGH_WINS = 192
+LIVE_HIGH_N = 336
 LIVE_HIGH_ATS = LIVE_HIGH_WINS / LIVE_HIGH_N
 LIVE_HIGH_WILSON_Z = 1.64485
-LIVE_HIGH_WILSON_LOWER = 0.5320
+LIVE_HIGH_WILSON_LOWER = 0.5266
 BREAKEVEN = 0.524
 TRACKER_2025_MD5 = "88d526ca46e8cbb9f1eea77a3d96fa08"
+
+
+def leftover_to_home_margin(leftover, sportsbook_spread) -> float:
+    """cover_margin hat minus sportsbook spread (negative = home favored)."""
+    return float(leftover) - float(sportsbook_spread)
+
+
+def sportsbook_to_nflverse(sportsbook_spread) -> float:
+    """nflverse / site sign: positive = home favored."""
+    return -float(sportsbook_spread)
+
+
+def tracker_2025_payload(path) -> bytes:
+    """Header plus 2025 data rows, original bytes. 2026 appends must not rewrite these."""
+    data = Path(path).read_bytes()
+    lines = data.splitlines(keepends=True)
+    if not lines:
+        return data
+    kept = [lines[0]]
+    for row in lines[1:]:
+        raw = row.replace(b"\r\n", b"").replace(b"\n", b"").replace(b"\r", b"")
+        if not raw:
+            continue
+        fields = raw.split(b",")
+        if len(fields) > 8 and fields[8] == b"2025":
+            kept.append(row)
+    return b"".join(kept)
 
 
 def is_live_season(season) -> bool:

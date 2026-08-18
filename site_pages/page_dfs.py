@@ -37,5 +37,5 @@ def render():
 
     st.caption(
         "Under the hood: `fantasy/dfs/dfs_pipeline.ipynb` — "
-        "integer linear program via PuLP, projections from my per-position XGBoost models."
+        "integer linear program via PuLP, projections from the Weekly Fantasy page."
     )

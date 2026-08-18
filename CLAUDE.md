@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-JoSchoAnalytics is an NFL sports betting prediction system with two independent models:
+JoSchoAnalytics is an NFL sports betting prediction system.
+
+**2026 live spread is `cowork_OS/spread_v3_beta` leftover 75/25**, not `betting/models/`. HIGH 192/336 = 57.14%, one-sided 95% Wilson 0.5266. All-bets off the claim. In-repo spread / seasonal / weekly training is under `archive/legacy-inrepo-2026-08-18/`.
+
+Historical overview (2025 demo ensemble and frozen docs below):
 - **Spread model**: Ensemble fixed75 as primary edge-setter (0.75 XGBoost + 0.25 Ridge), with XGBoost, Ridge, and LightGBM as three direction voters. HIGH/MEDIUM/PASS tiers.
 - **Totals model**: XGBoost + Ridge predicting whether games go over/under the Vegas total. UNDER-only strategy (books shade totals high due to recreational OVER-bias). HIGH = both models predict UNDER.
 - A Claude-powered LLM agent (via LlamaIndex) for qualitative game reasoning. **Paused August 2026** (mock line-movement tool; weekly run disabled).
@@ -20,13 +24,12 @@ streamlit run app.py
 ```
 Runs on port 8501. Requires `betting/predictions_tracker.csv`. **There are no agent_analysis JSONs on the public path any more** — the only one was quarantined 2026-08-03 (see LLM Agent below).
 
-**Run the spread prediction pipeline:**
+**Run the 2026 spread stamp (from cowork_OS/spread_v3_beta, not this repo):**
 ```bash
-papermill betting/predict_betting.ipynb /tmp/out.ipynb -p MODE tuesday   # Update results + new predictions
-papermill betting/predict_betting.ipynb /tmp/out.ipynb -p MODE thursday  # Refresh with injury data
-papermill betting/predict_betting.ipynb /tmp/out.ipynb -p MODE sunday    # Final predictions
-papermill betting/predict_betting.ipynb /tmp/out.ipynb -p MODE backfill -p TARGET_WEEK 14  # Backfill a specific week
+python run_prod.py publish
+python run_prod.py stamp --scored <leftover parquet> --dry-run
 ```
+Archived in-repo spread papermill: `archive/legacy-inrepo-2026-08-18/betting/predict_betting.ipynb`. Do not restore it as website prod.
 
 **Run the totals prediction pipeline:**
 ```bash
@@ -37,8 +40,9 @@ papermill betting/predict_totals.ipynb /tmp/out.ipynb -p MODE sunday     # Final
 
 **Run fantasy projections:**
 ```bash
-papermill fantasy/predict_fantasy.ipynb /tmp/out.ipynb                                      # auto-detect week
-papermill fantasy/predict_fantasy.ipynb /tmp/out.ipynb -p TARGET_SEASON 2025 -p TARGET_WEEK 14
+# Archived. Live weekly work is cowork_OS/weekly_projections_v2.
+# papermill archive/legacy-inrepo-2026-08-18/fantasy_weekly/predict_fantasy.ipynb ...
+```
 ```
 
 **Install dependencies:**
@@ -190,7 +194,7 @@ Break-even: 52.4% ATS. **Feature set reduced from 85 → 35** on 2026-05-20 afte
   **Do NOT flip these back to the "natural" model orientation.** Users expect sportsbook-style display. The underlying model output, `model_edge` columns, `consensus_tier` logic, and all correctness/backtesting math operate on the unmodified home_margin convention — only the per-team display is flipped. The same pattern applies to SPREAD (`top_spread = fmt(-spread)`, `bot_spread = fmt(spread)`) since `spread_line` in the tracker is the Vegas-predicted home margin, not the sportsbook line.
 - **Production model is Ensemble fixed75** — `ens_model_edge` drives the edge threshold and sort order. XGBoost, Ridge, and LightGBM are the three direction voters in `consensus_tier`. `consensus_tier` = HIGH when all 3 agree + `abs(ens_model_edge) ≥ 3pt`; MEDIUM when agree + `≥ 1pt`; PASS otherwise. (A 2026-05-24 experiment to drop the voter-agreement filter and add an ULTRA tier was tried and **rejected** — see Completed Work entry for that date. Test-set evidence said the filter added zero accuracy; live 2025 evidence said it added ~3pp on MEDIUM. Conservative read on borderline evidence keeps the original tier rule.)
 - **MLP is comparison-only** — present in `model_comparison.ipynb` Section 17 for benchmarking. Not in `betting/models/` and not used by `predict_betting.ipynb`. Walk-forward CV with 85 features shows 53.9% mean ATS (above 52.4% break-even), but its edge filter adds minimal signal vs. the ensemble (53.8% high vs 53.6% all). Do not add it to production.
-- **Fantasy projection CSVs MUST live in `fantasy/fantasy_projections/`** — never move them to `fantasy/` or any other location. `app.py` reads from `fantasy/fantasy_projections/projections_*.csv` and `predict_fantasy.ipynb` writes there via `_DIR / "fantasy_projections"`. Do not reorganize this path.
+- **Fantasy projection CSVs MUST live in `fantasy/fantasy_projections/`** — never move them to `fantasy/` or any other location. The Weekly Fantasy page reads `projections_*.csv` from that folder. **2025 files are a demo** from the previous in-repo weekly model; leave them byte-identical. **2026 Week 1 onward** is copied from `weekly_projections_v2/independent_model/outputs/` (`python src/prod.py publish-site` copies 2026+ only and will not write a 2025 filename). Do not point the live site at `predict_fantasy.ipynb` for 2026.
 
 ## Fantasy Model (`fantasy/`)
 
@@ -638,7 +642,7 @@ reweighting experiments, the notebook restructures and corruption recovery, and 
 
 ### Editing the shared features module
 
-- The feature logic lives in **`betting/features.py`** (plain Python — edit with normal tools, no notebook json hacks). `betting/features.ipynb` is now thin documentation only.
+- The feature logic lives in **`betting/features.py`**. Thin docs notebook is archived at `archive/legacy-inrepo-2026-08-18/betting/features.ipynb`.
 - After editing, run `pytest betting/test_features.py` to verify all 15 hermetic tests pass (imports-smoke, constants + order-hash, the 2 pure helpers, each of the 10 feature groups, `build_features` integration, `build_numeric_features`). Runs in ~2 seconds, offline. This is the same suite CI runs.
 - **If you change feature order** (`FEATURE_COLS_85` / `PROD_FEATURES_35`), the order-hash test fails by design — retrain the pkls and update the expected hash in `test_features.py` in the same commit.
 - If you change any name in the public surface, no consumer-notebook loader edit is needed (they `globals().update(vars(features))`), but update the cell-structure tables / file descriptions in this CLAUDE.md.
@@ -658,8 +662,10 @@ reweighting experiments, the notebook restructures and corruption recovery, and 
   54.2017%**, Wilson lower **47.8551%** — *below* the 52.4% break-even. MEDIUM 382/718 =
   53.2033%, lower 49.5462%. The **control** (leaking build, same env and inputs)
   reproduces the published figure EXACTLY at 380/592 = 64.1892%, lower 60.24690% — which is
-  what licenses the causal claim: leak, not drift. **No tier clears break-even.** The system
-  has no demonstrated ATS edge; 2026 forward tracking is the first real test.
+  what licenses the causal claim: leak, not drift. **No tier clears break-even.** That
+  paragraph is the frozen JSA ensemble after the sack leak, not the 2026 live book.
+  **2026-08-18 live claim:** `spread_v3_beta` HIGH 192/336 = 57.14%, one-sided 95% Wilson
+  0.5266, which clears 52.4%. All-bets stays off the claim. Never cite the retracted 64.2%.
   Provenance + controlled 2×2 audit bundle: `betting/experiments/audit_2026-08-03c_final/` (supersedes `audit_2026-08-03_sack_leak/`, which measured the sack fix under the legacy name-only All-Pro identity).
   Guard: `betting/test_sack_leak.py` (target-game mutation + red proof).
   **All-Pro identity FIXED 2026-08-03** (`betting/allpro_identity.py`): the roster CSV has no
