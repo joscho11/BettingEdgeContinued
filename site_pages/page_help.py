@@ -206,6 +206,8 @@ The Season Totals page is a pre-season projection of how many games each NFL tea
 
 **It does not beat the posted win total.** Across eleven held-out seasons it missed each team's actual win count by a little more than that posted number did. This year's mix weight is zero, so every team sits on the posted number.
 
+**High confidence** means the leftover mix disagrees with the posted number by 1 or more wins. Those calls and their held-out record are on the Season Totals page.
+
 Treat it as a published projection with an honest backtest, not a betting card. It lives in the Betting menu.
         """)
 

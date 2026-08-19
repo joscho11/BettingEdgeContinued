@@ -142,6 +142,10 @@ def test_displayed_evidence_numbers_come_from_the_artifacts():
     assert f"{bench:.4f}" in text, f"posted MAE {bench:.4f} must be shown from the artifact"
     assert mae > bench, "the artifacts no longer support the 'does not beat' claim"
     assert f"{mae - bench:+.4f}" in text, "the gap must be shown with its sign"
+    high = ev["ou_high"]
+    assert "high confidence" in text.lower()
+    assert f"{high['wins']}/{high['n']}" in text
+    assert f"{100.0 * high['ats']:.2f}%" in text
 
 
 def test_accuracy_ladder_is_anchored_not_a_bare_number():
@@ -187,6 +191,9 @@ def test_no_hardcoded_backtest_number_in_the_source():
         for literal in (f"{n:.2f}", f"{n:.3f}", f"{n:.4f}"):
             assert literal not in src, \
                 f"{literal!r} is typed into page_futures.py - read it from the artifact instead"
+    high = ev["ou_high"]
+    assert f"{high['wins']}/{high['n']}" not in src
+    assert f"{100.0 * high['ats']:.2f}" not in src
 
 
 def test_language_fence_holds_against_the_guards_own_vocabulary():

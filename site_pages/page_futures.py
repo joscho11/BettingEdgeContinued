@@ -151,6 +151,17 @@ def _render_evidence(ev: dict) -> None:
                 f"{ev['seasons_total']} seasons. That is not enough to claim a beat."
             ),
         )
+    high = ev.get("ou_high") or {}
+    if high.get("n"):
+        pct = 100.0 * float(high["ats"])
+        gap = float(high["gap"])
+        st.markdown(
+            f"**High confidence bets** are leftover-mix calls where the projection "
+            f"disagrees with the posted number by {gap:.0f} or more wins, in the "
+            f"direction of the mix. Held-out record: **{high['wins']}/{high['n']}**, "
+            f"{pct:.2f}% correct. This year's mix weight is 0, so 2026 has none "
+            "of those calls."
+        )
 
 
 def render():
