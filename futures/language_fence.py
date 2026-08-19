@@ -5,7 +5,7 @@ Joseph allowed high-confidence bet copy and certified picks on this page
 Tests import the banned set from here so the list cannot drift from a retyped
 copy in the page suite.
 
-This is a display guard only. Model code lives in seasonal_totals_v2_beta.
+This is a display guard only. Model code lives in season_totals_v2_prod.
 """
 from __future__ import annotations
 

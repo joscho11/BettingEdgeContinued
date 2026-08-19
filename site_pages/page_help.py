@@ -202,13 +202,13 @@ There's also a best and worst weeks section, a full season table, and (on the 20
 
     with st.expander("What is the Season Totals (Beta) page?"):
         st.markdown("""
-The Season Totals page is a pre-season projection of how many games each NFL team wins, shown next to the posted win total. It is a point estimate, not a simulated range. Every team is projected.
+The Season Totals page leads with the **high-confidence** win record on held-out
+seasons (projection at least 1 win off the posted number). Every team still gets
+a projection; only those high-confidence rows are highlighted with a check mark.
 
-**It does not beat the posted win total.** Across eleven held-out seasons it missed each team's actual win count by a little more than that posted number did.
-
-**Certified picks are HIGH only.** HIGH means the projection disagrees with the posted number by 1 or more wins. Those are the only picks this page recommends. The held-out HIGH record is on the Season Totals page.
-
-Treat it as a published projection with an honest backtest. It lives in the Betting menu.
+The footnote states once that the all-team projection does not beat the posted
+win total on average, and once that the one-sided 95% Wilson lower bound on
+high confidence sits under the 52.4% bar.
         """)
 
     with st.expander("What is the Over/Under (Totals) model? (Experimental)"):

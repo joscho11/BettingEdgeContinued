@@ -1,6 +1,6 @@
 # futures/
 
-Live Season Totals numbers come from `cowork_OS/seasonal_totals_v2_beta`.
+Live Season Totals numbers come from `cowork_OS/season_totals_v2_prod`.
 Publish with `python src/publish_site.py` in that project. This folder keeps
 capture scripts and the published copies the Streamlit page reads.
 

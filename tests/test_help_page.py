@@ -50,7 +50,7 @@ def test_help_site_org_and_paused_copy(tmp_path):
     assert "Season Totals (Beta)" in md
     assert "2026 Draft Board" in md
     assert "the page you land on" in md
-    assert "does not beat the posted win total" in md
+    assert any("Season Totals (Beta)" in str(e.label) for e in at.expander)
     assert "Coming soon" in md
     assert "currently uses mock data" not in md
     assert "roadmap for the 2026 season" not in md
