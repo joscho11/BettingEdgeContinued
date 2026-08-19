@@ -24,6 +24,21 @@ HIGH_COL = "High Confidence"
 HIGH_YES = "\u2705"
 HIGH_NO = "\u274c"
 BAR_PCT = 52.4
+# Phone grid: same columns as desktop, shorter headers, every column pinned
+# so Glide cannot shunt Team to the right. 50px is Glide's hard minimum.
+_PHONE_LABELS = {
+    "Proj Wins": "Proj",
+    "vs posted": "vs",
+    HIGH_COL: "HIGH",
+}
+_PHONE_WIDTHS = {
+    "#": 50,
+    "Team": 54,
+    "Proj Wins": 54,
+    "Posted": 54,
+    "vs posted": 54,
+    HIGH_COL: 50,
+}
 
 PROJ_HELP = (
     "Projected regular-season wins. Ties count as half a win. The 32 projections "
@@ -131,6 +146,48 @@ def _style(view: pd.DataFrame):
     return _apply
 
 
+def _totals_column_config() -> dict:
+    return {
+        "#": st.column_config.NumberColumn(
+            format="%d", width=50, pinned=True,
+            help="Row number in this table as currently sorted.",
+        ),
+        "Proj Wins": st.column_config.NumberColumn(format="%.1f", help=PROJ_HELP),
+        "Posted": st.column_config.NumberColumn(format="%.1f", help=POSTED_HELP),
+        "vs posted": st.column_config.NumberColumn(format="%+.1f", help=VS_HELP),
+        HIGH_COL: st.column_config.TextColumn(help=HIGH_HELP, width="medium"),
+    }
+
+
+def _phone_column_config() -> dict:
+    """Phone grid: same help/format as desktop, shorter labels, pinned widths."""
+    cfg = _totals_column_config()
+    cfg["#"] = st.column_config.NumberColumn(
+        "#", format="%d", width=_PHONE_WIDTHS["#"], pinned=True,
+        help="Row number in this table as currently sorted.",
+    )
+    cfg["Team"] = st.column_config.TextColumn(
+        "Team", width=_PHONE_WIDTHS["Team"], pinned=True,
+    )
+    cfg["Proj Wins"] = st.column_config.NumberColumn(
+        _PHONE_LABELS["Proj Wins"], format="%.1f",
+        width=_PHONE_WIDTHS["Proj Wins"], pinned=True, help=PROJ_HELP,
+    )
+    cfg["Posted"] = st.column_config.NumberColumn(
+        "Posted", format="%.1f",
+        width=_PHONE_WIDTHS["Posted"], pinned=True, help=POSTED_HELP,
+    )
+    cfg["vs posted"] = st.column_config.NumberColumn(
+        _PHONE_LABELS["vs posted"], format="%+.1f",
+        width=_PHONE_WIDTHS["vs posted"], pinned=True, help=VS_HELP,
+    )
+    cfg[HIGH_COL] = st.column_config.TextColumn(
+        _PHONE_LABELS[HIGH_COL], help=HIGH_HELP,
+        width=_PHONE_WIDTHS[HIGH_COL], pinned=True,
+    )
+    return cfg
+
+
 def _render_hero(high: dict) -> None:
     wins = int(high["wins"])
     n = int(high["n"])
@@ -147,21 +204,22 @@ def _render_hero(high: dict) -> None:
         f"**{wilson:.2f}%**, under the {BAR_PCT:.1f}% bar."
     )
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("High confidence record", f"{wins}/{n}", f"{pct:.2f}% correct")
-    c2.metric("2026 high confidence calls", str(n_fwd), f"{gap:.0f}+ win gap rule")
-    c3.metric(
-        "One-sided 95% Wilson lower",
-        f"{wilson:.2f}%",
-        f"below the {BAR_PCT:.1f}% bar",
-    )
+    with st.container(key="jsa-st-hero"):
+        c1, c2, c3 = st.columns(3)
+        c1.metric("High confidence record", f"{wins}/{n}", f"{pct:.2f}% correct")
+        c2.metric("2026 high confidence calls", str(n_fwd), f"{gap:.0f}+ win gap rule")
+        c3.metric(
+            "One-sided 95% Wilson lower",
+            f"{wilson:.2f}%",
+            f"below the {BAR_PCT:.1f}% bar",
+        )
 
 
-def _render_2026_high_cards(view: pd.DataFrame) -> None:
-    picks = view[view[HIGH_COL].eq(HIGH_YES)].copy()
-    if picks.empty:
-        st.info("No high-confidence calls for 2026 yet.")
-        return
+def _high_picks(view: pd.DataFrame) -> pd.DataFrame:
+    return view[view[HIGH_COL].eq(HIGH_YES)].copy()
+
+
+def _render_2026_high_cards(picks: pd.DataFrame) -> None:
     st.markdown("#### 2026 high confidence calls")
     cols = st.columns(min(len(picks), 5))
     for col, (_, row) in zip(cols, picks.iterrows()):
@@ -173,6 +231,17 @@ def _render_2026_high_cards(view: pd.DataFrame) -> None:
                 f"{row['Proj Wins']:.1f} proj vs {row['Posted']:.1f} posted\n\n"
                 f"{direction} by {_format_delta(delta)}"
             )
+
+
+def _render_2026_high_phone(picks: pd.DataFrame) -> None:
+    st.markdown("#### 2026 high confidence calls")
+    for _, row in picks.iterrows():
+        delta = float(row["vs posted"])
+        st.markdown(
+            f"**{row['Team']}** {HIGH_YES} · "
+            f"{row['Proj Wins']:.1f} vs {row['Posted']:.1f} · "
+            f"{_format_delta(delta)}"
+        )
 
 
 def _render_footnote(ev: dict, label: str) -> None:
@@ -197,15 +266,18 @@ def _render_backtest_expander(ev: dict) -> None:
             ladder = pd.DataFrame(ev["ladder"]).rename(
                 columns={"name": "Approach", "mae": "Average miss (wins)", "n": "n"}
             )
-            st.dataframe(
-                ladder,
-                hide_index=True,
-                width="stretch",
-                column_config={
-                    "Average miss (wins)": st.column_config.NumberColumn(format="%.4f"),
-                    "n": st.column_config.NumberColumn(format="%d"),
-                },
-            )
+            with st.container(key="jsa-st-ladder"):
+                st.dataframe(
+                    ladder,
+                    hide_index=True,
+                    width="stretch",
+                    column_config={
+                        "Average miss (wins)": st.column_config.NumberColumn(
+                            format="%.4f"
+                        ),
+                        "n": st.column_config.NumberColumn(format="%d"),
+                    },
+                )
         c1, c2, c3 = st.columns(3)
         c1.metric("This model (all teams)", f"{ev['mae_model']:.4f} wins")
         c2.metric("Posted win total", f"{ev['mae_market']:.4f} wins")
@@ -281,19 +353,17 @@ def render():
     view = view.drop(columns="_high_sort")
     view.insert(0, "#", range(1, len(view) + 1))
 
-    _render_2026_high_cards(view)
+    picks = _high_picks(view)
+    if picks.empty:
+        st.info("No high-confidence calls for 2026 yet.")
+    else:
+        with st.container(key="jsa-st-high-desktop"):
+            _render_2026_high_cards(picks)
+        with st.container(key="jsa-st-high-phone"):
+            _render_2026_high_phone(picks)
 
     st.markdown("#### All 32 team projections")
-    totals_cfg = {
-        "#": st.column_config.NumberColumn(
-            format="%d", width=50, pinned=True,
-            help="Row number in this table as currently sorted.",
-        ),
-        "Proj Wins": st.column_config.NumberColumn(format="%.1f", help=PROJ_HELP),
-        "Posted": st.column_config.NumberColumn(format="%.1f", help=POSTED_HELP),
-        "vs posted": st.column_config.NumberColumn(format="%+.1f", help=VS_HELP),
-        HIGH_COL: st.column_config.TextColumn(help=HIGH_HELP, width="medium"),
-    }
+    totals_cfg = _totals_column_config()
     totals_height = min(720, 60 + 35 * len(view))
     phone_cols = ["#", "Team", "Proj Wins", "Posted", "vs posted", HIGH_COL]
     with st.container(key="jsa-table-desktop-season-totals"):
@@ -306,7 +376,7 @@ def render():
         st.dataframe(
             view[phone_cols].style.apply(_style(view), axis=None),
             hide_index=True, width="stretch", height=totals_height,
-            column_config=totals_cfg,
+            column_config=_phone_column_config(),
         )
 
     if ev:

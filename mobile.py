@@ -265,7 +265,8 @@ details summary{
   min-height:2.75rem !important;
 }
 [class*="st-key-jsa-scatter-desktop"],
-[class*="st-key-jsa-table-desktop"]{
+[class*="st-key-jsa-table-desktop"],
+[class*="st-key-jsa-st-high-desktop"]{
   display:none !important;
 }
 [class*="st-key-db26_detail"]{
@@ -452,6 +453,34 @@ details summary{
     min-width:calc(50% - .225rem) !important;
     flex:1 1 calc(50% - .225rem) !important;
     overflow:visible !important;
+  }
+}
+
+/* Season Totals hero: those three metric labels wrap into unreadability in a
+   2-up tile ("One-sided 95% Wilson lower"). Stack them full-width on a phone.
+   Desktop keeps the three-across row. */
+@media (max-width: 640px){
+  [class*="st-key-jsa-st-hero"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]){
+    display:flex !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    gap:.45rem !important;
+  }
+  [class*="st-key-jsa-st-hero"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"]{
+    min-width:100% !important;
+    flex:1 1 auto !important;
+    max-width:100% !important;
+    overflow:visible !important;
+  }
+  [class*="st-key-jsa-st-high-phone"] [data-testid="stMarkdownContainer"] p{
+    margin:0 0 .4rem 0 !important;
+    font-size:.92rem !important;
+    line-height:1.35 !important;
+  }
+  [class*="st-key-jsa-st-ladder"] [data-testid="stDataFrame"],
+  [class*="st-key-jsa-st-ladder"] [data-testid="stFullScreenFrame"]{
+    max-width:100% !important;
+    overflow-x:auto !important;
   }
 }
 
@@ -877,7 +906,8 @@ details summary{
    max-width 640 hide of the named copy inside the phones block above. */
 @media (min-width: 641px){
   [class*="st-key-jsa-scatter-phone"],
-  [class*="st-key-jsa-table-phone"]{ display:none !important; }
+  [class*="st-key-jsa-table-phone"],
+  [class*="st-key-jsa-st-high-phone"]{ display:none !important; }
 }
 
 /* Narrow phones (<=400px) are handled entirely in render_header alongside the rest of

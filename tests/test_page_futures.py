@@ -61,16 +61,22 @@ def _text(at):
     return " ".join(parts)
 
 
-def _table(at):
+def _tables(at):
+    matches = []
     for el in at.dataframe:
         v = el.value
         d = v.data if hasattr(v, "data") else v
         try:
             if "Proj Wins" in list(d.columns) and pf.HIGH_COL in list(d.columns):
-                return d
+                matches.append(d)
         except Exception:
             pass
-    return None
+    return matches
+
+
+def _table(at):
+    found = _tables(at)
+    return found[0] if found else None
 
 
 def test_proj_wins_display_is_one_decimal():
@@ -228,3 +234,46 @@ def test_app_boots_with_the_page_wired_in():
     at = AppTest.from_file(str(_HERE / "app.py"), default_timeout=240).run()
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
+
+
+def test_phone_table_uses_short_headers_and_pinned_widths():
+    at = _run()
+    tables = _tables(at)
+    assert len(tables) >= 2, "desktop and phone copies must both render"
+    desktop, phone = tables[0], tables[1]
+    assert list(desktop.columns) == list(phone.columns)
+    assert list(phone.columns) == ["#", "Team", "Proj Wins", "Posted", "vs posted", pf.HIGH_COL]
+    assert phone.shape[0] == desktop.shape[0] == 32
+
+    cfg = pf._phone_column_config()
+    assert cfg["Proj Wins"]["label"] == "Proj"
+    assert cfg["vs posted"]["label"] == "vs"
+    assert cfg[pf.HIGH_COL]["label"] == "HIGH"
+    assert cfg["Proj Wins"]["width"] == pf._PHONE_WIDTHS["Proj Wins"]
+    assert cfg["Proj Wins"]["pinned"] is True
+    assert cfg["Posted"]["pinned"] is True
+    assert cfg["vs posted"]["pinned"] is True
+    assert cfg[pf.HIGH_COL]["pinned"] is True
+    assert cfg["Team"]["pinned"] is True
+    assert cfg["Team"]["width"] == pf._PHONE_WIDTHS["Team"]
+
+    desktop_cfg = pf._totals_column_config()
+    assert desktop_cfg["Proj Wins"].get("label") in (None, "", "Proj Wins")
+    assert desktop_cfg[pf.HIGH_COL].get("label") in (None, "", pf.HIGH_COL)
+
+
+def test_phone_high_calls_are_one_line_and_desktop_stays_a_row():
+    src = _PAGE.read_text(encoding="utf-8")
+    assert "jsa-st-high-desktop" in src
+    assert "jsa-st-high-phone" in src
+    assert "jsa-st-hero" in src
+    css = (_HERE / "mobile.py").read_text(encoding="utf-8")
+    assert "st-key-jsa-st-high-desktop" in css
+    assert "st-key-jsa-st-high-phone" in css
+    assert "st-key-jsa-st-hero" in css
+    assert "st-key-jsa-st-ladder" in css
+    at = _run()
+    text = _text(at)
+    assert "proj vs" in text
+    assert " vs " in text
+    assert "BAL" in text and "ARI" in text
