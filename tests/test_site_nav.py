@@ -105,6 +105,15 @@ def test_shared_modules_import_safe():
         assert hasattr(dashboard_chrome, fn)
 
 
+def test_dfs_stays_built_but_off_the_nav():
+    src = Path(ENTRY).read_text(encoding="utf-8")
+    assert '_lazy_render("page_dfs")' in src
+    assert (_HERE / "site_pages" / "page_dfs.py").is_file()
+    fantasy = src.split('"Fantasy":', 1)[1].split("]", 1)[0]
+    assert "dfs_pg" not in fantasy
+    assert "wf_pg" in fantasy
+
+
 def test_nonselected_pages_are_lazy_imported():
     tree = ast.parse(Path(ENTRY).read_text(encoding="utf-8"))
     eager_imports = {

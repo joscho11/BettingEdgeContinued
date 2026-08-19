@@ -83,6 +83,8 @@ wf_pg = st.Page(_lazy_render("page_weekly_fantasy"), title="Weekly Fantasy", ico
                 url_path="weekly-fantasy")
 dfs_pg = st.Page(_lazy_render("page_dfs"), title="DFS Optimizer", icon="🎯",
                  url_path="dfs-optimizer")
+# Off the top nav until the optimizer is live. Restore by adding dfs_pg to
+# the Fantasy list below. page_dfs.py and fantasy/dfs/ stay.
 tr_pg = st.Page(_lazy_render("page_track_record"), title="Track Record", icon="📈",
                 url_path="track-record")
 film_pg = st.Page(_lazy_render("page_film_room"), title="Film Room", icon="📺",
@@ -118,7 +120,7 @@ chrome.render_header()
 mobile.inject()
 
 nav = st.navigation(
-    {"Fantasy": [board_pg, rb_pg, wf_pg, dfs_pg],
+    {"Fantasy": [board_pg, rb_pg, wf_pg],
      "Betting": [wp_pg, tr_pg, fut_pg],
      "More": [film_pg, lh_pg, help_pg]},
     position="top",

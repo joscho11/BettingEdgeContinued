@@ -134,7 +134,7 @@ work, not a description of an input to my model.
         st.markdown("""
 Everything lives in the top navigation bar, grouped into three menus:
 
-- **Fantasy**: Draft Board (the page you land on), Rookie Board, Weekly Fantasy, and DFS Optimizer.
+- **Fantasy**: Draft Board (the page you land on), Rookie Board, and Weekly Fantasy.
 - **Betting**: Weekly Predictions, Track Record, and Season Totals (Beta).
 - **More**: Film Room, League History, and this Help & Guide.
 
@@ -242,9 +242,9 @@ See the Fantasy Projections section below for more detail on how the models work
 
     with st.expander("What is the DFS Optimizer page?"):
         st.markdown("""
-The DFS Optimizer page is a DraftKings NFL Classic lineup optimizer. It is **Coming soon** until 2026 Week 1 (September).
+The DFS Optimizer is a DraftKings NFL Classic lineup optimizer. It is **not in the nav yet**. It ships when it is actually usable, around 2026 Week 1.
 
-The page currently shows that notice, not an upload box. When it is live, you will upload a DraftKings salary CSV and get the highest-projected legal 9-player lineup under the $50,000 salary cap. See the DFS Optimizer section below for how the solver works.
+When it is live, you will upload a DraftKings salary CSV and get the highest-projected legal 9-player lineup under the $50,000 salary cap. See the DFS Optimizer section below for how the solver works.
         """)
 
     with st.expander("What is the Draft Board page?"):
@@ -416,7 +416,7 @@ The full write-up covering every design choice, the admission gates, and where i
 
     with st.expander("What is the DFS Optimizer?"):
         st.markdown("""
-**Coming soon** until 2026 Week 1. The page is not live yet. This is how it will work when it is.
+**Coming soon.** This is not in the site nav yet. This is how it will work when it is live.
 
 It will take this site's weekly fantasy projections and solve for the highest-projected legal lineup under the $50,000 salary cap using an integer linear program. The optimizer fills all 9 roster slots (QB, 2 RB, 3 WR, TE, FLEX, DST) subject to DraftKings' constraints.
 

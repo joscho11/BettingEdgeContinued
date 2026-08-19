@@ -249,7 +249,7 @@ An integer-linear-program optimizer for DraftKings NFL Classic, using the weekly
 
 ### Dashboard
 
-A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Board (landing page), Rookie Board, Weekly Fantasy, DFS Optimizer. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **More**: Film Room, League History, Help & Guide.
+A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Board (landing page), Rookie Board, Weekly Fantasy. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **More**: Film Room, League History, Help & Guide.
 
 - **Draft Board**: my pre-season board for the independent model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Sleeper ADP and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. Model Proj points and ranks remain frozen until the planned early-September snapshot. Model Proj is backtested on 2021-2025 and **not** live-validated. Its first live test is 2026. On that backtest it beat ADP ordering in 5 of 6 seasons. The gaps are neutral rank differences shown for context, not calls about any player.
 
@@ -259,7 +259,7 @@ A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Bo
 - **Track Record**: ATS record by tier and week, profit at standard odds, longest streaks, and a separate over/under section flagged as tracking-only.
 - **Season Totals (Beta)**: line_in team win projections next to the posted win total. Point estimate, no simulated range. Every team is projected. Certified picks are HIGH only. The page states plainly that the model does not beat the posted win total. Re-publish from `season_totals_v2_prod` with `python src/publish_site.py`.
 - **Weekly Fantasy**: per-position projections with both projected and actual stat columns that fill in after games are played.
-- **DFS Optimizer**: DraftKings Classic lineup solver. The page is still Coming soon until Week 1; the optimizer code is in `fantasy/dfs/`.
+- **DFS Optimizer**: DraftKings Classic lineup solver in `fantasy/dfs/` and `site_pages/page_dfs.py`. Off the nav until it is live.
 
 - **Film Room**: one embedded TikTok from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel at a time, picked from a title list, each with a click-to-open written breakdown. Newest episode is the default. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
 - **League History**: loads a public Sleeper league chain and presents records, matchups, manager report cards, draft-room tendencies, four-week-qualified player scoring, and descriptive draft-versus-production value charts. Its focused Rivalries views separate the week builder, single-matchup explorer, and league matrix; the builder scores every current-manager pairing in three modes, globally optimizes a complete slate, explains each matchup, and supports locked alternatives. Transaction-level acquisition labels and player-season counts are tracked in [`docs/LEAGUE_HISTORY_BACKLOG.md`](docs/LEAGUE_HISTORY_BACKLOG.md).
