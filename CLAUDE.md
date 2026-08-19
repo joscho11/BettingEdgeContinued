@@ -484,7 +484,8 @@ RAW Sleeper estimate (NOT the retired p50); gaps = Position Rank − Proj Positi
 ranks him above his draft cost). **A "Show projection and talent detail" toggle (added 2026-07-27, ON by
 default) can drop the last four columns — Sleeper Proj, Model Proj, NFL Talent Score, College Talent Score —
 for a compact 9-column comparison view; `_DISPLAY_COLS` is unchanged, so the CSV download always carries all
-13 in either mode.** Descriptive-only, Sleeper-attributed, backtested-not-live labels.
+13 in either mode.** Phone copy (`_PHONE_COLS`) is player, position, ADP, rank, both gaps, and NFL Talent
+Score, with shorter headers and pinned widths; College Talent stays desktop-only. Descriptive-only, Sleeper-attributed, backtested-not-live labels.
 Red-to-green semantic cell color: gaps run red for negative to green for positive; rank 1 is green and
 later ranks fade toward red. The active sort column has an arrow and a quiet green surface tint. Color
 encodes direction or magnitude only, never advice; forbidden-language scan clean. The 2 unprojected rookie

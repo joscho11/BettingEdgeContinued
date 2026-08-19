@@ -763,10 +763,32 @@ _EXPORT_NAMES = {m[0]: m[2] for m in COLUMN_META}       # colkey -> on-screen la
 # thirteen columns in either mode, and model_proj_raw stays out of both.
 _DETAIL_ONLY = ("sleeper_proj", "model_proj", "nfl_talent", "college_talent")
 _COMPACT_COLS = [c for c in _DISPLAY_COLS if c not in _DETAIL_ONLY]
-# Phone spine: who, draft price, and both gaps. Ranks and raw points stay on desktop.
+# Phone spine: who, draft price, both gaps, and NFL Talent. Raw points and
+# College Talent stay on desktop. Phone is its own layout, not a subset of
+# compact, so NFL Talent stays on the phone board even when the compact
+# toggle hides it on desktop.
 _PHONE_COLS = [
     "player", "position", "adp_half_ppr", "pos_rank", "sleeper_gap", "model_gap",
+    "nfl_talent",
 ]
+# Short headers + pinned pixel widths so the extra talent column fits. 50px is
+# the grid's hard minimum. Player stays unpinned and takes leftover space.
+_PHONE_LABELS = {
+    "position": "Pos",
+    "adp_half_ppr": "ADP",
+    "pos_rank": "Rank",
+    "sleeper_gap": "S Gap",
+    "model_gap": "M Gap",
+    "nfl_talent": "NFL",
+}
+_PHONE_WIDTHS = {
+    "position": 50,
+    "adp_half_ppr": 54,
+    "pos_rank": 50,
+    "sleeper_gap": 54,
+    "model_gap": 54,
+    "nfl_talent": 50,
+}
 
 # Row counter for the rendered view only — it numbers the rows as currently sorted and
 # filtered, so a long scroll stays easy to follow. Deliberately NOT part of COLUMN_META /
@@ -812,6 +834,31 @@ def _column_config(active_sort_key: str | None = None, ascending: bool = True):
                 label, help=help_, alignment="right", **extra)
             continue
         col = st.column_config.NumberColumn if kind == _NUM else st.column_config.TextColumn
+        cfg[key] = col(label, help=help_, **extra)
+    return cfg
+
+
+def _phone_column_config(active_sort_key: str | None = None, ascending: bool = True):
+    """Phone grid: same help/format as desktop, shorter labels, pinned widths."""
+    meta = {m[0]: m for m in COLUMN_META}
+    cfg = {_ROW_NO: st.column_config.NumberColumn("#", help=_ROW_NO_HELP, format="%d",
+                                                  width=_ROW_NO_WIDTH, pinned=True)}
+    for key in _PHONE_COLS:
+        _kind, label, help_, extra = meta[key][1], meta[key][2], meta[key][3], dict(meta[key][4])
+        label = _PHONE_LABELS.get(key, label)
+        if key == active_sort_key:
+            arrow = "↑" if ascending else "↓"
+            label = f"{arrow} {label}"
+            help_ = f"Current sort field ({'low to high' if ascending else 'high to low'}). {help_}"
+        if key in _PHONE_WIDTHS:
+            extra["width"] = _PHONE_WIDTHS[key]
+            extra["pinned"] = True
+        if key in _TALENT_KEYS:
+            extra.pop("format", None)
+            cfg[key] = st.column_config.TextColumn(
+                label, help=help_, alignment="right", **extra)
+            continue
+        col = st.column_config.NumberColumn if _kind == _NUM else st.column_config.TextColumn
         cfg[key] = col(label, help=help_, **extra)
     return cfg
 
@@ -1065,7 +1112,7 @@ def render():
                    "detail** for a compact comparison view that drops the raw Sleeper and model "
                    "point estimates and the two talent scores; the CSV download always contains "
                    "every column either way. On a phone the board shows player, position, ADP, "
-                   "and both gaps.")
+                   "rank, both gaps, and NFL Talent Score.")
         st.caption("Sort with the controls below — they order the whole board numerically, "
                    "with no-data rows (blank projection / talent) always at the bottom.")
         st.caption("Visual cues: positive gaps are green and negative gaps red; rank 1 is green "
@@ -1149,6 +1196,7 @@ def render():
         display_view[cols].style.apply(style_fn, axis=None),
         display_view[phone_cols].style.apply(style_fn, axis=None),
         slug="draft-board",
+        phone_column_config=_phone_column_config(active_sort_key, ascending),
         **grid_kwargs,
     )
 

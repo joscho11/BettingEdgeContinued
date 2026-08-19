@@ -128,8 +128,10 @@ def test_full_v2_board_default_adp_ascending():
     assert set(board._COMPACT_COLS) | set(board._DETAIL_ONLY) == set(board._DISPLAY_COLS)
     assert board._PHONE_COLS == [
         "player", "position", "adp_half_ppr", "pos_rank", "sleeper_gap", "model_gap",
+        "nfl_talent",
     ]
-    assert set(board._PHONE_COLS) <= set(board._COMPACT_COLS)
+    assert "college_talent" not in board._PHONE_COLS
+    assert set(board._PHONE_COLS) - {"nfl_talent"} <= set(board._COMPACT_COLS)
     adp_c = c["adp_half_ppr"].to_numpy()
     assert (adp_c[:-1] <= adp_c[1:]).all(), "compact view must keep the ADP-ascending default"
     # model_proj_raw stays internal in BOTH modes and out of the export
@@ -137,8 +139,8 @@ def test_full_v2_board_default_adp_ascending():
         assert "model_proj_raw" not in frame.columns
 
 
-def test_phone_board_keeps_the_price_spine_only():
-    """Phone copy drops ranks, raw points, and talent. Desktop stays the full board."""
+def test_phone_board_includes_nfl_talent():
+    """Phone keeps the price spine plus NFL Talent. College talent stays desktop."""
     import draft_board_2026 as board
 
     at = _run()
@@ -147,7 +149,21 @@ def test_phone_board_keeps_the_price_spine_only():
     assert phone is not None and desktop is not None
     assert set(board._DISPLAY_COLS) <= set(desktop.columns)
     assert list(phone.columns) == [board._ROW_NO] + board._PHONE_COLS
+    assert "nfl_talent" in phone.columns
+    assert "college_talent" not in phone.columns
     assert phone.shape[0] == desktop.shape[0] == 180
+
+    compact_phone = _board_df(_run_compact(), phone=True)
+    assert list(compact_phone.columns) == [board._ROW_NO] + board._PHONE_COLS
+    assert "nfl_talent" in compact_phone.columns
+
+    cfg = board._phone_column_config()
+    assert cfg["nfl_talent"]["alignment"] == "right"
+    assert cfg["nfl_talent"]["label"] == "NFL"
+    assert cfg["nfl_talent"]["width"] == board._PHONE_WIDTHS["nfl_talent"]
+    assert cfg["adp_half_ppr"]["width"] == board._PHONE_WIDTHS["adp_half_ppr"]
+    assert cfg["adp_half_ppr"]["pinned"] is True
+    assert not cfg["player"]["pinned"]
 
 
 def test_compact_view_keeps_numeric_sort_and_the_full_csv():

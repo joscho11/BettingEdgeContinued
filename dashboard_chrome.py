@@ -29,22 +29,29 @@ _REPO = "https://github.com/joscho11/JoSchoAnalytics"   # repo ROOT only (Q3)
 TABLE_HEIGHT = 735
 
 
-def dataframe_phone_desktop(desktop_data, phone_data, *, slug: str, **kwargs) -> None:
+def dataframe_phone_desktop(desktop_data, phone_data, *, slug: str,
+                            phone_column_config=None, **kwargs) -> None:
     """Show desktop_data above 640px and phone_data at phone width.
 
     Same pattern as the labeled-scatter swap: both copies render, CSS shows one.
+    phone_column_config, when given, is the phone grid's own config (shorter
+    labels, pinned widths). Otherwise the desktop config is filtered to the
+    phone columns.
     """
     desktop_kwargs = dict(kwargs)
     phone_kwargs = dict(kwargs)
     if "key" in kwargs:
         desktop_kwargs["key"] = f"{kwargs['key']}-desktop"
         phone_kwargs["key"] = f"{kwargs['key']}-phone"
-    cfg = kwargs.get("column_config")
-    if cfg:
-        phone_cols = set(_dataframe_columns(phone_data))
-        phone_kwargs["column_config"] = {
-            name: spec for name, spec in cfg.items() if name in phone_cols
-        }
+    if phone_column_config is not None:
+        phone_kwargs["column_config"] = phone_column_config
+    else:
+        cfg = kwargs.get("column_config")
+        if cfg:
+            phone_cols = set(_dataframe_columns(phone_data))
+            phone_kwargs["column_config"] = {
+                name: spec for name, spec in cfg.items() if name in phone_cols
+            }
     with st.container(key=f"jsa-table-desktop-{slug}"):
         st.dataframe(desktop_data, **desktop_kwargs)
     with st.container(key=f"jsa-table-phone-{slug}"):
