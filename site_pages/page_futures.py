@@ -214,6 +214,27 @@ def _render_backtest_expander(ev: dict) -> None:
         )
 
 
+def _posted_stamp(df: pd.DataFrame, ev: dict) -> str:
+    if "posted_as_of" in df.columns and pd.notna(df["posted_as_of"].iloc[0]):
+        as_of = str(df["posted_as_of"].iloc[0])[:10]
+    else:
+        as_of = str(ev.get("posted_as_of", ""))[:10]
+    source = ""
+    if "posted_source" in df.columns and pd.notna(df["posted_source"].iloc[0]):
+        source = str(df["posted_source"].iloc[0])
+    elif ev.get("posted_source"):
+        source = str(ev["posted_source"])
+    if source.lower().startswith("draftkings"):
+        book = "DraftKings"
+    elif source:
+        book = source.split("(")[0].strip()
+    else:
+        book = "posted sportsbook"
+    if as_of:
+        return f"Posted win totals: {book}, as of {as_of}."
+    return f"Posted win totals: {book}."
+
+
 def render():
     st.title("Season Win Totals")
     st.caption(
@@ -234,6 +255,7 @@ def render():
     season = int(df["season"].iloc[0])
     label = str(df["claim"].iloc[0])
     high = ev.get("ou_high") or {}
+    st.caption(_posted_stamp(df, ev))
 
     if high.get("n"):
         with st.container(border=True):

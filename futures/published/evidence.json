@@ -29,6 +29,8 @@
     ]
   },
   "claim": "BACKTESTED, NOT LIVE-VALIDATED. Does not beat the posted win total.",
+  "posted_as_of": "2026-08-17",
+  "posted_source": "DraftKings sportsbook (manual paste by Joseph)",
   "ladder": [
     {
       "name": "Repeat last year",
@@ -51,5 +53,5 @@
       "n": 352
     }
   ],
-  "written_at_utc": "2026-08-19T03:39:02.028143+00:00"
+  "written_at_utc": "2026-08-19T03:46:23.184041+00:00"
 }
