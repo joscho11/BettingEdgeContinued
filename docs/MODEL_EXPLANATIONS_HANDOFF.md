@@ -1,5 +1,9 @@
 # Model-explanations handoff — **STATUS: COMPLETE (2026-07-24)**
 
+> **2026-08-19:** Help no longer dumps all 22 cards. Live rundowns live in
+> `site_pages/help_models.py`. Snapshot hashes are unchanged. Help draws
+> `DISPLAYED_HELP_IDS` only. This file remains the hash-pinning spec.
+
 > **This is a finished record, not a pending task.** The Help & Guide "What Drives the Models"
 > section shipped. **No model artifact changed during the update**, so every MD5 recorded below
 > as "pre-update" is still the *current* production hash. Re-verified 2026-07-27: all **8**

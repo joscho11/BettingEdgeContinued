@@ -26,6 +26,35 @@ def test_all_current_production_models_are_covered():
     assert [m["label"] for m in shap if m["group"].endswith("Rookie models")] == [
         "RB", "WR", "TE"
     ]
+    ids = {m["id"] for m in shap + native}
+    missing = set(me.DISPLAYED_HELP_IDS) - ids
+    assert not missing, f"Help cards missing from snapshot: {missing}"
+    assert len(me.weekly_point_cards()) == 4
+    assert len(me.rookie_projection_cards()) == 3
+    assert me.card_by_id("spread_xgb") is not None
+
+
+def test_live_eval_numbers_match_published_books():
+    import json
+    import sys
+
+    sys.path.insert(0, str(me.HERE / "betting"))
+    from live_2026 import LIVE_HIGH_N, LIVE_HIGH_WINS
+
+    wins = sum(row["wins"] for row in me.SPREAD_HIGH_BY_SEASON)
+    n = sum(row["n"] for row in me.SPREAD_HIGH_BY_SEASON)
+    assert wins == LIVE_HIGH_WINS
+    assert n == LIVE_HIGH_N
+
+    evidence = json.loads(
+        (me.HERE / "futures" / "published" / "evidence.json").read_text(encoding="utf-8")
+    )
+    assert abs(evidence["mae_model"] - 2.2578033419991446) < 1e-9
+    assert abs(evidence["mae_market"] - 2.2088068181818183) < 1e-9
+    assert me.SEASON_TOTALS_COEF["Posted win total"] > 1.0
+    shares = me.season_totals_importance()
+    assert shares[0][0] == "Posted win total"
+    assert shares[0][1] == max(s[1] for s in shares)
 
 
 def test_shap_snapshots_are_bound_to_current_artifacts():

@@ -51,12 +51,19 @@ def _feature(name: str) -> str:
         "scoring_diff": "Scoring differential",
         "sack_diff_reverse": "Reverse sack matchup",
         "home_coach_win_pct_roll3": "Home coach recent win rate",
+        "ffo_expected_pts": "Expected fantasy points",
+        "market_line": "Posted win total",
+        "true_home_venue_games": "True home games",
+        "qb_unavailable": "QB unavailable",
+        "st_epa_prior": "Prior special-teams EPA",
+        "pass_epa_off_prior": "Prior pass offense EPA",
+        "fwd_sos": "Forward strength of schedule",
     }
     if name in aliases:
         return aliases[name]
     label = name.replace("_", " ")
     label = label.replace("roll3", "(last 3)").replace("roll5", "(last 5)")
-    label = label.replace("ffo ", "expected ").replace("pct", "%")
+    label = label.replace("ffo ", "").replace("pct", "%")
     return label[:1].upper() + label[1:]
 
 
@@ -117,6 +124,96 @@ VETERAN_CALIBRATION_AUDIT = [
     {"position": "WR", "n": 1006, "overall_bias": 0.53, "top_n": 203, "top_bias": 4.15},
     {"position": "TE", "n": 558, "overall_bias": -2.57, "top_n": 112, "top_bias": -1.58},
 ]
+
+# Live-product charts on Help. Frozen from the published books, not computed at
+# render time. Tests lock the load-bearing totals against futures/published/evidence.json
+# and the HIGH season splits against LIVE_HIGH_WINS / LIVE_HIGH_N.
+SPREAD_HIGH_BY_SEASON = [
+    {"season": 2021, "wins": 56, "n": 87},
+    {"season": 2022, "wins": 41, "n": 81},
+    {"season": 2023, "wins": 33, "n": 56},
+    {"season": 2024, "wins": 30, "n": 53},
+    {"season": 2025, "wins": 32, "n": 59},
+]
+
+# Absolute ridge coefficients from season_totals_v2_prod artifacts/prod_card.json
+# (fitter line_in). Signs kept for the Help caption; the bar uses |coef| share.
+SEASON_TOTALS_COEF = {
+    "Posted win total": 1.0292064770630556,
+    "True home games": 0.3684852134281236,
+    "QB unavailable": -0.3011450968877932,
+    "Prior special-teams EPA": 0.1952411878103743,
+    "Prior pass offense EPA": 0.1894523513088307,
+    "Forward strength of schedule": -0.14151717343486517,
+}
+
+DRAFT_BOARD_EVAL = {
+    "model_mae": 49.31,
+    "adp_mae": 51.75,
+    "model_pairwise": 0.7101,
+    "adp_pairwise": 0.6965,
+    "seasons_beat_adp": "5 of 6",
+    "lost_season": 2020,
+}
+
+ROOKIE_HIT_AUC = {
+    "draft_only": 0.838,
+    "full": 0.843,
+    "holdout": "2019-2023 classes",
+}
+
+# Cards Help actually draws. Snapshot still hashes the rest so a silent pkl
+# swap still fails CI; those archived veteran cards are not on the live board.
+DISPLAYED_HELP_IDS = (
+    "spread_xgb",
+    "season_rb_rook",
+    "season_wr_rook",
+    "season_te_rook",
+    "weekly_qb",
+    "weekly_rb",
+    "weekly_wr",
+    "weekly_te",
+    "totals_xgboost",
+    "totals_ridge",
+)
+
+
+def season_totals_importance(k: int = 6) -> list[tuple[str, float]]:
+    items = [(name, abs(value)) for name, value in SEASON_TOTALS_COEF.items()]
+    total = sum(value for _, value in items) or 1.0
+    top = sorted(items, key=lambda row: -row[1])[:k]
+    return [(name, round(100.0 * value / total, 1)) for name, value in top]
+
+
+def spread_high_season_rows() -> list[dict]:
+    rows = []
+    for row in SPREAD_HIGH_BY_SEASON:
+        pct = 100.0 * row["wins"] / row["n"]
+        rows.append({
+            "season": str(row["season"]),
+            "wins": row["wins"],
+            "n": row["n"],
+            "pct": round(pct, 1),
+            "record": f"{row['wins']}/{row['n']}",
+        })
+    return rows
+
+
+def card_by_id(model_id: str) -> dict | None:
+    for model in shap_models()[0] + native_models():
+        if model.get("id") == model_id:
+            return model
+    return None
+
+
+def weekly_point_cards() -> list[dict]:
+    order = ("weekly_qb", "weekly_rb", "weekly_wr", "weekly_te")
+    return [card for card_id in order if (card := card_by_id(card_id))]
+
+
+def rookie_projection_cards() -> list[dict]:
+    order = ("season_rb_rook", "season_wr_rook", "season_te_rook")
+    return [card for card_id in order if (card := card_by_id(card_id))]
 
 
 @lru_cache(maxsize=1)

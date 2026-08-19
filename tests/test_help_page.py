@@ -29,9 +29,9 @@ def test_help_renders_offline_clean(tmp_path):
     at = _render(tmp_path)
     assert any("Help & Guide" in str(t.value) for t in at.title), "Help title missing"
     assert len(list(at.markdown)) > 10, "Help body (expanders/markdown) did not render"
-    assert any("What Drives the Models" in str(s.value) for s in at.subheader)
+    assert any("How the models work" in str(s.value) for s in at.subheader)
     assert any(
-        "What inputs drive the 2026 Draft Board projections" in str(e.label)
+        "How Model Proj is built" in str(e.label)
         for e in at.expander
     )
     assert any(
@@ -41,6 +41,9 @@ def test_help_renders_offline_clean(tmp_path):
     assert not any(
         "legacy season-projection models" in str(e.label)
         for e in at.expander
+    )
+    assert not any(
+        "What Drives the Models" in str(s.value) for s in at.subheader
     )
 
 
@@ -93,6 +96,28 @@ def test_help_interpolates_shared_stats_byte_identical(tmp_path):
         assert f"{s['hc_pct']}%" in md, "high-confidence % must appear verbatim in the Help copy"
 
 
+def test_help_covers_live_model_rundowns(tmp_path):
+    at = _render(tmp_path)
+    labels = [str(e.label) for e in at.expander]
+    for needed in (
+        "What is live vs demo on this site?",
+        "How the 2026 spread model works",
+        "How the 2025 demo spread worked",
+        "How Season Totals are built",
+        "How Model Proj is built",
+        "How weekly fantasy projections are built",
+        "How the Over/Under model works (2025 demo, experimental)",
+        "How the Rookie Board numbers are built",
+    ):
+        assert any(needed in lab for lab in labels), f"missing rundown: {needed}"
+    assert not any("How does the 2026 Tuesday model work?" in lab for lab in labels)
+    assert not any("How does the prediction model work?" in lab for lab in labels)
+    assert not any("How accurate is the model?" in lab for lab in labels)
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "mean absolute Tree SHAP" in md or "XGBoost gain" in md
+    assert "absolute ridge coefficient" in md
+
+
 if __name__ == "__main__":
     import tempfile
     with tempfile.TemporaryDirectory() as d:
@@ -100,4 +125,5 @@ if __name__ == "__main__":
         test_help_site_org_and_paused_copy(Path(d))
         test_help_does_not_disclose_sleeper_mix(Path(d))
         test_help_interpolates_shared_stats_byte_identical(Path(d))
+        test_help_covers_live_model_rundowns(Path(d))
     print("OK  Help page renders clean; shared stats interpolate byte-identical")
