@@ -1,8 +1,9 @@
 """Language fence for the Season Totals page.
 
-Joseph allowed high-confidence bet copy on this page (2026-08-18). The fence
-still blocks stake, payout, side, and pricing words. Tests import the banned
-set from here so the list cannot drift from a retyped copy in the page suite.
+Joseph allowed high-confidence bet copy and certified picks on this page
+(2026-08-18). The fence still blocks stake, payout, side, and pricing words.
+Tests import the banned set from here so the list cannot drift from a retyped
+copy in the page suite.
 
 This is a display guard only. Model code lives in seasonal_totals_v2_beta.
 """
@@ -12,7 +13,7 @@ import re
 
 BANNED = frozenset({
     "edge", "edges", "lock", "locks", "value", "play", "plays",
-    "pick", "picks", "side", "sides", "ev", "kelly", "roi", "profit", "profitable",
+    "side", "sides", "ev", "kelly", "roi", "profit", "profitable",
     "tier", "tiers", "vig", "juice", "price", "prices", "odds", "payout",
     "stake", "wager", "recommendation", "breakeven",
 })

@@ -7,8 +7,8 @@ READ-ONLY over files published from seasonal_totals_v2_beta:
 
 No model runs here. pandas and streamlit only.
 
-The page is a projection table plus an accuracy ladder. Copy is checked
-against futures/language_fence.py.
+The page is a 32-team projection table. Certified picks are HIGH only.
+Copy is checked against futures/language_fence.py.
 """
 import json
 from pathlib import Path
@@ -23,12 +23,11 @@ _EVIDENCE = _HERE / "futures" / "published" / "evidence.json"
 ORIENTATION = ("Model-built NFL projections, run in the open: the numbers, the honest "
                "backtest, and the code on my GitHub.")
 PURPOSE = ("My pre-season projection of how many games each team wins, shown next to "
-           "the posted win total.")
+           "the posted win total. Certified picks are HIGH only.")
 HONEST_HEADLINE = (
     "**This model does not beat the posted win total.** Across eleven held-out seasons "
     "it missed each team's actual win count by a little more than that posted number did. "
-    "It is on this page because it is the closest mix I have, not because it is sharper "
-    "than the number the books opened."
+    "Every team still gets a projection. The only certified picks are HIGH."
 )
 PROJ_HELP = (
     "Projected regular-season wins. Ties count as half a win. The 32 projections always "
@@ -36,10 +35,14 @@ PROJ_HELP = (
     "another coming down."
 )
 POSTED_HELP = (
-    "The posted regular-season win total used as the intercept of the projection."
+    "The posted regular-season win total. Also an input to the ridge fit."
 )
 VS_HELP = (
-    "Projection minus the posted win total. Zero means they match."
+    "Projection minus the posted win total. Sign is the over or under call."
+)
+CERT_HELP = (
+    "Yes means HIGH: the projection disagrees with the posted number by 1 or more wins. "
+    "Those are the only certified picks."
 )
 METHOD = """
 **How the number is produced.** Each team gets fifteen structural inputs that exist
@@ -47,21 +50,21 @@ before Week 1: prior passing efficiency on offense and defense, special teams,
 luck versus Pythagorean expectation, the listed starter, whether that starter is
 returning, a rookie flag, unavailability, vacated target and rush share, opening
 reserve-list count, a coaching change, true home games, rest, and the strength of
-the coming schedule. A ridge model is trained on leftover versus the posted win
-total, then mixed back in with a weight chosen on the last inner season. The
-posted number is the intercept. It is not a column in the fit.
+the coming schedule. A ridge model is trained on those fifteen plus the posted
+win total, then 2026 is recentered so the 32 projections sum to 272.
 
-**What 2026 did.** That inner mix weight came back at zero, so this year's
-projection sits on the posted number for every team.
+**Certified picks.** Every team is projected. A pick is certified only when the
+projection is at least 1 win off the posted number (HIGH). Direction is the sign
+of vs posted.
 
 **What it does not know.** 2026 opening reserve-list counts are withheld: the
 public snapshot is still a 90-man camp roster, and history is post-cutdown.
 Quarterback identity for a few clubs is a fallback off the opening roster, not a
 week-1 depth chart.
 
-**Honesty.** Eleven seasons. The mix was closer than last year's
-wins and closer than the retired Monte Carlo on this site. It was not closer than
-the posted win total.
+**Honesty.** Eleven seasons. Closer than last year's wins and closer than the
+retired Monte Carlo on this site. Not closer than the posted win total. The HIGH
+book on this page does not clear the weekly HIGH bar.
 """
 
 
@@ -92,6 +95,7 @@ def _style(view: pd.DataFrame):
     wins = pd.to_numeric(view["Proj Wins"], errors="coerce")
     lo, hi = float(wins.min()), float(wins.max())
     span = hi - lo
+    certified = view["Certified"].astype(str) if "Certified" in view.columns else None
 
     def _apply(df: pd.DataFrame) -> pd.DataFrame:
         styles = pd.DataFrame("", index=df.index, columns=df.columns)
@@ -101,6 +105,11 @@ def _style(view: pd.DataFrame):
                 if not pd.isna(w):
                     styles.iat[row, col] = (f"color: {_rg_color((w - lo) / span)}; "
                                             f"font-weight: 700; font-size: 15px")
+        if certified is not None and "Certified" in df.columns:
+            col = df.columns.get_loc("Certified")
+            for row, flag in enumerate(certified.to_numpy()):
+                if flag == "Yes":
+                    styles.iat[row, col] = "font-weight: 700; color: rgb(82,200,82)"
         return styles
 
     return _apply
@@ -155,12 +164,19 @@ def _render_evidence(ev: dict) -> None:
     if high.get("n"):
         pct = 100.0 * float(high["ats"])
         gap = float(high["gap"])
+        n_fwd = int(high.get("forward_n") or 0)
+        clears = bool(high.get("clears_breakeven"))
+        bar = (
+            "That HIGH book clears the weekly HIGH bar."
+            if clears
+            else "That HIGH book does not clear the weekly HIGH bar."
+        )
         st.markdown(
-            f"**High confidence bets** are leftover-mix calls where the projection "
-            f"disagrees with the posted number by {gap:.0f} or more wins, in the "
-            f"direction of the mix. Held-out record: **{high['wins']}/{high['n']}**, "
-            f"{pct:.2f}% correct. This year's mix weight is 0, so 2026 has none "
-            "of those calls."
+            f"**Certified picks** are HIGH only: the projection disagrees with the "
+            f"posted number by {gap:.0f} or more wins. Held-out record: "
+            f"**{high['wins']}/{high['n']}**, {pct:.2f}% correct. {bar} "
+            f"This year has **{n_fwd}** of those calls. Every other team is still "
+            "projected. Those rows are not certified picks."
         )
 
 
@@ -183,16 +199,22 @@ def render():
 
     st.warning(HONEST_HEADLINE)
 
+    certified = (
+        df["certified"].fillna("").astype(str)
+        if "certified" in df.columns
+        else pd.Series([""] * len(df))
+    )
     view = pd.DataFrame({
         "Team": df["team"],
         "Proj Wins": pd.to_numeric(df["proj_wins"], errors="coerce"),
         "Posted": pd.to_numeric(df["posted"], errors="coerce"),
         "vs posted": pd.to_numeric(df["vs_posted"], errors="coerce"),
+        "Certified": certified.replace({"nan": ""}),
     })
     view = view.sort_values("Proj Wins", ascending=False).reset_index(drop=True)
     view.insert(0, "#", range(1, len(view) + 1))
 
-    phone_view = view[["#", "Team", "Proj Wins", "Posted"]]
+    phone_view = view[["#", "Team", "Proj Wins", "Posted", "Certified"]]
     totals_cfg = {
         "#": st.column_config.NumberColumn(
             format="%d", width=50, pinned=True,
@@ -201,6 +223,7 @@ def render():
         "Proj Wins": st.column_config.NumberColumn(format="%.1f", help=PROJ_HELP),
         "Posted": st.column_config.NumberColumn(format="%.1f", help=POSTED_HELP),
         "vs posted": st.column_config.NumberColumn(format="%.1f", help=VS_HELP),
+        "Certified": st.column_config.TextColumn(help=CERT_HELP),
     }
     totals_height = min(720, 60 + 35 * len(view))
     with st.container(key="jsa-table-desktop-season-totals"):
@@ -218,12 +241,12 @@ def render():
             },
         )
 
-    lam = float(df["lambda"].iloc[0]) if "lambda" in df.columns else float("nan")
+    n_cert = int((view["Certified"] == "Yes").sum())
     st.caption(
         f"{season} regular season · {len(view)} teams · projections sum to "
         f"{view['Proj Wins'].sum():.0f} wins, the exact number of games scheduled. "
-        f"This year's mix weight is {lam:.2f}, so vs posted is the recenter only. "
-        "Color on the projection column encodes magnitude only."
+        f"{n_cert} certified HIGH picks. Color on the projection column encodes "
+        "magnitude only."
     )
 
     _render_evidence(ev)
@@ -233,6 +256,6 @@ def render():
 
     stamp = str(df["generated_at"].iloc[0])[:19].replace("T", " ")
     st.caption(
-        f"**{label}** · leftover mix · generated {stamp} UTC. Built in "
+        f"**{label}** · line_in · generated {stamp} UTC. Built in "
         "seasonal_totals_v2_beta. The old Monte Carlo pipeline is archived."
     )

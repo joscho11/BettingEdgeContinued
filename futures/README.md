@@ -6,7 +6,7 @@ capture scripts and the published copies the Streamlit page reads.
 
 | Path | Role |
 |---|---|
-| `published/season_totals_2026.csv` | 2026 leftover-mix sheet the page renders |
+| `published/season_totals_2026.csv` | 2026 line_in sheet the page renders |
 | `published/evidence.json` | MAE ladder and claim the page renders |
 | `language_fence.py` | Banned-token list for page tests |
 | `snapshot_espn_futures.py` | ESPN futures capture |

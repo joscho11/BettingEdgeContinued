@@ -1,4 +1,4 @@
-"""Season Totals page: leftover mix, honest backtest, language fence.
+"""Season Totals page: line_in projections, HIGH-certified picks, language fence.
 
 Hermetic (APP_OFFLINE=1). READ-ONLY over futures/published/season_totals_2026.csv
 and futures/published/evidence.json. No fit, no simulation, no network.
@@ -90,7 +90,7 @@ def test_page_renders_and_shows_the_projection_table():
     df = _table(at)
     assert df is not None, "the projection table must render"
     assert len(df) == 32, f"expected 32 teams, got {len(df)}"
-    for c in ("Team", "Proj Wins", "Posted", "vs posted"):
+    for c in ("Team", "Proj Wins", "Posted", "vs posted", "Certified"):
         assert c in list(df.columns), f"expected column {c} missing"
 
 
@@ -104,6 +104,10 @@ def test_display_matches_the_artifact():
     assert (merged["Proj Wins"] - merged["proj_wins"]).abs().max() < 1e-9
     assert (merged["Posted"] - merged["posted"]).abs().max() < 1e-9
     assert (merged["vs posted"] - merged["vs_posted"]).abs().max() < 1e-9
+    if "certified" in csv.columns:
+        shown = merged["Certified"].fillna("").astype(str).replace({"nan": ""})
+        want = merged["certified"].fillna("").astype(str).replace({"nan": ""})
+        assert list(shown) == list(want)
 
 
 def test_league_conservation_survives_to_the_display():
@@ -143,9 +147,11 @@ def test_displayed_evidence_numbers_come_from_the_artifacts():
     assert mae > bench, "the artifacts no longer support the 'does not beat' claim"
     assert f"{mae - bench:+.4f}" in text, "the gap must be shown with its sign"
     high = ev["ou_high"]
-    assert "high confidence" in text.lower()
+    assert "certified picks" in text.lower()
+    assert "high only" in text.lower()
     assert f"{high['wins']}/{high['n']}" in text
     assert f"{100.0 * high['ats']:.2f}%" in text
+    assert "does not clear the weekly high bar" in text.lower()
 
 
 def test_accuracy_ladder_is_anchored_not_a_bare_number():
@@ -287,4 +293,4 @@ if __name__ == "__main__":
     test_page_uses_only_shared_layout_primitives()
     test_registered_in_the_multipage_entrypoint()
     test_app_boots_with_the_page_wired_in()
-    print("OK  Season Totals page: leftover mix, artifact-traceable numbers, fence holds, app boots")
+    print("OK  Season Totals page: line_in, HIGH-certified picks, fence holds, app boots")

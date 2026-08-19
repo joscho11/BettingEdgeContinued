@@ -1,25 +1,32 @@
 {
-  "fitter": "line_residual",
+  "fitter": "line_in",
   "n": 352,
   "n_seasons": 11,
-  "mae_model": 2.211570598372335,
+  "mae_model": 2.2578033419991446,
   "mae_market": 2.2088068181818183,
   "mae_persist": 2.7954545454545454,
   "mae_retired_m4c": 2.3650428124999996,
   "retired_m4c_n": 320,
   "retired_m4c_seasons_better": 2,
   "retired_m4c_seasons_total": 10,
-  "seasons_model_better": 4,
+  "seasons_model_better": 3,
   "seasons_total": 11,
-  "forward_lambda": 0.0,
   "ou_high": {
     "gap": 1.0,
-    "wins": 12,
-    "n": 18,
-    "ats": 0.6666666666666666,
-    "book": "12/18 (66.67%)",
-    "wilson_lower": 0.4730995606916803,
-    "clears_breakeven": false
+    "wins": 64,
+    "n": 108,
+    "ats": 0.5925925925925926,
+    "book": "64/108 (59.26%)",
+    "wilson_lower": 0.5134833153656858,
+    "clears_breakeven": false,
+    "forward_n": 5,
+    "forward_teams": [
+      "ARI",
+      "BAL",
+      "JAX",
+      "MIA",
+      "NYG"
+    ]
   },
   "claim": "BACKTESTED, NOT LIVE-VALIDATED. Does not beat the posted win total.",
   "ladder": [
@@ -35,7 +42,7 @@
     },
     {
       "name": "This model",
-      "mae": 2.211570598372335,
+      "mae": 2.2578033419991446,
       "n": 352
     },
     {
@@ -44,5 +51,5 @@
       "n": 352
     }
   ],
-  "written_at_utc": "2026-08-19T03:02:09.285622+00:00"
+  "written_at_utc": "2026-08-19T03:32:32.617187+00:00"
 }

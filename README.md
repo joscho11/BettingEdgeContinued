@@ -257,7 +257,7 @@ A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Bo
 
 - **Weekly Predictions**: game cards with ensemble edge and model-consensus HIGH/MED/PASS tiers. Agent-confidence overlays are paused. Games where the experimental totals model says UNDER show a dashed amber badge below the spread card.
 - **Track Record**: ATS record by tier and week, profit at standard odds, longest streaks, and a separate over/under section flagged as tracking-only.
-- **Season Totals (Beta)**: leftover-mix team win projections next to the posted win total. Point estimate, no simulated range. The page states plainly that the model does not beat the posted win total. Re-publish from `seasonal_totals_v2_beta` with `python src/publish_site.py`.
+- **Season Totals (Beta)**: line_in team win projections next to the posted win total. Point estimate, no simulated range. Every team is projected. Certified picks are HIGH only. The page states plainly that the model does not beat the posted win total. Re-publish from `seasonal_totals_v2_beta` with `python src/publish_site.py`.
 - **Weekly Fantasy**: per-position projections with both projected and actual stat columns that fill in after games are played.
 - **DFS Optimizer**: DraftKings Classic lineup solver. The page is still Coming soon until Week 1; the optimizer code is in `fantasy/dfs/`.
 

@@ -1,6 +1,6 @@
 # Archived M4-c season-totals pipeline (2026-08-18)
 
-Moved, not deleted. Live Season Totals page reads leftover mix published from
+Moved, not deleted. Live Season Totals page reads line_in published from
 `cowork_OS/seasonal_totals_v2_beta` into `JoSchoAnalytics/futures/published/`.
 
 | Tree | Why archived | Live source | Still in `futures/` |
