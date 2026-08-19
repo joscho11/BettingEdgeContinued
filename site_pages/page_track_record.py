@@ -16,7 +16,7 @@ import streamlit as st
 import dashboard_data
 import page_common
 from dashboard_utils import metric_card, get_confidence, _md_to_html
-from live_2026 import is_live_season
+from live_2026 import is_live_season, row_display_high
 from page_common import load_agent_analysis, _MODE_BADGE_COLORS
 
 _HERE = Path(__file__).resolve().parents[1]
@@ -77,34 +77,58 @@ def render():
         total_games   = int(season_df[_s_correct].notna().sum())
         total_pct     = round(total_correct / total_games * 100, 1) if total_games > 0 else 0
 
-        high_edge_df  = season_df[season_df[_s_edge].abs() >= 3]
-        he_correct    = int(high_edge_df[_s_correct].sum())
-        he_total      = int(high_edge_df[_s_correct].notna().sum())
-        he_pct        = round(he_correct / he_total * 100, 1) if he_total > 0 else 0
+        if live:
+            _high_mask = season_df.apply(row_display_high, axis=1)
+            high_edge_df = season_df[_high_mask]
+            he_correct = int(high_edge_df[_s_correct].sum())
+            he_total = int(high_edge_df[_s_correct].notna().sum())
+            he_pct = round(he_correct / he_total * 100, 1) if he_total > 0 else 0
+            rest_df = season_df[~_high_mask]
+            re_correct = int(rest_df[_s_correct].sum())
+            re_total = int(rest_df[_s_correct].notna().sum())
+            re_pct = round(re_correct / re_total * 100, 1) if re_total > 0 else 0
+            me_correct = me_total = me_pct = 0
+            le_correct = le_total = le_pct = 0
+        else:
+            high_edge_df  = season_df[season_df[_s_edge].abs() >= 3]
+            he_correct    = int(high_edge_df[_s_correct].sum())
+            he_total      = int(high_edge_df[_s_correct].notna().sum())
+            he_pct        = round(he_correct / he_total * 100, 1) if he_total > 0 else 0
 
-        med_edge_df   = season_df[(season_df[_s_edge].abs() >= 1) & (season_df[_s_edge].abs() < 3)]
-        me_correct    = int(med_edge_df[_s_correct].sum())
-        me_total      = int(med_edge_df[_s_correct].notna().sum())
-        me_pct        = round(me_correct / me_total * 100, 1) if me_total > 0 else 0
+            med_edge_df   = season_df[(season_df[_s_edge].abs() >= 1) & (season_df[_s_edge].abs() < 3)]
+            me_correct    = int(med_edge_df[_s_correct].sum())
+            me_total      = int(med_edge_df[_s_correct].notna().sum())
+            me_pct        = round(me_correct / me_total * 100, 1) if me_total > 0 else 0
 
-        low_edge_df   = season_df[season_df[_s_edge].abs() < 1]
-        le_correct    = int(low_edge_df[_s_correct].sum())
-        le_total      = int(low_edge_df[_s_correct].notna().sum())
-        le_pct        = round(le_correct / le_total * 100, 1) if le_total > 0 else 0
+            low_edge_df   = season_df[season_df[_s_edge].abs() < 1]
+            le_correct    = int(low_edge_df[_s_correct].sum())
+            le_total      = int(low_edge_df[_s_correct].notna().sum())
+            le_pct        = round(le_correct / le_total * 100, 1) if le_total > 0 else 0
 
         with st.container(key="jsa-metric-even-tr-ats"):
-            c1, c2, c3, c4 = st.columns(4)
-            c1.markdown(metric_card("Season ATS", f"{total_correct}/{total_games}", f"{total_pct}%",
-                                    color="green" if total_pct >= 52.4 else "red"), unsafe_allow_html=True)
-            c2.markdown(metric_card("High Edge (3+ pts)", f"{he_correct}/{he_total}",
-                                    f"{he_pct}%" if he_total > 0 else "—",
-                                    color="green" if he_pct >= 52.4 else "red"), unsafe_allow_html=True)
-            c3.markdown(metric_card("Med Edge (1-3 pts)", f"{me_correct}/{me_total}",
-                                    f"{me_pct}%" if me_total > 0 else "—",
-                                    color="green" if me_pct >= 52.4 else "red"), unsafe_allow_html=True)
-            c4.markdown(metric_card("Low Edge (<1 pt)", f"{le_correct}/{le_total}",
-                                    f"{le_pct}%" if le_total > 0 else "—",
-                                    color="green" if le_pct >= 52.4 else "red"), unsafe_allow_html=True)
+            if live:
+                c1, c2, c3 = st.columns(3)
+                c1.markdown(metric_card("Season ATS", f"{total_correct}/{total_games}", f"{total_pct}%",
+                                        color="green" if total_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                c2.markdown(metric_card("HIGH (Tue 3+ pts)", f"{he_correct}/{he_total}",
+                                        f"{he_pct}%" if he_total > 0 else "—",
+                                        color="green" if he_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                c3.markdown(metric_card("Other picks", f"{re_correct}/{re_total}",
+                                        f"{re_pct}%" if re_total > 0 else "—",
+                                        color="green" if re_pct >= 52.4 else "red"), unsafe_allow_html=True)
+            else:
+                c1, c2, c3, c4 = st.columns(4)
+                c1.markdown(metric_card("Season ATS", f"{total_correct}/{total_games}", f"{total_pct}%",
+                                        color="green" if total_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                c2.markdown(metric_card("High Edge (3+ pts)", f"{he_correct}/{he_total}",
+                                        f"{he_pct}%" if he_total > 0 else "—",
+                                        color="green" if he_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                c3.markdown(metric_card("Med Edge (1-3 pts)", f"{me_correct}/{me_total}",
+                                        f"{me_pct}%" if me_total > 0 else "—",
+                                        color="green" if me_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                c4.markdown(metric_card("Low Edge (<1 pt)", f"{le_correct}/{le_total}",
+                                        f"{le_pct}%" if le_total > 0 else "—",
+                                        color="green" if le_pct >= 52.4 else "red"), unsafe_allow_html=True)
 
         _has_ens   = 'ens_model_correct'   in season_df.columns and season_df['ens_model_correct'].notna().any()
         _has_ridge = 'ridge_model_correct' in season_df.columns and season_df['ridge_model_correct'].notna().any()
@@ -231,13 +255,21 @@ def render():
         st.divider()
 
         # ── High vs low confidence accuracy ──────────────────────────
-        st.subheader("Edge Tier Accuracy")
-
-        edge_data = pd.DataFrame([
-            {'Tier': 'High Edge (3+ pts)',  'Correct': he_correct, 'Total': he_total, 'Pct': he_pct},
-            {'Tier': 'Med Edge (1-3 pts)',  'Correct': me_correct, 'Total': me_total, 'Pct': me_pct},
-            {'Tier': 'Low Edge (<1 pt)',    'Correct': le_correct, 'Total': le_total, 'Pct': le_pct},
-        ])
+        if live:
+            st.subheader("HIGH vs other picks")
+            edge_data = pd.DataFrame([
+                {'Tier': 'HIGH (Tue 3+ pts)', 'Correct': he_correct, 'Total': he_total, 'Pct': he_pct},
+                {'Tier': 'Other picks', 'Correct': re_correct, 'Total': re_total, 'Pct': re_pct},
+            ])
+            _edge_colors = ['#00c853', '#888888']
+        else:
+            st.subheader("Edge Tier Accuracy")
+            edge_data = pd.DataFrame([
+                {'Tier': 'High Edge (3+ pts)',  'Correct': he_correct, 'Total': he_total, 'Pct': he_pct},
+                {'Tier': 'Med Edge (1-3 pts)',  'Correct': me_correct, 'Total': me_total, 'Pct': me_pct},
+                {'Tier': 'Low Edge (<1 pt)',    'Correct': le_correct, 'Total': le_total, 'Pct': le_pct},
+            ])
+            _edge_colors = ['#00c853', '#ffd600', '#ff5252']
 
         fig_edge = go.Figure()
         fig_edge.add_trace(go.Bar(
@@ -245,7 +277,7 @@ def render():
             y=edge_data['Pct'],
             text=[f"{r['Correct']}/{r['Total']} ({r['Pct']}%)" for _, r in edge_data.iterrows()],
             textposition='outside',
-            marker_color=['#00c853', '#ffd600', '#ff5252'],
+            marker_color=_edge_colors,
             hovertemplate='%{x}<br>%{text}<extra></extra>'
         ))
         fig_edge.add_hline(
@@ -355,7 +387,7 @@ def render():
             return wins * 100 - losses * 110, wins, losses
 
         if live:
-            _high_sub = season_df[season_df[_s_edge].abs() >= 3]
+            _high_sub = season_df[season_df.apply(row_display_high, axis=1)]
             _med_or_high_sub = _high_sub
         elif _has_ct:
             _high_sub = season_df[season_df['consensus_tier'] == 'HIGH']

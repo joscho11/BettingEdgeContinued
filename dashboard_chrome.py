@@ -195,8 +195,8 @@ def render_preseason_banner(board_page=None, season_year=2026):
     st.info(
         f"🏈 The {season_year} season hasn't kicked off yet. My **2026 Draft Board** is "
         "live with frozen Model Proj and daily Sleeper market data; the next model "
-        "update is the planned early-September pre-kickoff snapshot. Weekly "
-        "predictions return at Week 1.")
+        "update is the planned early-September pre-kickoff snapshot. Week 1 matchups "
+        "are already on Weekly Predictions. Picks lock that Tuesday at 9:00 ET.")
     if board_page is not None:
         st.page_link(board_page, label="Open the Draft Board", icon="📋")
 
@@ -224,6 +224,13 @@ def render_header():
    under the pill at every width from 641px up (hit-tested: elementFromPoint at the menu
    centre returned the Venmo anchor). Keep this >= the .jsa-tip width + 1rem. */
 [data-testid="stHeader"]{{padding-left:11rem;padding-right:14rem;}}
+@media (min-width:641px){{
+  /* Cloud toolbar (Fork, GitHub, menu) sits in the top-right. Inset the tip jar
+     so it no longer covers those controls. Extra header padding keeps nav links
+     out from under the moved pill. Phone rules below 640px stay as they are. */
+  [data-testid="stHeader"]{{padding-right:24rem;}}
+  .jsa-tip{{margin-right:10.5rem;}}
+}}
 /* z-index MUST be 999990 — the same layer as stHeader, NOT above it.
      stHeader/stToolbar 999990  <  stSidebar 999991
    At 999992 this bar painted above BOTH, so while the mobile nav drawer was open the

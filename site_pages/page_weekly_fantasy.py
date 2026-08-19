@@ -20,9 +20,18 @@ LIVE_FROM_SEASON = 2026
 LIVE_WEEK = 1
 REG_WEEKS = tuple(range(1, 19))
 _JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
-_SIBLING_PROJ_DIR = (
-    _HERE.parent / "weekly_projections_v2" / "independent_model" / "outputs"
-)
+
+
+def _sibling_proj_dir() -> Path:
+    parent = _HERE.parent
+    for name in ("weekly_projections_v2_prod", "weekly_projections_v2"):
+        cand = parent / name / "independent_model" / "outputs"
+        if cand.is_dir():
+            return cand
+    return parent / "weekly_projections_v2_prod" / "independent_model" / "outputs"
+
+
+_SIBLING_PROJ_DIR = _sibling_proj_dir()
 
 
 def _parse_proj_name(name: str) -> tuple[int, int] | None:
@@ -520,10 +529,7 @@ def render():
                         )
                         st.markdown(row_html, unsafe_allow_html=True)
                 else:
-                    st.info(
-                        "No agent analysis available for this week. "
-                        "Run `fantasy/fantasy_agent.ipynb` to generate it."
-                    )
+                    st.info("No agent notes for this week.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 4: DFS

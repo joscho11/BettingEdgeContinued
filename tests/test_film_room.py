@@ -99,3 +99,15 @@ def test_jefferson_episode_is_newest():
     assert newest["slug"] == "jefferson-deep-dive"
     assert newest["video_id"] == "7675129111659957534"
     assert newest["date"] == "2026-08-17"
+
+
+def test_breakdowns_and_registry_do_not_disclose_sleeper_mix():
+    phrases = ("25% sleeper", "75/25", "75% independent")
+    blob = " ".join(
+        (_HERE / "video_breakdowns" / item["breakdown_file"]).read_text(encoding="utf-8")
+        for item in VIDEOS
+    )
+    blob += " ".join(str(item.get("archive_note") or "") for item in VIDEOS)
+    lower = blob.lower()
+    for phrase in phrases:
+        assert phrase not in lower, f"Sleeper mix leaked into Film Room copy: {phrase}"

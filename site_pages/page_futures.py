@@ -140,10 +140,11 @@ def _render_hero(high: dict) -> None:
     n_fwd = int(high.get("forward_n") or 0)
 
     st.markdown(
-        f"### High-confidence calls are hitting\n"
+        f"### High-confidence held-out record\n"
         f"Held-out record when the model disagrees with the posted number by "
         f"**{gap:.0f}+ wins**: **{wins}/{n} correct ({pct:.2f}%)** on "
-        f"2015-2025 walk-forward. That raw win rate is what this page leads with."
+        f"2015-2025 walk-forward. The one-sided 95% Wilson lower bound is "
+        f"**{wilson:.2f}%**, under the {BAR_PCT:.1f}% bar."
     )
 
     c1, c2, c3 = st.columns(3)
@@ -236,7 +237,7 @@ def _posted_stamp(df: pd.DataFrame, ev: dict) -> str:
 
 
 def render():
-    st.title("Season Win Totals")
+    st.title("Season Totals (Beta)")
     st.caption(
         "Pre-season win projections for all 32 teams. High-confidence calls are "
         "the only picks this page highlights."

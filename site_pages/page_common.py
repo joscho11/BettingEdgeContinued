@@ -76,6 +76,7 @@ ATS_BLURB = """
         <p style="font-size:12px;color:#aaa;line-height:1.65;margin:0">
             ML model trained on NFL data since 2014. Predicts each game vs the Vegas spread.
             <b style="color:#3D95CE">52.4% ATS</b> is break-even.
+            2026 uses the Tuesday HIGH book. 2025 weeks on this site are a demo.
         </p>
     </div>
     """

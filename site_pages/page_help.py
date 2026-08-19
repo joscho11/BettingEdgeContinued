@@ -26,7 +26,8 @@ def render():
     if df.empty:
         st.warning("predictions_tracker.csv has no rows yet. Run the prediction pipeline to populate it.")
         st.stop()
-    _stats = dashboard_data.accuracy_stats(df)   # 3a shared plumbing (byte-identical values)
+    _demo = df[df["season"] == 2025] if "season" in df.columns else df
+    _stats = dashboard_data.accuracy_stats(_demo if not _demo.empty else df)   # 2025 demo ATS only
     _acc_col         = _stats["acc_col"]
     _completed       = _stats["completed"]
     _overall_correct = _stats["overall_correct"]
@@ -103,7 +104,9 @@ Standard sportsbook odds are around 110 to win 100. That means you need to win a
 
 To be profitable over time you need to consistently win more than 52.4%, bet games where there's real edge instead of gut feeling, and manage your bankroll properly. A common rule is never betting more than 2 to 5% of your total bankroll on a single game.
 
-The model is currently at **{_overall_pct}% ATS** overall ({_overall_correct}/{_overall_total}){_hc_line}. {_be_comment} But I want to be clear that past performance doesn't guarantee anything going forward. There will be bad weeks.
+The **2026 live book** is Tuesday HIGH: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%** ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward 2021-2025. That interval is above 52.4%. All-bets is not the claim. No 2026 games are graded yet.
+
+The **2025 demo test** on this site (weeks 10-17) is **{_overall_pct}% ATS** ({_overall_correct}/{_overall_total}){_hc_line}. {_be_comment} That walkthrough is the old three-model consensus, not the 2026 live book. Past performance doesn't guarantee anything going forward. There will be bad weeks.
 
 Never bet more than you can afford to lose.
         """)
@@ -166,13 +169,11 @@ What you see on **2026** Weekly Predictions is **Tuesday HIGH**: a green highlig
 The **2025 demo test** weeks still show **Model Consensus** (HIGH / MED / PASS): whether the three spread models agree on a side, plus how large the ensemble edge is.
 
 The expander "What is the LLM agent and what does it do?" has the full pause note. When an approved agent artifact is present again, High means the model edge is strong and outside signals lined up, Medium means mixed signals, and Skip means pass.
-
-The expander "What is the LLM agent and what does it do?" has the full pause note. When an approved agent artifact is present again, High means the model edge is strong and outside signals lined up, Medium means mixed signals, and Skip means pass.
         """)
 
     with st.expander("What is the Min Edge filter?"):
         st.markdown("""
-On **2026**, every game is shown. HIGH picks are the green highlight. The Min Edge slider does not hide 2026 games.
+On **2026**, every game is shown. HIGH picks are the green highlight. The Min Edge slider is hidden on 2026.
 
 On the **2025 demo** weeks, the **Min Edge (pts)** slider at the top of Weekly Predictions controls which games show up.
 
@@ -185,7 +186,7 @@ At 0.0 (the default) you see every game. At 1.0 you only see games where the mod
 
 **2025 demo test** used the older Monday / Thursday / Sunday refresh. Those weeks are frozen as a walkthrough.
 
-During the offseason the weekly predictions pause. The pre-season **Draft Board** refreshes
+During the offseason, 2026 matchups stay on Weekly Predictions with no picks until the Tuesday freeze. The pre-season **Draft Board** refreshes
 Sleeper ADP and Sleeper projections daily for its fixed 180-player universe; draft-price
 ranks, Sleeper ranks, and both gap columns move with those updates. Model Proj points and
 ranks remain frozen until the dated early-September public-information snapshot.
@@ -197,7 +198,7 @@ The Track Record page is where you can see how the model has done across the who
 
 It shows a week by week bar chart of ATS win percentage, a cumulative trend line showing how accuracy has moved over time, and a breakdown of how high edge games performed compared to low edge games.
 
-There's also a best and worst weeks section, a full season table, and (on the 2025 demo) a separate Over/Under section. 2026 Track Record does not include totals.
+There's also a best and worst weeks section, a full season table, and (on the 2025 demo) a separate Over/Under section. 2026 Track Record grades HIGH by the Tuesday 3-point rule. There is no medium bucket on 2026. 2026 Track Record does not include totals.
         """)
 
     with st.expander("What is the Season Totals (Beta) page?"):
@@ -479,34 +480,18 @@ The **Consistency & Luck** tab separates scoring quality, week-to-week volatilit
 
     # ── Section 6: Model explanations ────────────────────────────────────────
     st.subheader("🧠 What Drives the Models")
-    st.caption("The current 2026 Draft Board uses the v6 Model Proj pipeline.")
+    st.caption("The current 2026 Draft Board uses the published Model Proj.")
 
     with st.expander("What inputs drive the 2026 Draft Board projections"):
         st.markdown("""
-The Draft Board's **Model Proj** is a season-total half-PPR forecast from the v6
-pipeline, not a ranking copied from ADP or the talent scores.
+The Draft Board's **Model Proj** is the published season-total half-PPR forecast
+for the 180-player universe. Points and positional ranks are frozen for the current
+snapshot. **ADP and the two Talent Scores are not inputs to Model Proj.**
 
-For each QB, RB, WR, and TE, three systems estimate three pieces:
-
-1. the probability of playing at least five games;
-2. expected games played if he clears that threshold; and
-3. expected half-PPR points per game if he clears it.
-
-Each system multiplies those pieces into a season-point estimate. One is deterministic
-LightGBM, one is fixed-seed ExtraTrees, and one is Ridge. Their raw estimates are blended
-equally. A position-specific affine calibration is fit using only earlier out-of-fold
-predictions and results. That last step maps the raw value back to the historical point
-scale without using the season being scored.
-
-The hurdle blend uses 132 cutoff-valid, non-outcome inputs drawn from prior production and usage,
-play-by-play and PFF-derived performance, injury history, age and draft context, and available
-preseason role, roster, coach, and vacated-usage context. **ADP and the two Talent Scores are
-not model inputs.**
-
-The board currently publishes exactly 180 players: 24 QB, 60 RB, 72 WR, and 24 TE. Model Proj
-points and positional ranks are frozen for the current snapshot. Separately, the Draft Board
-refreshes Sleeper ADP and Sleeper projection points daily; those live values recalculate the
-market ranks and both displayed gap columns, but do not change Model Proj.
+The board currently publishes exactly 180 players: 24 QB, 60 RB, 72 WR, and 24 TE.
+Separately, the Draft Board refreshes Sleeper ADP and Sleeper projection points daily;
+those live values recalculate the market ranks and both displayed gap columns, but do
+not change Model Proj.
         """)
 
     st.divider()
@@ -551,7 +536,7 @@ Each game is evaluated by all four models. The consensus tier is assigned based 
 
 A separate two-model system (XGBoost + Ridge) trained to predict whether the final combined score will be over or under the Vegas total line. Uses 35 spread features plus 14 totals-specific inputs (total line, implied team totals, weather, dome status, rolling points, league scoring environment, pace, division game flag).
 
-The CV result (2020–2025, 55.7% on 575 picks) suggests a real UNDER-side edge, consistent with the known retail OVER bias. **But live 2025 results so far (52.2% on 46 picks) are at break-even, not yet confirming the CV.** The 2025 sample is too small to tell — I'm tracking through 2026 before treating these as real picks.
+The CV result (2020–2025, 55.7% on 575 picks) suggests a real UNDER-side edge, consistent with the known retail OVER bias. **But live 2025 results so far (52.2% on 46 picks) are at break-even, not yet confirming the CV.** The 2025 sample is too small to tell. Those totals stay on the 2025 demo only. 2026 Weekly Predictions does not show them.
 
 All models are retrained each offseason as new data comes in.
         """)
@@ -592,7 +577,9 @@ The idea is that raw model predictions are a starting point. The agent adds a la
                      f"({_hc_correct}/{_hc_total})" if _hc_pct is not None else "")
         _be_comment2 = breakeven_verdict(_overall_pct, _hc_pct)
         st.markdown(f"""
-The model has gone **{_overall_pct}% ATS** across {_overall_total} completed games ({_overall_correct} correct){_hc_line2}. {_be_comment2}
+The **2026 live book** is Tuesday HIGH: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%** ATS ({LIVE_HIGH_WINS} of {LIVE_HIGH_N}), one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward 2021-2025, last regular-season week skipped. That interval is above 52.4%. All-bets does not clear and is not the live claim. No 2026 games are graded yet.
+
+The **2025 demo test** (weeks 10-17) is **{_overall_pct}% ATS** across {_overall_total} completed games ({_overall_correct} correct){_hc_line2}. {_be_comment2}
 
 {_bw_str}
 I want to be honest though. Past performance doesn't guarantee anything going forward. There will be bad weeks. The goal is to track this over multiple seasons and see if the edge holds up.

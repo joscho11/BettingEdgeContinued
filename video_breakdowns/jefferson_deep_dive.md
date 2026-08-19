@@ -112,10 +112,10 @@ As of 2026-08-17:
 | Source | WR rank | Number |
 |---|---|---|
 | Sleeper ADP | **WR6** | 11.0 |
-| Draft Board Model Proj (75% independent v6 + 25% Sleeper) | **WR7** | 181.0 |
+| Draft Board Model Proj | **WR7** | 181.0 |
 | Sleeper published projection | **WR9** | 205.4 |
 
-Independent v6 alone is WR6. The video cites the mixed Draft Board number, WR7. Do not cite the old LightGBM file that had him WR17.
+The video cites the Draft Board Model Proj, WR7. Do not cite the old LightGBM file that had him WR17.
 
 The video's close: WR6 is already a heavy price, so it is hard to say he exceeds that ADP. What is clear is that 2025 looks heavily like the quarterback, and a better 2026 is the expectation. That is a take, not a board output.
 

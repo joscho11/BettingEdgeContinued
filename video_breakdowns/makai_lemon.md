@@ -19,7 +19,7 @@ Three separate readings, taken from the Draft Board:
 
 A two-rank difference is small. The Draft Board describes gaps of this size as agreement rather than disagreement, and nothing in the projection column separates him from his market price in a meaningful way.
 
-**Draft prices move daily.** The figures above were pulled on the board's July 30, 2026 refresh. The Draft Board tab carries the live number.
+**Draft prices move daily.** The figures above were pulled on the board's July 30, 2026 refresh. The Draft Board page carries the live number.
 
 ## 2. College production, and the column that describes it
 

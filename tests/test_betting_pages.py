@@ -33,10 +33,22 @@ def _control_keys(at):
 def test_weekly_predictions_renders_and_owns_controls(tmp_path):
     at = _render_page(tmp_path, "page_weekly_predictions")
     keys = _control_keys(at)
-    assert {"wp_season", "wp_week", "wp_edge"} <= keys, \
-        f"Weekly Predictions must own Season/Week/Min-edge; got {keys}"
+    assert {"wp_season", "wp_week"} <= keys, \
+        f"Weekly Predictions must own Season/Week; got {keys}"
+    assert "wp_edge" not in keys, "2026 live hides the Min Edge slider"
     assert not any(str(k).startswith("tr_") for k in keys), \
         "Weekly Predictions must not carry Track Record's controls"
+
+
+def test_weekly_predictions_shows_min_edge_on_2025_demo(tmp_path):
+    at = _render_page(tmp_path, "page_weekly_predictions")
+    season = next(w for w in at.selectbox if getattr(w, "key", None) == "wp_season")
+    season.set_value(2025)
+    at.run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    keys = _control_keys(at)
+    assert "wp_edge" in keys, f"2025 demo must keep Min Edge; got {keys}"
 
 
 def test_track_record_renders_and_owns_controls(tmp_path):
@@ -45,6 +57,24 @@ def test_track_record_renders_and_owns_controls(tmp_path):
     assert "tr_season" in keys, f"Track Record must own its Season control; got {keys}"
     assert not any(str(k).startswith("wp_") for k in keys), \
         "Track Record must not carry Weekly Predictions' controls"
+
+
+def test_track_record_2026_has_no_medium_edge_bucket(tmp_path):
+    at = _render_page(tmp_path, "page_track_record")
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Med Edge" not in md
+    assert "no medium" in " ".join(str(s.value) for s in at.success).lower()
+
+
+def test_track_record_2025_demo_keeps_edge_buckets(tmp_path):
+    at = _render_page(tmp_path, "page_track_record")
+    season = next(w for w in at.selectbox if getattr(w, "key", None) == "tr_season")
+    season.set_value(2025)
+    at.run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Med Edge" in md
 
 
 def test_weekly_predictions_hides_paused_agent_chrome(tmp_path):

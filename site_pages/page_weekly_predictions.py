@@ -69,8 +69,14 @@ def render():
             df, cols_container, key_prefix, with_week, with_edge, default_week=1)
     st.markdown(page_common.ATS_BLURB, unsafe_allow_html=True)
     season, week, edge_threshold = _season_week_controls(
-        st.columns(3), "wp", with_week=True, with_edge=True)
+        st.columns(2), "wp", with_week=True, with_edge=False)
     live = is_live_season(season)
+    if not live:
+        edge_threshold = st.slider(
+            "Min Edge (pts)", min_value=0.0, max_value=5.0, value=0.0, step=0.5,
+            key="wp_edge",
+            help="Only show games where model disagrees with spread by at least this many points",
+        )
     if live:
         _live_notice()
     else:

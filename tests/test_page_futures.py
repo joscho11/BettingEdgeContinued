@@ -140,6 +140,7 @@ def test_displayed_evidence_numbers_come_from_the_artifacts():
     assert "52.4" in text
     assert "as of" in text.lower()
     assert "ARI" in text
+    assert "hitting" not in text.lower()
 
 
 def test_accuracy_ladder_lives_in_the_backtest_expander():

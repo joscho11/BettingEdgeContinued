@@ -80,11 +80,15 @@ def test_help_does_not_disclose_sleeper_mix(tmp_path):
 def test_help_interpolates_shared_stats_byte_identical(tmp_path):
     import dashboard_data
     df = dashboard_data.load_predictions()
-    s = dashboard_data.accuracy_stats(df)
+    demo = df[df["season"] == 2025] if "season" in df.columns else df
+    s = dashboard_data.accuracy_stats(demo if not demo.empty else df)
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
     assert f"{s['overall_pct']}% ATS" in md, \
-        "overall ATS% (from accuracy_stats) must appear verbatim in the Help copy"
+        "2025 demo ATS% (from accuracy_stats) must appear verbatim in the Help copy"
+    assert "2025 demo" in md.lower()
+    assert "currently at" not in md.lower()
+    assert md.count("When an approved agent artifact") == 1
     if s["hc_pct"] is not None:
         assert f"{s['hc_pct']}%" in md, "high-confidence % must appear verbatim in the Help copy"
 

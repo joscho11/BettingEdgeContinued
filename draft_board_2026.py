@@ -730,9 +730,9 @@ COLUMN_META = [
      "Sleeper's projected season-total half-PPR points (raw).",
      {"format": "%d", "width": "small"}),
     ("model_proj", _NUM, "Model Proj",
-     "Published season-total half-PPR points from the v6 pipeline (equal 1/3 LightGBM, "
-     "ExtraTrees, and Ridge hurdle blend), then rolling affine calibration. ADP is not a "
-     "model input. Backtested on 2021-2025 and not live-validated.",
+     "Published season-total half-PPR points on this board. Frozen until the "
+     "early-September snapshot. ADP is not a model input. Backtested on 2021-2025 "
+     "and not live-validated.",
      {"format": "%d", "width": "small"}),
     ("nfl_talent", _NUM, "NFL Talent Score",
      "My model-based per-opportunity talent estimate for players with NFL history, net of "
@@ -1045,8 +1045,8 @@ def render():
             "into his rank at his position (1 = first off the board there).\n"
             "- **Sleeper Proj** and **Model Proj** are two estimates of his "
             "season-total half-PPR points. Sleeper's is shown only when its record can be "
-            "matched; **Model Proj** is the v6 hurdle blend, affine-calibrated, built "
-            "without ADP as a model input, backtested on 2021-2025 and not yet "
+            "matched; **Model Proj** is the published season-total half-PPR number on "
+            "this board, built without ADP as a model input, backtested on 2021-2025 and not yet "
             "live-validated.\n"
             "- **Sleeper Gap** and **Model Gap** are each Position Rank minus that "
             "projection's position rank: positive means the projection ranks him higher than "
@@ -1126,8 +1126,7 @@ def render():
                       "see them.")
     st.caption(sort_note)
     st.caption("Model Proj and Model Gap are the published season-total projection "
-               "(equal 1/3 LightGBM, ExtraTrees, and Ridge hurdle blend), then rolling "
-               "affine calibration. 132 cutoff-valid non-outcome features. ADP is not a "
+               "for this board. ADP is not a "
                "model input. Backtested on 2021-2025 and not live-validated. On that "
                "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
                "scenario overlay is applied.")

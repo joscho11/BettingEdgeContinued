@@ -39,7 +39,7 @@ VIDEOS = [
             "individual players, and this video doesn't reflect how I work now. "
             "It stays up, "
             "unedited, as part of the record. For what I publish today: the "
-            "Draft Board tab."
+            "Draft Board page."
         ),
     },
     {
