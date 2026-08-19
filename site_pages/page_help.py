@@ -202,11 +202,11 @@ There's also a best and worst weeks section, a full season table, and (on the 20
 
     with st.expander("What is the Season Totals (Beta) page?"):
         st.markdown("""
-The Season Totals page is a pre-season projection of how many games each NFL team wins, plus a simulated range around that number.
+The Season Totals page is a pre-season projection of how many games each NFL team wins, shown next to the posted win total. It is a point estimate, not a simulated range.
 
-**It does not beat the archived market consensus.** Over a ten-season backtest it landed slightly further from each team's actual win count than that consensus did. There is no side, no odds, and no confidence tier. Gate C stays shut.
+**It does not beat the posted win total.** Across eleven held-out seasons it missed each team's actual win count by a little more than that posted number did. This year's mix weight is zero, so every team sits on the posted number.
 
-Treat it as a published projection with an honest range, not a betting card. It lives in the Betting menu.
+Treat it as a published projection with an honest backtest, not a betting card. It lives in the Betting menu.
         """)
 
     with st.expander("What is the Over/Under (Totals) model? (Experimental)"):
@@ -230,7 +230,7 @@ That's why the badges on the **2025 demo** game cards are amber/dashed instead o
         st.markdown("""
 The Weekly Fantasy page shows weekly half-PPR fantasy projections for every active QB, RB, WR, and TE. Each position has its own subtab.
 
-**2025 weeks are a demo** from the previous weekly model. **Live weekly projections start at 2026 Week 1.**
+The page opens on **2026 Week 1**. Rankings for that week will be here soon. **2025 weeks are a demo** from the previous weekly model.
 
 You can search by player and see projected fantasy points. Older demo weeks also show extra columns (team EPA, implied total, health, and some stat projections). Once the week's games are played, actual points fill in automatically.
 

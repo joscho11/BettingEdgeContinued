@@ -88,10 +88,29 @@ def test_weekly_fantasy_names_2025_demo(tmp_path):
     at = _render_weekly(tmp_path)
     blob = " ".join(
         str(getattr(w, "value", ""))
-        for w in list(at.caption) + list(at.info) + list(at.markdown)
+        for w in list(at.caption) + list(at.info) + list(at.markdown) + list(at.title)
     ).lower()
     assert "demo" in blob
-    assert "2026" in blob
+    assert "2025" in blob
+    assert "soon" in blob
+
+
+def test_weekly_fantasy_defaults_to_2026_week1(tmp_path):
+    at = _render_weekly(tmp_path)
+    by_key = {getattr(w, "key", None): w.value for w in at.selectbox}
+    assert int(by_key["wf_season"]) == 2026
+    assert int(by_key["wf_week"]) == 1
+    infos = " ".join(str(w.value) for w in at.info).lower()
+    assert "soon" in infos
+    assert "2025" in infos
+    assert "demo" in infos
+
+
+def test_coming_soon_copy_points_at_2025_demo():
+    text = weekly._coming_soon_copy(2026, 1)
+    assert "2026 Week 1" in text
+    assert "2025" in text
+    assert "demo" in text.lower()
 
 
 def test_slim_2026_schema_has_core_columns():

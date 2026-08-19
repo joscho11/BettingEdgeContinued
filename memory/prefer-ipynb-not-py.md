@@ -26,7 +26,7 @@ with testable cells instead. .py modules break that convention.
 - Consume via `json.load` + `exec` over each code cell (see `betting/predict_betting.ipynb` cell 28); set `RUN_TESTS = False` in the caller's namespace before the load to skip inline tests during production runs.
 - Do NOT create scratch .py files for smoke tests — put tests inline in the notebook.
 - One exception: setup/automation scripts (CI, retrain helpers like `betting/experiments/*.py`) stay as .py — they aren't shared notebook code.
-- Second exception, granted by Joseph 2026-08-03: **guard/contract modules that several notebooks must import** stay as .py. `futures/season_team_totals/tier_lock.py` is the case — a Tier-C lock that every downstream notebook calls should be *imported*, not reconstructed by exec-ing another notebook's code cells, because exec-ing means N copies that can drift. It carries its own `python tier_lock.py` self-test (10 red / 5 green controls).
+- Second exception, granted by Joseph 2026-08-03: **guard/contract modules that several notebooks must import** stay as .py. The live Season Totals guard is `futures/language_fence.py`. The old `futures/season_team_totals/tier_lock.py` lives in `archive/legacy-futures-m4c-2026-08-18/` with the retired M4-c notebooks.
 
 Related: [[notebook-edit-via-json]] (notebooks are edited via `json.load/dump`, not Read/NotebookEdit tools, for large files).
 

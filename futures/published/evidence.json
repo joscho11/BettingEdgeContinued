@@ -1,0 +1,39 @@
+{
+  "fitter": "line_residual",
+  "n": 352,
+  "n_seasons": 11,
+  "mae_model": 2.211570598372335,
+  "mae_market": 2.2088068181818183,
+  "mae_persist": 2.7954545454545454,
+  "mae_retired_m4c": 2.3650428124999996,
+  "retired_m4c_n": 320,
+  "retired_m4c_seasons_better": 2,
+  "retired_m4c_seasons_total": 10,
+  "seasons_model_better": 4,
+  "seasons_total": 11,
+  "forward_lambda": 0.0,
+  "claim": "BACKTESTED, NOT LIVE-VALIDATED. Does not beat the posted win total.",
+  "ladder": [
+    {
+      "name": "Repeat last year",
+      "mae": 2.7954545454545454,
+      "n": 352
+    },
+    {
+      "name": "Retired Monte Carlo",
+      "mae": 2.3650428124999996,
+      "n": 320
+    },
+    {
+      "name": "This model",
+      "mae": 2.211570598372335,
+      "n": 352
+    },
+    {
+      "name": "Posted win total",
+      "mae": 2.2088068181818183,
+      "n": 352
+    }
+  ],
+  "written_at_utc": "2026-08-19T02:48:47.634723+00:00"
+}

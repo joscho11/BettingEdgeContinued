@@ -12,16 +12,13 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from dashboard_chrome import TABLE_HEIGHT, dataframe_phone_desktop   # shared ~20-row height for long tables
-
-import dashboard_data
-import page_common
-from dashboard_utils import metric_card, get_confidence, _md_to_html
-from dashboard_chrome import _OFFLINE
+from dashboard_chrome import TABLE_HEIGHT, dataframe_phone_desktop, _OFFLINE
 
 _HERE = Path(__file__).resolve().parents[1]
 DEMO_SEASON = 2025
 LIVE_FROM_SEASON = 2026
+LIVE_WEEK = 1
+REG_WEEKS = tuple(range(1, 19))
 _JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
 _SIBLING_PROJ_DIR = (
     _HERE.parent / "weekly_projections_v2" / "independent_model" / "outputs"
@@ -55,6 +52,49 @@ def available_projection_files() -> dict[tuple[int, int], Path]:
             if parsed not in available:
                 available[parsed] = path
     return available
+
+
+def _weeks_by_season(available: dict[tuple[int, int], Path]) -> dict[int, list[int]]:
+    demo_weeks = sorted({w for (season, w) in available if season == DEMO_SEASON})
+    weeks = {
+        LIVE_FROM_SEASON: list(REG_WEEKS),
+        DEMO_SEASON: demo_weeks or [10],
+    }
+    for season, week in available:
+        if season in weeks:
+            continue
+        weeks.setdefault(season, [])
+        if week not in weeks[season]:
+            weeks[season].append(week)
+    for season in weeks:
+        weeks[season] = sorted(weeks[season])
+    return weeks
+
+
+def _fantasy_season_week_controls(available: dict[tuple[int, int], Path]) -> tuple[int, int]:
+    """Own Season/Week widgets. Default is 2026 Week 1, even with no file yet."""
+    weeks_by = _weeks_by_season(available)
+    seasons = sorted(weeks_by, reverse=True)
+    cols = st.columns(2)
+    season = int(cols[0].selectbox("Season", seasons, index=0, key="wf_season"))
+    weeks = weeks_by[season]
+    want = LIVE_WEEK if season >= LIVE_FROM_SEASON else weeks[0]
+    if "wf_week" in st.session_state and st.session_state["wf_week"] not in weeks:
+        del st.session_state["wf_week"]
+    week = int(cols[1].selectbox(
+        "Week",
+        weeks,
+        index=weeks.index(want) if want in weeks else 0,
+        key="wf_week",
+    ))
+    return season, week
+
+
+def _coming_soon_copy(season: int, week: int) -> str:
+    return (
+        f"{season} Week {week} projections will be here soon. "
+        "Switch Season to 2025 for a demo of this board."
+    )
 
 
 @st.cache_data(ttl=3600)
@@ -134,47 +174,32 @@ def load_actual_stats(season: int, week: int) -> dict:
 
 
 def render():
-    try:
-        df = dashboard_data.load_predictions()
-    except FileNotFoundError:
-        st.error("predictions_tracker.csv not found. Run the prediction pipeline first.")
-        st.stop()
-    except Exception as _load_err:
-        st.error(f"Failed to load predictions data: {_load_err}")
-        st.stop()
-    if df.empty:
-        st.warning("predictions_tracker.csv has no rows yet. Run the prediction pipeline to populate it.")
-        st.stop()
-    def _season_week_controls(cols_container, key_prefix, with_week=True, with_edge=False):
-        return page_common._season_week_controls(df, cols_container, key_prefix, with_week, with_edge)
-    season, week, _ = _season_week_controls(
-        st.columns(2), "wf", with_week=True, with_edge=False)
-
-    st.title(f"🏆 Week {week} Fantasy Projections — Half-PPR")
-    st.caption(
-        "2025 weeks on this page are a demo from the previous weekly model. "
-        "Live weekly projections start at 2026 Week 1."
-    )
-
     available = available_projection_files()
+    season, week = _fantasy_season_week_controls(available)
 
-    if not available:
-        st.info(
-            "No weekly fantasy projections on file yet. Live projections start at 2026 Week 1. "
-            "Use the Week selector above to open a past demo week if one is listed."
+    st.title(f"🏆 Week {week} Fantasy Projections, Half-PPR")
+    if (LIVE_FROM_SEASON, LIVE_WEEK) in available:
+        st.caption(
+            "This page opens on 2026 Week 1. "
+            "2025 weeks are a demo from the previous weekly model."
         )
-    elif (season, week) not in available:
-        listed = ", ".join(f"W{w}" for (s, w) in sorted(available) if s == season) or "none for this season"
+    else:
+        st.caption(
+            "This page opens on 2026 Week 1. Those rankings will be here soon. "
+            "2025 weeks are a demo from the previous weekly model."
+        )
+
+    if (season, week) not in available:
         if int(season) >= LIVE_FROM_SEASON:
-            st.info(
-                f"No file for {season} Week {week} yet. Live weekly projections start at 2026 Week 1. "
-                f"Available weeks: {listed}."
-            )
+            st.info(_coming_soon_copy(int(season), int(week)))
         else:
+            listed = ", ".join(
+                f"W{w}" for (s, w) in sorted(available) if s == season
+            ) or "none for this season"
             st.info(
-                f"No fantasy projections for Season {season} · Week {week}. "
+                f"No fantasy projections for Season {season} Week {week}. "
                 f"Available weeks: {listed}. "
-                "2025 on this page is a demo. Live projections start at 2026 Week 1."
+                "2025 on this page is a demo."
             )
     else:
         if int(season) == DEMO_SEASON:

@@ -1,27 +1,15 @@
-"""Season Totals page proof: renders, reports the backtest honestly, holds the language fence.
+"""Season Totals page: leftover mix, honest backtest, language fence.
 
-Hermetic (APP_OFFLINE=1). The page is READ-ONLY over `futures/futures_predictions.csv` plus two
-artifact JSONs, so nothing here fits, simulates, or reaches the network.
+Hermetic (APP_OFFLINE=1). READ-ONLY over futures/published/season_totals_2026.csv
+and futures/published/evidence.json. No fit, no simulation, no network.
 
-What is asserted, and why each one exists:
-
-* the page renders clean, and boots inside the multipage entrypoint;
-* every number it displays is traceable to an artifact. The projection table comes from the CSV, the
-  benchmark comparison to `model_comparison.json`, the interval accuracy to `model_metadata.json`.
-  A page that hardcodes a backtest figure can drift silently from the artifact it describes;
-* league conservation survives to the display layer (32 projections summing to the scheduled
-  game count);
-* **the §7 language fence**, checked mechanically against `futures/season_team_totals/tier_lock.py`'s
-  own banned vocabulary rather than a list retyped here, because a hand-copied list is the kind that
-  quietly falls out of sync with the guard it is supposed to mirror;
-* **no market columns** reach the display, since gate C is shut. Note this is a schema assertion,
-  not a vocabulary one: several of those column names carry no banned token at all, so the word
-  scan above would pass them (the same finding notebook 05 records);
-* the runtime stays separated: the page module imports no training or simulation dependency.
-
-Deliberately NOT asserted here: browser geometry. Phone/tablet layout is the shared `mobile.py`
-content layer, exercised by `tests/test_responsive_layout.py`; this page introduces no bespoke
-layout, which `test_page_uses_only_shared_layout_primitives` pins.
+What is asserted:
+* the page renders, and boots inside app.py
+* table numbers match the published CSV; MAE figures match evidence.json
+* 32 projections sum to 272
+* language fence against futures/language_fence.py
+* no Line/Book/Over/Under columns
+* runtime imports stay json/pathlib/pandas/streamlit
 """
 import ast
 import json
@@ -38,16 +26,16 @@ from streamlit.testing.v1 import AppTest
 _HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE / "site_pages"))
-sys.path.insert(0, str(_HERE / "futures" / "season_team_totals"))
+sys.path.insert(0, str(_HERE / "futures"))
 
-_CSV = _HERE / "futures" / "futures_predictions.csv"
-_META = _HERE / "futures" / "artifacts" / "model_metadata.json"
-_COMP = _HERE / "futures" / "artifacts" / "model_comparison.json"
+_CSV = _HERE / "futures" / "published" / "season_totals_2026.csv"
+_EVIDENCE = _HERE / "futures" / "published" / "evidence.json"
 _PAGE = _HERE / "site_pages" / "page_futures.py"
-_EVIDENCE = _HERE / "futures" / "artifacts" / "season_totals_evidence.json"
 
-pytestmark = pytest.mark.skipif(not _CSV.exists(),
-                                reason="futures_predictions.csv not built (run notebook 05)")
+pytestmark = pytest.mark.skipif(
+    not _CSV.exists(),
+    reason="published season totals missing (run seasonal_totals_v2_beta: python src/publish_site.py)",
+)
 
 
 def _entry():
@@ -63,7 +51,6 @@ def _run(fn=None):
 
 
 def _text(at):
-    """Every string the page put on screen: titles, markdown, captions, alerts, metrics, help."""
     parts = []
     for group in (at.title, at.markdown, at.caption, at.warning, at.info, at.error,
                   at.subheader, at.header):
@@ -85,14 +72,11 @@ def _table(at):
         v = el.value
         d = v.data if hasattr(v, "data") else v
         try:
-            if "Proj Wins" in list(d.columns):
+            if "Proj Wins" in list(d.columns) and "Posted" in list(d.columns):
                 return d
         except Exception:
             pass
     return None
-
-
-# --------------------------------------------------------------------------- renders
 
 
 def test_proj_wins_display_is_one_decimal():
@@ -106,12 +90,11 @@ def test_page_renders_and_shows_the_projection_table():
     df = _table(at)
     assert df is not None, "the projection table must render"
     assert len(df) == 32, f"expected 32 teams, got {len(df)}"
-    for c in ("Team", "Proj Wins", "p10", "Median", "p90", "80% Range"):
+    for c in ("Team", "Proj Wins", "Posted", "vs posted"):
         assert c in list(df.columns), f"expected column {c} missing"
 
 
 def test_display_matches_the_artifact():
-    """The table is the CSV, not a re-derivation of it."""
     at = _run()
     df = _table(at)
     csv = pd.read_csv(_CSV)
@@ -119,92 +102,49 @@ def test_display_matches_the_artifact():
     merged = df.merge(csv, left_on="Team", right_on="team")
     assert len(merged) == 32
     assert (merged["Proj Wins"] - merged["proj_wins"]).abs().max() < 1e-9
-    assert (merged["Median"] - merged["p50"]).abs().max() < 1e-9
-    assert ((merged["80% Range"]) - (merged["p90_y"] - merged["p10_y"])).abs().max() < 1e-9
+    assert (merged["Posted"] - merged["posted"]).abs().max() < 1e-9
+    assert (merged["vs posted"] - merged["vs_posted"]).abs().max() < 1e-9
 
 
 def test_league_conservation_survives_to_the_display():
     at = _run()
     df = _table(at)
-    games = int(pd.read_csv(_CSV)["games_scheduled"].sum() / 2)
-    assert abs(float(df["Proj Wins"].sum()) - games) < 0.01, \
+    assert abs(float(df["Proj Wins"].sum()) - 272.0) < 0.01, \
         "the displayed projections no longer sum to the scheduled game count"
     assert df["Proj Wins"].is_monotonic_decreasing
-
-
-# --------------------------------------------------------------------------- honesty
 
 
 def test_the_backtest_result_is_stated_plainly():
     at = _run()
     text = _text(at).lower()
-    assert "does not beat" in text, "the gate B result must appear on the page, not only in a file"
-    assert "backtested" in text and "not live-validated" in text.replace("live validated",
-                                                                        "live-validated")
-    # the benchmark is named per model_metadata.json claim_licence.naming
-    assert "archived market consensus" in text
-    for forbidden_name in ("vegas", "the sportsbook line"):
+    assert "does not beat" in text
+    assert "posted win total" in text
+    assert "backtested" in text and "not live-validated" in text.replace(
+        "live validated", "live-validated"
+    )
+    for forbidden_name in ("vegas", "the sportsbook line", "archived market consensus"):
         assert forbidden_name not in text, f"benchmark must never be called {forbidden_name!r}"
 
 
 def test_claim_label_is_read_from_the_artifact_not_retyped():
-    """The label on the page must be byte-identical to the one notebook 04 recorded."""
     at = _run()
-    label = str(pd.read_csv(_CSV)["claim_label"].iloc[0])
+    label = str(pd.read_csv(_CSV)["claim"].iloc[0])
     assert label in _text(at), "the artifact's claim label must appear verbatim on the page"
-    meta = json.loads(_META.read_text(encoding="utf-8"))
-    assert label == meta["claim_licence"]["required_label"], \
-        "the CSV label has drifted from model_metadata.json"
 
 
 def test_displayed_evidence_numbers_come_from_the_artifacts():
-    """Every backtest figure on the page is traceable; none is hardcoded copy."""
     at = _run()
     text = _text(at)
-    meta = json.loads(_META.read_text(encoding="utf-8"))
-    comp = json.loads(_COMP.read_text(encoding="utf-8"))
-    mae = float(meta["evidence"]["pooled_mae_headline"])
-    cov = float(meta["evidence"]["coverage80"])
-    bench = float(comp["pooled_mae"]["headline"]["B0_market"])
-    assert f"{mae:.2f} wins" in text, f"backtest MAE {mae:.2f} must be shown"
-    assert f"{cov * 100:.0f}%" in text, f"interval accuracy {cov:.0%} must be shown"
-    assert f"{bench:.2f}" in text, f"benchmark MAE {bench:.2f} must be shown from the artifact"
-    # and the direction is reported the way the numbers actually run
-    assert mae > bench, "the artifacts no longer support the 'does not beat' claim - re-read them"
-    assert f"{mae - bench:+.2f}" in text, "the gap must be shown with its sign"
-
-
-def test_directional_evidence_is_shown_and_is_disconfirming():
-    """PREREGISTRATION Amendment 5 licenses publishing a DISCONFIRMING directional result only.
-
-    So this asserts two separate things: that the result reaches the page at all, and that it is
-    still disconfirming. If a future rebuild produces a rate ABOVE break-even, this test fails on
-    purpose. A positive result is not publishable under A5 and must go back through gate C.
-    """
     ev = json.loads(_EVIDENCE.read_text(encoding="utf-8"))
-    d = ev["direction"]
-    assert d["correct_rate"] <= d["break_even_rate"], (
-        "the directional result is no longer disconfirming, so Amendment 5 does not license "
-        "publishing it. Gate C, not this page, is where a positive claim gets decided.")
-    text = _text(_run())
-    assert f"{d['correct_rate']:.2%}" in text, "the measured rate must be shown"
-    assert f"{d['break_even_rate']:.2%}" in text, "the break-even rate must be shown"
-    assert str(d["seasons_above_break_even"]) in text and str(d["seasons_total"]) in text
-    assert "does not beat" in text.lower()
-
-
-def test_power_note_travels_with_the_directional_number():
-    """A5.3: the number may not be published without its sample-size caveat, in both directions."""
-    text = _text(_run()).lower()
-    assert "sample-size problem" in text or "sample size problem" in text
-    assert "not a demonstrated absence" in text, \
-        "the reader must be told absence of evidence is not evidence of absence"
-    ev = json.loads(_EVIDENCE.read_text(encoding="utf-8"))
-    assert str(ev["direction"]["power_note"]["seasons_needed"]) in text
+    mae = float(ev["mae_model"])
+    bench = float(ev["mae_market"])
+    assert f"{mae:.4f} wins" in text, f"backtest MAE {mae:.4f} must be shown"
+    assert f"{bench:.4f}" in text, f"posted MAE {bench:.4f} must be shown from the artifact"
+    assert mae > bench, "the artifacts no longer support the 'does not beat' claim"
+    assert f"{mae - bench:+.4f}" in text, "the gap must be shown with its sign"
 
 
 def test_accuracy_ladder_is_anchored_not_a_bare_number():
-    """A bare 2.37 means nothing. The ladder has to show what beating nothing looks like."""
     at = _run()
     ladder = None
     for el in at.dataframe:
@@ -220,16 +160,14 @@ def test_accuracy_ladder_is_anchored_not_a_bare_number():
     m = ladder["Average miss (wins)"]
     assert m.is_monotonic_decreasing, "the ladder must run worst to best"
     ev = json.loads(_EVIDENCE.read_text(encoding="utf-8"))
-    assert abs(float(m.iloc[-1]) - ev["accuracy"]["ladder"][-1]["mae"]) < 1e-9
+    assert abs(float(m.iloc[-1]) - ev["ladder"][-1]["mae"]) < 1e-9
+    names = list(ladder["Approach"])
+    assert names[-1] == "Posted win total"
+    assert "This model" in names
+    assert "Retired Monte Carlo" in names
 
 
 def test_evidence_section_degrades_without_its_artifact(tmp_path, monkeypatch):
-    """A missing evidence file must drop the section, never break the page or half-render it.
-
-    monkeypatch, not a bare assignment: AppTest.from_function re-executes the function against the
-    SAME module object, so mutating `_EVIDENCE` inline leaks the absent path into every later test
-    in the file. monkeypatch restores it at teardown.
-    """
     import page_futures
 
     monkeypatch.setattr(page_futures, "_EVIDENCE", tmp_path / "absent.json")
@@ -238,48 +176,30 @@ def test_evidence_section_degrades_without_its_artifact(tmp_path, monkeypatch):
     assert not at.error, [e.value for e in at.error]
     txt = " ".join(str(e.value) for g in (at.markdown, at.caption, at.subheader) for e in g)
     assert "How good is this" not in txt, "the section must vanish, not half-render"
-    # the projections themselves must survive the missing evidence file
     assert any("Proj Wins" in str(list((e.value.data if hasattr(e.value, "data") else e.value)
                                        .columns)) for e in at.dataframe)
 
 
 def test_no_hardcoded_backtest_number_in_the_source():
-    """A literal like 2.25 typed into the page would survive an artifact change silently."""
-    comp = json.loads(_COMP.read_text(encoding="utf-8"))
-    meta = json.loads(_META.read_text(encoding="utf-8"))
+    ev = json.loads(_EVIDENCE.read_text(encoding="utf-8"))
     src = _PAGE.read_text(encoding="utf-8")
-    for n in (comp["pooled_mae"]["headline"]["B0_market"],
-              meta["evidence"]["pooled_mae_headline"],
-              meta["evidence"]["coverage80"]):
-        for literal in (f"{n:.2f}", f"{n:.3f}"):
+    for n in (ev["mae_model"], ev["mae_market"], ev["mae_persist"], ev["mae_retired_m4c"]):
+        for literal in (f"{n:.2f}", f"{n:.3f}", f"{n:.4f}"):
             assert literal not in src, \
                 f"{literal!r} is typed into page_futures.py - read it from the artifact instead"
 
 
-# --------------------------------------------------------------------------- the fence
-
-
 def test_language_fence_holds_against_the_guards_own_vocabulary():
-    """PREREGISTRATION §7: the fenced words may not appear on the page while gate C is shut.
-
-    The vocabulary is imported from tier_lock rather than retyped, so this test cannot fall out
-    of sync with the pipeline guard. `GO-TIER-B` is an audited literal and is exempted the same
-    way tier_lock exempts it, by exact string and never by token.
-    """
-    from tier_lock import TIER_C_BANNED, tokens
+    from language_fence import BANNED, tokens
 
     at = _run()
     text = _text(at)
-    for literal in ("GO-TIER-B",):
-        text = text.replace(literal, " ")
-    hits = sorted(tokens(text) & TIER_C_BANNED)
+    hits = sorted(tokens(text) & BANNED)
     assert not hits, f"fenced vocabulary on the Season Totals page: {hits}"
 
 
 def test_no_market_columns_reach_the_display():
-    """Gate C is shut. This is a SCHEMA check - the word scan above cannot catch these names,
-    because most of them carry no banned token (the finding notebook 05 records)."""
-    from tier_lock import TIER_C_BANNED, tokens
+    from language_fence import BANNED, tokens
 
     market = ("win_total_line", "book", "line_as_of", "p_over", "p_under", "p_push",
               "Line", "Book", "Over", "Under", "Push")
@@ -287,16 +207,12 @@ def test_no_market_columns_reach_the_display():
     cols = {str(c) for el in at.dataframe
             for c in list((el.value.data if hasattr(el.value, "data") else el.value).columns)}
     assert not (cols & set(market)), f"market columns on display: {sorted(cols & set(market))}"
-    # pin the reason this test exists separately from the vocabulary one
-    assert not (tokens("p_over") & TIER_C_BANNED), \
-        "tier_lock now covers p_over - re-derive which mechanism excludes market columns"
-
-
-# --------------------------------------------------------------------------- runtime
+    assert "Posted" in cols
+    assert not (tokens("p_over") & BANNED), \
+        "language_fence now covers p_over - re-derive which mechanism excludes market columns"
 
 
 def test_runtime_separation_no_training_dependency():
-    """PREREGISTRATION §8: the deployed page reads artifacts with pandas/streamlit only."""
     tree = ast.parse(_PAGE.read_text(encoding="utf-8"))
     imported = set()
     for node in ast.walk(tree):
@@ -305,20 +221,13 @@ def test_runtime_separation_no_training_dependency():
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".")[0])
     banned = {"sklearn", "lightgbm", "xgboost", "scipy", "joblib", "numpy", "nflreadpy",
-              "m4_engine", "papermill", "torch"}
+              "m4_engine", "papermill", "torch", "seasonal_totals_v2_beta"}
     assert not (imported & banned), f"page_futures imports training dependencies: {imported & banned}"
     assert imported <= {"json", "pathlib", "pandas", "streamlit"}, \
         f"unexpected page imports: {sorted(imported - {'json', 'pathlib', 'pandas', 'streamlit'})}"
 
 
 def test_no_dash_pause_glyphs_in_page_copy():
-    """Working rule 11: zero em dashes anywhere, including on-screen copy and code comments.
-
-    The en dash is covered too when it is used as a pause; a numeric range takes a plain hyphen.
-    The glyphs are built from codepoints rather than typed, so this file never contains the
-    characters it rejects and cannot fail on its own source. It scans the page module and the
-    rendered artifact text, not itself.
-    """
     em, en = chr(0x2014), chr(0x2013)
     src = _PAGE.read_text(encoding="utf-8")
     assert em not in src, "em dash in page_futures.py"
@@ -327,13 +236,11 @@ def test_no_dash_pause_glyphs_in_page_copy():
     rendered = _text(at)
     assert em not in rendered, "em dash in the copy this page puts on screen"
     assert en not in rendered, "en dash in the copy this page puts on screen"
-    label = str(pd.read_csv(_CSV)["claim_label"].iloc[0])
+    label = str(pd.read_csv(_CSV)["claim"].iloc[0])
     assert em not in label and en not in label, "the artifact's claim label carries a dash glyph"
 
 
 def test_page_uses_only_shared_layout_primitives():
-    """No bespoke layout means the shared mobile.py content layer already covers this page at
-    phone and tablet widths; nothing here needs its own responsive rules."""
     src = _PAGE.read_text(encoding="utf-8")
     assert "st.markdown(" in src
     assert "unsafe_allow_html" not in src, \
@@ -341,18 +248,11 @@ def test_page_uses_only_shared_layout_primitives():
     assert "width=\"stretch\"" in src, "the table must stretch rather than carry a fixed pixel width"
 
 
-# --------------------------------------------------------------------------- wiring
-
-
 def test_registered_in_the_multipage_entrypoint():
     src = (_HERE / "app.py").read_text(encoding="utf-8")
     assert 'url_path="season-totals"' in src, "the page needs a stable url_path"
     assert '"season-totals": fut_pg' in src, "the page must be in the cross-link registry"
-    # the nav label carries the beta flag; url_path deliberately does NOT, so removing the flag
-    # later cannot break a shared link
     assert 'title="Season Totals (Beta)"' in src, "the nav label must carry the beta flag"
-    assert 'url_path="season-totals"' in src
-    # lazily imported like every other page
     tree = ast.parse(src)
     eager = {a.name for n in ast.walk(tree) if isinstance(n, ast.Import)
              for a in n.names if a.name.startswith("page_")}
@@ -380,4 +280,4 @@ if __name__ == "__main__":
     test_page_uses_only_shared_layout_primitives()
     test_registered_in_the_multipage_entrypoint()
     test_app_boots_with_the_page_wired_in()
-    print("OK  Season Totals page: renders, artifact-traceable numbers, fence holds, app boots")
+    print("OK  Season Totals page: leftover mix, artifact-traceable numbers, fence holds, app boots")
