@@ -124,7 +124,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 
 - **Draft Board:** 180-player Model Proj, frozen until the early-September snapshot. Sleeper ADP (default) and ESPN ADP, plus Sleeper Proj, refresh daily.
 - **Rookie Board:** hit % and RB/WR/TE season-total projections for the 2024-2026 classes.
-- **Season Totals (Beta):** 32-team win projections. HIGH is the only certified pick.
+- **Season Totals:** 32-team win projections. HIGH is the only certified pick.
 - **Weekly Predictions:** 2026 matchups are up. Picks lock Tuesday 9:00 ET. HIGH is the green 3-point Tuesday ticket.
 - **Weekly Fantasy:** opens on 2026 Week 1. Those rankings land once that file is published.
 
@@ -145,7 +145,7 @@ Everything lives in the top navigation bar, grouped into three menus:
 
 - **Home**: a stable overview of what is live and where to start.
 - **Fantasy**: Draft Board, Rookie Board, and Weekly Fantasy.
-- **Betting**: Weekly Predictions, Track Record, and Season Totals (Beta).
+- **Betting**: Weekly Predictions, Track Record, and Season Totals.
 - **More**: Film Room, League History, and this Help & Guide.
 
 The site opens on **Home** every time. There is no sidebar. Each product page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) near the top. Season and Week selections on Weekly Predictions and Weekly Fantasy are reflected in the URL, so a filtered view can be shared.
@@ -198,7 +198,7 @@ Week-by-week bars, a cumulative line, and a breakdown of HIGH versus the rest. B
 2026 Track Record grades HIGH by the Tuesday 3-point rule. There is no medium bucket. 2026 Track Record does not include totals.
         """)
 
-    with st.expander("What is the Season Totals (Beta) page?"):
+    with st.expander("What is the Season Totals page?"):
         st.markdown("""
 The Season Totals page leads with the **high-confidence** win record on held-out
 seasons (projection at least 1 win off the posted number). Every team still gets

@@ -309,7 +309,7 @@ def _posted_stamp(df: pd.DataFrame, ev: dict) -> str:
 
 
 def render():
-    st.title("Season Totals (Beta)")
+    st.title("Season Totals")
     st.caption(
         "Pre-season win projections for all 32 teams. High-confidence calls are "
         "the only picks this page highlights."

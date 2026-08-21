@@ -35,7 +35,7 @@ def test_help_renders_offline_clean(tmp_path):
         for e in at.expander
     )
     assert any(
-        "What is the Season Totals (Beta) page?" in str(e.label)
+        "What is the Season Totals page?" in str(e.label)
         for e in at.expander
     )
     assert not any(
@@ -50,10 +50,12 @@ def test_help_renders_offline_clean(tmp_path):
 def test_help_site_org_and_paused_copy(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
-    assert "Season Totals (Beta)" in md
+    assert "Season Totals" in md
+    assert "Season Totals (Beta)" not in md
     assert "Draft Board" in md
     assert "opens on **Home**" in md
-    assert any("Season Totals (Beta)" in str(e.label) for e in at.expander)
+    assert any("What is the Season Totals page?" in str(e.label) for e in at.expander)
+    assert not any("Season Totals (Beta)" in str(e.label) for e in at.expander)
     assert "Coming soon" in md
     assert "currently uses mock data" not in md
     assert "roadmap for the 2026 season" not in md

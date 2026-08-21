@@ -102,9 +102,7 @@ help_pg = st.Page(_lazy_render("page_help"), title="Help & Guide", icon=":materi
                   url_path="help")
 rb_pg = st.Page(_lazy_render("page_rookie_board"), title="Rookie Board", icon=":material/biotech:",
                 url_path="rookie-board")
-# "(Beta)" rides in the nav label because st.Page titles are plain text (no HTML in the top nav),
-# and the url_path stays "season-totals" so the flag can come off without breaking a shared link.
-fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals (Beta)", icon=":material/bar_chart:",
+fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals", icon=":material/bar_chart:",
                  url_path="season-totals")
 
 # Every validated release game gets a hidden, directly shareable route. Streamlit

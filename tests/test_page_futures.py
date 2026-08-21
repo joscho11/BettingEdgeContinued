@@ -186,6 +186,14 @@ def test_language_fence_holds_against_the_guards_own_vocabulary():
     assert not hits, f"fenced vocabulary on the Season Totals page: {hits}"
 
 
+def test_season_totals_title_has_no_beta_flag():
+    at = _run()
+    titles = " ".join(str(t.value) for t in at.title)
+    assert "Season Totals" in titles
+    assert "(Beta)" not in titles
+    assert "Season Totals (Beta)" not in _text(at)
+
+
 def test_no_market_columns_reach_the_display():
     market = ("win_total_line", "book", "line_as_of", "p_over", "p_under",
               "Line", "Book", "Over", "Under", "Push")

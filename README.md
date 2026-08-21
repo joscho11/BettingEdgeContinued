@@ -15,7 +15,7 @@ JoScho Analytics is a source-available Streamlit site for NFL betting analysis, 
 | **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, release status, and links to each matchup. |
 | **Matchup Pages** | Shareable game pages with the model margin, market line, edge, injuries, team form, and a downloadable social card. |
 | **Track Record** | Graded against-the-spread results, confidence tiers, model comparisons, streaks, and betting simulations. |
-| **Season Totals (Beta)** | Win projections for all 32 teams compared with posted season totals. |
+| **Season Totals** | Win projections for all 32 teams compared with posted season totals. |
 | **League History** | Sleeper and ESPN league records, rivalries, manager profiles, draft habits, roster production, and league-wide trends. |
 | **Film Room** | Short video breakdowns with written analysis and links to the related product. |
 | **Help & Guide** | Betting definitions, model summaries, feature explanations, confidence rules, and product limitations. |
