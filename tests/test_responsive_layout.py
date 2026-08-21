@@ -365,6 +365,35 @@ def test_probe_finds_every_control(browser, app_url):
         ctx.close()
 
 
+@pytest.mark.parametrize("width", [390, 1440])
+def test_weekly_prediction_scorecards_share_one_height(browser, app_url, width):
+    """Delta text must not make some scorecards taller than their row peers."""
+    touch = width < ST_BREAKPOINT_NAV
+    ctx = browser.new_context(
+        viewport={"width": width, "height": 844},
+        is_mobile=touch,
+        has_touch=touch,
+    )
+    try:
+        page = ctx.new_page()
+        page.goto(
+            app_url + "/weekly-predictions?wp_season=2025&wp_week=10",
+            wait_until="domcontentloaded",
+            timeout=60_000,
+        )
+        cards = page.locator(
+            '.st-key-jsa-metric-even-wp [data-testid="stMetric"]'
+        )
+        cards.first.wait_for(state="visible", timeout=30_000)
+        heights = cards.evaluate_all(
+            "els => els.map(el => el.getBoundingClientRect().height)"
+        )
+        assert len(heights) == 4
+        assert max(heights) - min(heights) <= 1, heights
+    finally:
+        ctx.close()
+
+
 @pytest.mark.parametrize("width", WIDTHS)
 def test_header_controls_are_reachable(browser, app_url, width):
     """No overlap, no h-scroll, and every visible control is the topmost thing at its

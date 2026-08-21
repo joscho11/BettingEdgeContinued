@@ -66,6 +66,22 @@ _CSS = """
   padding:14px 16px;
   transition:border-color 150ms var(--jsa-ease), transform 150ms var(--jsa-ease);
 }
+/* Metric rows marked as even use the tallest card as the row height. Streamlit
+   otherwise leaves metrics with a delta line 27px taller than their neighbours. */
+[class*="st-key-jsa-metric-even"]{
+  align-items:stretch !important;
+}
+[class*="st-key-jsa-metric-even"] > [data-testid="stElementContainer"]{
+  align-self:stretch !important;
+  display:flex !important;
+  height:auto !important;
+}
+[class*="st-key-jsa-metric-even"] > [data-testid="stElementContainer"] > [data-testid="stMetric"]{
+  box-sizing:border-box !important;
+  flex:1 1 auto !important;
+  height:100% !important;
+  width:100% !important;
+}
 @media (hover:hover){
   [data-testid="stMetric"]:hover{ border-color:var(--jsa-accent-2); transform:translateY(-1px); }
 }
