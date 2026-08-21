@@ -1,0 +1,37 @@
+# How to see your league's history
+
+*2026 · Sleeper and ESPN League History walkthrough*
+
+**The one-liner:** Load a Sleeper or ESPN league once, then explore its drafts, transactions, standings, titles, rivalries, scoring, and luck across every available season.
+
+---
+
+## 1. Open the page
+
+On the site, choose **More → League History**. Select Sleeper or ESPN, enter the league ID, then choose **Load league history**.
+
+- **Sleeper:** Copy the long number from `sleeper.com/leagues/{ID}/league`, or use **League settings → General → Copy League ID** in the phone app.
+- **ESPN:** Copy the digits after `leagueId=` and enter the latest season shown in the league URL. A private league also needs the `SWID` and `espn_s2` values from a signed-in desktop browser.
+
+The first import can take a few seconds per season. Public results are cached for an hour. Private ESPN credentials are cleared after a successful load and are not shared-cached.
+
+---
+
+## 2. Explore the archive
+
+The page organizes the record into six views:
+
+- **Draft & Roster Insights:** historical lineup production, values, transactions, and draft tendencies.
+- **All-Time Leaderboard:** results and scoring compared with each week's league average.
+- **Hall of Fame:** the league's record games and biggest extremes.
+- **Rivalries:** head-to-head records, matchup exploration, and generated weekly slates.
+- **Report Cards:** one manager's winning, scoring, and consistency over time.
+- **Consistency & Luck:** scoring volatility and actual wins versus all-play expectation.
+
+Use the season filter for one year or select all-time for the full record. The page works on a phone, but the wider charts and tables are easier to compare on a computer.
+
+---
+
+## 3. Read it as history, not a forecast
+
+League History describes what happened. It does not rank the best manager for you, predict the next season, or turn draft tendencies into recommendations. The value is having the full record in one place so those arguments can start from the same evidence.

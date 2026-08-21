@@ -47,6 +47,32 @@ def test_help_renders_offline_clean(tmp_path):
     )
 
 
+def test_league_history_help_deep_links_to_current_walkthrough(tmp_path):
+    harness = tmp_path / "h_help_navigation.py"
+    harness.write_text(
+        f"import sys; sys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "import streamlit as st\n"
+        "import nav_registry\n"
+        "import page_help\n"
+        "film = st.Page(lambda: st.write('Film Room'), title='Film Room', "
+        "url_path='film-room')\n"
+        "help_page = st.Page(page_help.render, title='Help & Guide', "
+        "url_path='help', default=True)\n"
+        "nav_registry.PAGES = {'film-room': film}\n"
+        "st.navigation([help_page, film], position='hidden').run()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness), default_timeout=180).run()
+    assert not at.exception, at.exception
+    links = [
+        link
+        for link in at.get("page_link")
+        if link.label == "Watch the League History walkthrough"
+    ]
+    assert len(links) == 1
+    assert links[0].query_string == "video=league-history-guide"
+
+
 def test_help_site_org_and_paused_copy(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)

@@ -19,7 +19,10 @@ sorts to the end.
 # render it.
 INTRO_VIDEO = None
 
-# Player / topic videos. Each gets an embed + a click-to-open written breakdown.
+# Help & Guide deep-links to the current walkthrough without owning a second copy.
+LATEST_LEAGUE_HISTORY_VIDEO_SLUG = "league-history-guide"
+
+# Analysis / walkthrough videos. Each gets an embed + click-to-open written context.
 # `archived: True` + `archive_note` adds a compact "📼 Archived: why?" pop-out to the
 # card (the note + Draft Board cross-link live inside it; see film_room.render_film_room).
 VIDEOS = [
@@ -140,5 +143,14 @@ VIDEOS = [
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7675129111659957534",
         "video_id": "7675129111659957534",
         "breakdown_file": "jefferson_deep_dive.md",
+    },
+    {
+        "slug": LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
+        "title": "How to See Your League's History",
+        "subtitle": "2026 · Sleeper + ESPN League History walkthrough",
+        "date": "2026-08-20",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7676271983297940766",
+        "video_id": "7676271983297940766",
+        "breakdown_file": "league_history_guide.md",
     },
 ]

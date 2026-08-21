@@ -16,7 +16,11 @@ _SITE_PAGES = _HERE / "site_pages"
 sys.path.insert(0, str(_HERE))
 
 from film_room import _embed_src  # noqa: E402
-from video_content import INTRO_VIDEO, VIDEOS  # noqa: E402
+from video_content import (  # noqa: E402
+    INTRO_VIDEO,
+    LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
+    VIDEOS,
+)
 
 
 def _render(tmp_path):
@@ -111,11 +115,11 @@ def test_every_episode_has_a_breakdown_file():
         assert item["video_id"] in item["tiktok_url"]
 
 
-def test_jefferson_episode_is_newest():
+def test_latest_league_history_guide_is_newest():
     newest = _newest()
-    assert newest["slug"] == "jefferson-deep-dive"
-    assert newest["video_id"] == "7675129111659957534"
-    assert newest["date"] == "2026-08-17"
+    assert newest["slug"] == LATEST_LEAGUE_HISTORY_VIDEO_SLUG
+    assert newest["video_id"] == "7676271983297940766"
+    assert newest["date"] == "2026-08-20"
 
 
 def test_breakdowns_and_registry_do_not_disclose_sleeper_mix():

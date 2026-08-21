@@ -13,6 +13,7 @@ import help_models
 import nav_registry
 from dashboard_utils import breakeven_verdict
 from live_2026 import LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS
+from video_content import LATEST_LEAGUE_HISTORY_VIDEO_SLUG
 
 
 def render():
@@ -250,7 +251,7 @@ Collapsed lists of **college players who are not in this year's rookie class** u
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-Short, model-backed video breakdowns. The newest episode is already loaded. Pick another title to swap the player. **📖 Full breakdown** opens the write-up the short couldn't fit.
+Short analysis videos and site walkthroughs. The newest episode is already loaded. Pick another title to swap the player. **📖 Full breakdown** opens the context the short couldn't fit.
 
 Some older videos predate later validation work and make calls I wouldn't make today. Those carry a **📼 Archived: why?** pop-out. They stay up, unedited, as part of the record.
         """)
@@ -265,6 +266,15 @@ Choose Sleeper or ESPN, paste the league ID, and hit Load. Sleeper IDs come from
 
 First load is usually a few seconds per Sleeper season and 10-25 seconds per ESPN season. Public results are cached for an hour. Private ESPN results and normalized league data stay only in the current browser session; credential fields clear after a successful load and the cookie values are never logged or shared-cached. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
         """)
+        film_room_page = nav_registry.PAGES.get("film-room")
+        if film_room_page is not None:
+            st.page_link(
+                film_room_page,
+                label="Watch the League History walkthrough",
+                icon=":material/play_circle:",
+                width="stretch",
+                query_params={"video": LATEST_LEAGUE_HISTORY_VIDEO_SLUG},
+            )
 
     with st.expander("What is the LLM agent and what does it do?"):
         st.markdown("""

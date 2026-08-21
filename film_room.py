@@ -218,7 +218,7 @@ def _render_player(item: dict | None, open_breakdown) -> None:
 def render_film_room(*, show_header: bool = True) -> None:
     if show_header:
         st.header("Film room")
-        st.caption("Model-backed breakdowns. Watch the short, then open the full analysis.")
+        st.caption("Analysis and site walkthroughs. Watch the short, then open the full context.")
     st.markdown(_PICKER_CSS, unsafe_allow_html=True)
 
     intro = _intro_item()
