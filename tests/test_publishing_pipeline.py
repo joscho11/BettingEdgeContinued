@@ -1,6 +1,7 @@
 """Release safety: validation, immutable activation, rollback, status, and grading."""
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,7 +10,7 @@ import pandas as pd
 import pytest
 
 from publishing.candidate import build_candidate_metadata
-from publishing.contract import PublicationError
+from publishing.contract import PublicationError, sha256_file
 from publishing.grader import grade_fantasy, grade_predictions
 from publishing.manifest import (
     default_selection,
@@ -85,6 +86,30 @@ def _fantasy_candidate(tmp_path: Path):
         "gameday": "2026-09-09", "gametime": "20:20",
     }])
     return artifact, metadata, schedule
+
+
+def test_text_artifact_hash_is_stable_across_git_line_endings(tmp_path):
+    lf = tmp_path / "release-lf.csv"
+    crlf = tmp_path / "release-crlf.csv"
+    lf.write_bytes(b"game_id,week\n2026_01_NE_SEA,1\n")
+    crlf_payload = b"game_id,week\r\n2026_01_NE_SEA,1\r\n"
+    crlf.write_bytes(crlf_payload)
+
+    expected = hashlib.sha256(crlf_payload).hexdigest()
+    assert sha256_file(lf) == expected
+    assert sha256_file(crlf) == expected
+
+
+def test_published_release_survives_git_line_ending_normalization(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    artifact, metadata, schedule = _prediction_candidate(tmp_path)
+    build = publish_candidate(artifact, metadata, schedule=schedule, root=site)
+    stored = site / build["artifact"]
+    stored.write_bytes(stored.read_bytes().replace(b"\r\n", b"\n"))
+
+    status = release_status("predictions", 2026, 1, root=site)
+    assert status["status"] == "Published"
 
 
 def test_prediction_contract_detects_duplicates_and_schedule_gaps(tmp_path):

@@ -1,7 +1,6 @@
 """Assemble one provenance-aware matchup view model."""
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -9,6 +8,7 @@ from typing import Any
 import pandas as pd
 
 from betting.live_2026 import row_display_high, row_high_dropped
+from publishing.contract import sha256_file
 from publishing.paths import resolve_site_path
 
 from .catalog import find_released_game
@@ -180,7 +180,7 @@ def _load_release_enrichment(root: Path, build: dict, game_id: str) -> dict:
         return {}
     if not path.is_file():
         return {}
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    digest = sha256_file(path)
     if digest != str(expected):
         return {}
     try:

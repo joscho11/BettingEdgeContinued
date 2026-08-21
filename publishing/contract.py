@@ -9,6 +9,7 @@ from typing import Iterable
 
 SCHEMA_VERSION = 1
 PRODUCTS = ("predictions", "fantasy")
+TEXT_ARTIFACT_SUFFIXES = frozenset({".csv", ".json", ".jsonl", ".tsv"})
 
 
 class PublicationError(RuntimeError):
@@ -62,8 +63,17 @@ def parse_aware_datetime(value: object) -> datetime:
 
 
 def sha256_file(path: str | Path) -> str:
+    source = Path(path)
+    if source.suffix.lower() in TEXT_ARTIFACT_SUFFIXES:
+        # Git normalizes checked-in text to LF on Linux, while the original
+        # Windows releases were hashed with CRLF. Hash a canonical CRLF form so
+        # the same text artifact retains its identity on either platform.
+        payload = source.read_bytes()
+        payload = payload.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        return hashlib.sha256(payload.replace(b"\n", b"\r\n")).hexdigest()
+
     digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
+    with source.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
