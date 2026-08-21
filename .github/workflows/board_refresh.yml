@@ -1,18 +1,11 @@
 name: Draft Board Market Refresh
 
-# Re-pulls LIVE Sleeper ADP/projections and ESPN ADP for the exact 180-player 2026
-# Draft Board. Recomputes live market-derived columns against the frozen V2 model.
-# Commits ONLY the regenerable overlay CSVs; never a frozen artifact. A failed pull
-# for one source leaves that source's last-good overlay in place.
+# Re-pulls live Sleeper ADP/projections and ESPN ADP for the 180-player 2026
+# Draft Board. Commits only the regenerable overlay CSVs.
 
 on:
   schedule:
-    # Daily 13:00 UTC = 9am ET (EDT). Cadence is this one line: weekly = '0 13 * * 2'.
-    # On/after SEASON_START (default 2026-09-09) the scheduled run auto-pauses (no-op,
-    # commits nothing) via the date guard in refresh_board_adp.py.
     - cron: '0 13 * * *'
-
-  # Manual run — always executes (bypasses the in-season pause).
   workflow_dispatch:
     inputs:
       force:
@@ -41,30 +34,13 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      # Lean install — an ADP pull needs only pandas + requests (no model stack).
       - name: Install dependencies
         run: pip install pandas requests
-
-      # ---------------------------------------------------------------------------
-      # POINT-IN-TIME MARKET ARCHIVE (research evidence; see capture_market_snapshot.py)
-      # Runs BEFORE the board refresh so the raw response is archived before any lossy
-      # field selection. Deliberately NOT gated by the in-season pause that stops the
-      # board overlay: capturing through the season is how we would detect Sleeper
-      # mutating its 2026 projections toward realized values, which is exactly the
-      # contamination confirmed for 2020 and the reason this archive exists.
-      # FAILURE ISOLATION: continue-on-error, so a failed research capture is visible as
-      # a red step and diagnosable in failures.jsonl but NEVER blocks the live board.
-      - name: Capture dated Sleeper market snapshot (research, private)
-        id: market_capture
-        continue-on-error: true
-        run: python fantasy/seasonal_projections/capture_market_snapshot.py --season 2026
 
       - name: Refresh board Sleeper market data
         id: sleeper
         continue-on-error: true
         env:
-          # '1' only on a manual dispatch with force=true; empty on schedule so the
-          # in-season date guard governs the scheduled run.
           BOARD_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
         run: python fantasy/seasonal_projections/refresh_board_adp.py
 
@@ -75,37 +51,6 @@ jobs:
           BOARD_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
         run: python fantasy/seasonal_projections/refresh_board_espn_adp.py
 
-      # Capture the PRIVATE research log (adp_logs/ is gitignored — never on the tip).
-      # Uploaded as a build artifact so CI runs' snapshots + ledger rows aren't lost,
-      # without committing them. Runs on success and on abort (to keep the abort ledger row).
-      - name: Upload private ADP log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: adp-logs-${{ github.run_id }}
-          path: fantasy/seasonal_projections/adp_logs/
-          if-no-files-found: ignore
-          retention-days: 90
-
-      # Private point-in-time archive: dated raw response + normalized snapshot +
-      # metadata + append-only manifest/failure ledger. market_snapshots/ is gitignored,
-      # so a CI checkout starts empty and this artifact holds exactly THIS run's capture.
-      # 90 days is the hard ceiling GitHub allows on a PUBLIC repository — see the
-      # retention note in capture_market_snapshot.py; the durable copy is Joseph's local
-      # archive, which never expires.
-      - name: Upload private market snapshot
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: market-snapshot-${{ github.run_id }}
-          path: fantasy/seasonal_projections/market_snapshots/
-          if-no-files-found: warn
-          include-hidden-files: true
-          retention-days: 90
-
-      # Commit whichever overlays actually changed. Runs even if one market failed so
-      # the other source can still publish. A paused run leaves both files unchanged
-      # and this step is a no-op.
       - name: Commit the refreshed overlays
         if: always()
         run: |

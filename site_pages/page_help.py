@@ -136,7 +136,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 
 **Not a prediction model**
 
-Talent Scores are descriptive context. League History is your Sleeper or ESPN league, not a forecast. Film Room is video. DFS is not in the nav yet.
+Talent Scores are descriptive context. League History is your Sleeper or ESPN league, not a forecast. Film Room is video.
         """)
 
     with st.expander("How is the site organized?"):
@@ -253,13 +253,6 @@ Collapsed lists of **college players who are not in this year's rookie class** u
 Short, model-backed video breakdowns. The newest episode is already loaded. Pick another title to swap the player. **📖 Full breakdown** opens the write-up the short couldn't fit.
 
 Some older videos predate later validation work and make calls I wouldn't make today. Those carry a **📼 Archived: why?** pop-out. They stay up, unedited, as part of the record.
-        """)
-
-    with st.expander("What is the DFS Optimizer page?"):
-        st.markdown("""
-**Coming soon.** It is **not in the nav yet**. It ships when it is actually usable, around 2026 Week 1.
-
-When it is live, you upload a DraftKings NFL Classic salary CSV and get the highest-projected legal 9-player lineup under the $50,000 cap, using this site's weekly projections. DST will use DraftKings' season average until there is a team-defense model.
         """)
 
     with st.expander("What is the League History page?"):

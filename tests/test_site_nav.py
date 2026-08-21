@@ -26,7 +26,6 @@ PAGE_MODULES = (
     "page_draft_board",
     "page_rookie_board",
     "page_weekly_fantasy",
-    "page_dfs",
     "page_film_room",
     "page_league_history",
     "page_help",
@@ -69,7 +68,7 @@ def test_sidebar_is_empty_and_footer_present():
     # nav is position="top"; nothing writes to the sidebar -> empty
     assert len(list(at.sidebar.markdown)) == 0, "sidebar must carry no markdown"
     caps = " ".join(str(c.value) for c in at.caption)
-    assert "models and code behind this site are public" in caps, "footer disclosure missing"
+    assert "checked release artifacts" in caps, "footer disclosure missing"
     src = (_HERE / "dashboard_chrome.py").read_text(encoding="utf-8")
     assert '"View public code"' in src and '"Support via Venmo"' in src
 
@@ -133,12 +132,11 @@ def test_page_analytics_are_route_specific_and_deduplicated(tmp_path):
     assert "private_filter" not in json.dumps(events)
 
 
-def test_dfs_stays_built_but_off_the_nav():
+def test_dfs_is_not_in_the_public_site():
     src = Path(ENTRY).read_text(encoding="utf-8")
-    assert '_lazy_render("page_dfs")' in src
-    assert (_HERE / "site_pages" / "page_dfs.py").is_file()
+    assert "page_dfs" not in src
+    assert not (_HERE / "site_pages" / "page_dfs.py").is_file()
     fantasy = src.split('"Fantasy":', 1)[1].split("]", 1)[0]
-    assert "dfs_pg" not in fantasy
     assert "wf_pg" in fantasy
 
 

@@ -143,9 +143,8 @@ def test_approval_is_revoked_when_the_adapter_leaves_the_allowlist(monkeypatch):
 # ---------------------------------------------------------------------------
 def test_the_fabricated_artifact_is_out_of_the_public_path():
     assert not (_HERE / "betting" / "agent_analysis_2025_week10.json").exists()
-    assert (_HERE / "betting" / "quarantine" / "agent_analysis_2025_week10.json").exists(), \
-        "quarantined artifact must be retained, not deleted"
     assert glob.glob(str(_HERE / "betting" / "agent_analysis_*.json")) == []
+    assert not (_HERE / "betting" / "quarantine").exists()
 
 
 def test_loader_rejects_an_unverified_artifact_planted_on_the_real_path():
@@ -192,14 +191,15 @@ def test_unverified_tiers_are_excluded_from_dashboard_statistics():
 # Generation and publication stay disabled
 # ---------------------------------------------------------------------------
 def test_the_weekly_workflow_cannot_regenerate_or_commit_the_artifact():
-    wf = (_HERE / ".github" / "workflows" / "weekly_predictions.yml").read_text(
-        encoding="utf-8")
-    live = "\n".join(ln for ln in wf.splitlines()
-                     if ln.strip() and not ln.strip().startswith("#"))
-    assert "sports_betting_agent.ipynb" not in live, \
-        "the agent notebook is executed by an active workflow step"
-    assert "agent_analysis_" not in live, \
-        "the workflow still stages agent_analysis_*.json for commit"
+    workflows = _HERE / ".github" / "workflows"
+    assert not (workflows / "weekly_predictions.yml").exists()
+    for path in workflows.glob("*.yml"):
+        live = "\n".join(
+            ln for ln in path.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.strip().startswith("#")
+        )
+        assert "sports_betting_agent.ipynb" not in live, path.name
+        assert "agent_analysis_" not in live, path.name
 
 
 def test_help_page_no_longer_claims_market_inputs():

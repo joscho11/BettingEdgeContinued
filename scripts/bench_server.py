@@ -148,7 +148,7 @@ def _watched_paths():
         sys.path[:0] = [str(_HERE), str(_HERE / "site_pages")]
         before = set(sys.modules)
         for m in ("page_weekly_predictions", "page_track_record", "page_draft_board",
-                  "page_rookie_board", "page_weekly_fantasy", "page_dfs",
+                  "page_rookie_board", "page_weekly_fantasy",
                   "page_film_room", "page_league_history", "page_help"):
             __import__(m)
         local = []

@@ -1,3 +1,0 @@
-# J1/J2 convention: huge raw dumps ignored; small provenance tracked
-underdog/*.csv
-!ffa/*.csv

@@ -45,7 +45,6 @@ PAGE_MODULES = (
     "page_draft_board",
     "page_rookie_board",
     "page_weekly_fantasy",
-    "page_dfs",
     "page_film_room",
     "page_league_history",
     "page_help",
@@ -55,8 +54,7 @@ TARGETS = ("app",) + PAGE_MODULES
 # Third-party packages whose presence dominates cold-start CPU and RSS. Reported as a
 # set so a regression ("plotly is back on the cold path") is visible, not inferred.
 HEAVY = ("pandas", "numpy", "polars", "pyarrow", "nflreadpy", "plotly", "streamlit",
-         "requests", "sklearn", "joblib", "xgboost", "lightgbm", "scipy", "catboost",
-         "matplotlib", "altair")
+         "requests", "matplotlib", "altair")
 
 
 # ─────────────────────────────── child-side probes ───────────────────────────────

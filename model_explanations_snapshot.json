@@ -641,27 +641,6 @@
     }
   ],
   "sources": {
-    "betting/models/ensemble_prod_model.pkl": "58d1391be3bf68d17f74c36cb3ed77b7",
-    "betting/models/totals_ridge.pkl": "023a0f1b30ff800cd6aabcdb7ec6c6ae",
-    "betting/models/totals_xgboost.pkl": "995aebedb0833de9df3bfc3fbe7ec214",
-    "fantasy/models/qb_model.pkl": "6d6a9bed0bdffef1dd5aa2e686cb4c68",
-    "fantasy/models/qb_pass_yards_model.pkl": "2087b4c10a08156c1bbd398f028b0370",
-    "fantasy/models/qb_rush_yards_model.pkl": "540525f1b1728c357f969f6e0e07bce9",
-    "fantasy/models/rb_model.pkl": "1f8fee24297403dc024ae7dfffd914e0",
-    "fantasy/models/rb_rec_yards_model.pkl": "6b8babd47fae1971efc6b360bc081b59",
-    "fantasy/models/rb_rush_yards_model.pkl": "f74240a55ad281dfd39a1d1fa29db30d",
-    "fantasy/models/te_model.pkl": "93c85f4029d9837e0d7b957b43f21836",
-    "fantasy/models/te_rec_yards_model.pkl": "56b5c9ba3fcd7cfc2852950be24983ef",
-    "fantasy/models/te_receptions_model.pkl": "bc8dc9dc3f69580e5ed302a304e83ba3",
-    "fantasy/models/wr_model.pkl": "491fc078e208541bbf94479d5f919c45",
-    "fantasy/models/wr_rec_yards_model.pkl": "42efa6ade720d6612b4360ba83796f55",
-    "fantasy/models/wr_receptions_model.pkl": "1a254c466f4323b73dc45ca3668d4d71",
-    "fantasy/projections/models/qb_veteran_model.pkl": "7632549f95995b9702baefdf016d7271",
-    "fantasy/projections/models/rb_rookie_model.pkl": "da230ee66575ca574f02cbc2139e1a80",
-    "fantasy/projections/models/rb_veteran_model.pkl": "167aca71a8511afcced37c0abc846004",
-    "fantasy/projections/models/te_rookie_model.pkl": "f79dad0ab26af5cb4e06a9f1723328cd",
-    "fantasy/projections/models/te_veteran_model.pkl": "5a2f0b504d4cc6fc9a2e04453fd76a44",
-    "fantasy/projections/models/wr_rookie_model.pkl": "6c9a3f3ed02ce32c53594f383aade882",
-    "fantasy/projections/models/wr_veteran_model.pkl": "17dfbcf01054bdd5ce032f2b55df9ad2"
+    "kind": "static-help-cards"
   }
 }

@@ -1,7 +1,7 @@
 """Hermetic tests for betting/calibration.py.
 
 No network / no CSV I/O — every test runs on small synthetic frames in well under a
-second, so this runs in CI (.github/workflows/test.yml) alongside test_features.py.
+second, so this runs in CI (.github/workflows/test.yml) with the page suites.
 
 Run:  pytest betting/test_calibration.py    (or: python betting/test_calibration.py)
 """

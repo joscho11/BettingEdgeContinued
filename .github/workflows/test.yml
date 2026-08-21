@@ -1,12 +1,8 @@
 name: Tests
 
-# Runs the hermetic feature-pipeline tests (betting/test_features.py) plus the
-# seasonal/dashboard suites on every push and PR against main. Fast and offline —
-# the synthetic-data tests don't hit nflreadpy, so this runs without network flakiness.
-#
-# If you intentionally change a feature list, the order-hash assertion in
-# test_features.py (test_constants_and_order_hashes) will fail. Update the expected
-# hash in the same commit as the pkl retrain — that's the signal it's deliberate.
+# Offline page, publishing, and public-boundary suites on every push and PR
+# against main. This repository is the website plus release artifacts.
+# Training and model files belong in private producer repositories.
 
 on:
   push:
@@ -14,43 +10,13 @@ on:
   pull_request:
     branches: [main]
 
-# Avoid duplicate runs when a PR is opened from a branch in the same repo.
 concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  features:
-    name: features.py contract tests (offline)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements-ci.txt pytest
-
-      # Hermetic synthetic-data tests for betting/features.py (the feature source of
-      # truth). Includes the PROD_FEATURES_35 / FEATURE_COLS_85 order-hash check that
-      # catches a feature-list reorder that would silently invalidate the trained pkls.
-      - name: Run features.py contract tests
-        run: pytest -v betting/test_features.py
-
-      # Hermetic calibration tests (betting/calibration.py): edge/tier → honest cover
-      # probability with Wilson intervals. No network, no CSV I/O.
-      - name: Run calibration tests
-        run: pytest -v betting/test_calibration.py
-
   pytests:
-    name: Python test suites (seasonal + dashboard)
+    name: Python test suites (pages + publishing)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -67,19 +33,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-test.txt
 
-      # Explicit file list (not auto-discovery) so the network/training research
-      # scripts named *_test.py in seasonal_projections/ are never collected here.
-      #
-      # test_responsive_layout.py is listed deliberately even though CI installs no
-      # browser: its nine viewport cases SKIP without playwright/Chromium, while its
-      # browser-free logic test — which pins the header hit-test assertions — runs.
-      # Nothing here installs playwright; adding it would turn CI into a browser job.
       - name: Run hermetic Python test suites
+        env:
+          APP_OFFLINE: '1'
         run: >-
           pytest -v
+          tests/test_public_boundary.py
           tests/test_dashboard_utils.py
-          fantasy/seasonal_projections/test_seasonal_projections.py
-          fantasy/seasonal_projections/test_draft_board.py
+          betting/test_calibration.py
           tests/test_app_draft_board.py
           tests/test_site_nav.py
           tests/test_board_page.py
@@ -102,31 +63,8 @@ jobs:
           tests/test_espn_adp.py
           tests/test_board_refresh.py
           tests/test_board_refresh_coverage.py
+          tests/test_publishing_pipeline.py
 
-      # Talent build suites REMOVED FROM CI 2026-08-08: the build code, specs and tests
-      # were untracked from this public repo (PFF-derived talent scaffolding is local-only
-      # now; the score CSVs the site reads remain tracked). The 26-test suite still runs
-      # locally from the working tree before any talent artifact change ships.
-
-      # Betting execution layer (review 2026-07-17 L-17/R36a): hermetic, sibling
-      # imports require running from betting/. Explicit list, never discovery.
-      - name: Run betting execution-layer suites
-        working-directory: betting
-        run: >-
-          pytest -v
-          test_odds_client.py
-          test_kelly_staking.py
-          test_line_shopping.py
-          test_props_scanner.py
-          test_historical_clv.py
-          test_weekly_clv.py
-
-  # Added 2026-08-03. tests/test_responsive_layout.py holds the ONLY automated proof of the
-  # mobile-navigation fixes, and its 9 browser cases skip cleanly when playwright is absent
-  # -- which meant they had never run in CI, and locally only via an undeclared PYTHONPATH
-  # bridge to a hand-built venv. This job installs the browser and, critically, FAILS if any
-  # case skips: `-p no:randomly -W error::UserWarning` is not enough, so the skip count is
-  # asserted explicitly from the report.
   responsive:
     name: Responsive layout (real browser)
     runs-on: ubuntu-latest
@@ -150,59 +88,6 @@ jobs:
             exit 1
           fi
 
-  # Added 2026-08-03. The DFS lineup ILP had no CI at all and no proof it ever ran on a
-  # real solver -- an earlier verification used a scipy stand-in, which is a different
-  # problem (continuous relaxation) and is NOT evidence that the binary program solves.
-  # This job installs pulp, proves the bundled CBC binary is really present and runnable,
-  # and runs the optimizer + matching suites. Like the responsive job it FAILS on any
-  # skip: a skipped solver test is exactly the "CBC is missing" condition it exists to
-  # catch, so the counts are asserted explicitly (23 optimizer + 36 matching = 59).
-  dfs-optimizer:
-    name: DFS optimizer (real PuLP/CBC solve)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install deps (pulp range as declared in requirements-research.txt)
-        run: pip install -r requirements-ci.txt pytest "pulp>=2.7,<4.0"
-
-      # Fail here, loudly, rather than let the suite skip: PULP_CBC_CMD.available()
-      # returns the solver PATH in PuLP 3.x (truthy str, not the literal True).
-      - name: REQUIRE a runnable CBC binary and record it
-        run: |
-          python - <<'PY'
-          import sys, pathlib
-          sys.path.insert(0, "fantasy/dfs")
-          from lineup_optimizer import assert_cbc_available
-          info = assert_cbc_available()
-          for k, v in info.items():
-              print(f"{k:16s}: {v}")
-          assert info["available"] is True, info
-          assert pathlib.Path(info["path"]).exists(), info
-          assert info["cbc_version"], "no version string read out of the CBC binary"
-          PY
-
-      - name: Run the DFS suites and REQUIRE zero skips
-        run: |
-          set -o pipefail
-          pytest -v -rs \
-            fantasy/dfs/test_lineup_optimizer.py \
-            fantasy/dfs/test_dfs_matching.py | tee /tmp/dfs.log
-          if grep -qE "^SKIPPED|[0-9]+ skipped" /tmp/dfs.log; then
-            echo "::error::DFS cases skipped -- CBC or the retained week-10 pool is missing"
-            exit 1
-          fi
-          if ! grep -qE "(^|[^0-9])59 passed" /tmp/dfs.log; then
-            echo "::error::expected exactly 59 DFS tests to pass (23 optimizer + 36 matching)"
-            exit 1
-          fi
-
   deploy-parity:
     name: deploy parity (py3.12 + requirements.txt, as the cloud installs)
     runs-on: ubuntu-latest
@@ -218,24 +103,15 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      # Install EXACTLY what Streamlit Cloud installs (requirements.txt,
-      # floating resolution) plus pytest as the runner. This is the permanent
-      # fix for "the deployed combination is the only one nothing tests"
-      # (audit 2026-07-12, H2): a resolver conflict or API break in the
-      # deployed environment fails here before it fails on the live site.
       - name: Install the cloud deploy set
         run: pip install -r requirements.txt pytest
 
-      # These are the app/runtime suites only. Model-training and seasonal
-      # pipeline suites run in the jobs above with requirements-test.txt; keeping
-      # them out of this step lets requirements.txt remain the true cloud closure.
-      #
-      # test_responsive_layout.py imports only the stdlib at module level (playwright is
-      # an optional import), so it collects cleanly against the bare cloud closure: the
-      # nine viewport cases skip, the logic test runs. It does NOT add a dependency.
       - name: Run app suites under the exact deploy environment
+        env:
+          APP_OFFLINE: '1'
         run: >-
           pytest -v
+          tests/test_public_boundary.py
           tests/test_dashboard_utils.py
           tests/test_app_draft_board.py
           tests/test_site_nav.py

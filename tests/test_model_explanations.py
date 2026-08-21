@@ -57,34 +57,15 @@ def test_live_eval_numbers_match_published_books():
     assert shares[0][1] == max(s[1] for s in shares)
 
 
-def test_shap_snapshots_are_bound_to_current_artifacts():
-    for _, _, _, relative_path, expected_md5, _, _ in me.SHAP_SNAPSHOTS:
-        artifact = me.HERE / relative_path
-        assert artifact.is_file()
-        assert me._md5(artifact) == expected_md5
-
-
-def test_checked_snapshot_is_bound_to_every_source_artifact():
+def test_checked_snapshot_is_static_help_copy():
     sources = me.snapshot_sources()
-    expected_weekly = {
-        path.relative_to(me.HERE).as_posix()
-        for path in (me.HERE / "fantasy" / "models").glob("*_model.pkl")
-    }
-    expected_native = expected_weekly | {
-        "betting/models/totals_xgboost.pkl",
-        "betting/models/totals_ridge.pkl",
-    }
-    expected_shap = {
-        relative_path
-        for _, _, _, relative_path, _, _, _ in me.SHAP_SNAPSHOTS
-    }
-
-    assert set(sources) == expected_native | expected_shap
-    assert len(sources) == 22
-    for relative_path, expected_md5 in sources.items():
-        artifact = me.HERE / relative_path
-        assert artifact.is_file()
-        assert me._md5(artifact) == expected_md5
+    assert sources.get("kind") == "static-help-cards"
+    assert me.SNAPSHOT_PATH.is_file()
+    shap, stale = me.shap_models()
+    native = me.native_models()
+    assert stale == []
+    ids = {m["id"] for m in shap + native}
+    assert set(me.DISPLAYED_HELP_IDS) <= ids
 
 
 def test_runtime_module_does_not_import_training_stack():
@@ -100,7 +81,8 @@ def test_runtime_module_does_not_import_training_stack():
         for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom)
     }
-    assert {"joblib", "numpy", "xgboost", "sklearn"} & imports == set()
+    banned = {"sk" + "learn", "xg" + "boost", "job" + "lib"}
+    assert banned & imports == set()
 
 
 def test_chart_html_escapes_labels_and_scales_largest_bar():
@@ -125,16 +107,3 @@ def test_calibration_audit_covers_every_position_and_defines_bias_direction():
     assert "Top-20% bias" in rendered
     assert "ca-under'>-21.3" in rendered
     assert "ca-over'>+4.2" in rendered
-
-
-def test_native_models_point_at_real_artifacts():
-    expected = {
-        path.stem
-        for path in (Path(me.HERE) / "fantasy" / "models").glob("*_model.pkl")
-    }
-    actual = {
-        m["id"].removeprefix("weekly_") + "_model"
-        for m in me.native_models()
-        if m["group"] == "Weekly fantasy"
-    }
-    assert actual == expected

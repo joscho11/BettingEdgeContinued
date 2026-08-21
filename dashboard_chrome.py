@@ -336,7 +336,7 @@ aria-hidden="true">💙</span><span class="jsa-tip-label">Tip Jar — Venmo @JoS
 def render_footer():
     """Render public-code and Venmo support actions in normal page flow."""
     st.divider()
-    st.caption("The models and code behind this site are public.", text_alignment="center")
+    st.caption("This site publishes checked release artifacts. The website code is public.", text_alignment="center")
     with st.container(horizontal=True, horizontal_alignment="center"):
         st.link_button(
             "View public code",

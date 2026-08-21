@@ -94,13 +94,12 @@ whole finding: college and athletic data are informative, and redundant with the
 
 | File | What it is |
 |---|---|
-| `PREREG_rookie_production_2026-07-20.md`, `harness/` | Local-only research record and frozen one-shot harness. They are intentionally excluded from the public repository. |
-| `build_rookie_board.py` | Local-only product builder. It scores 2024–2026, joins projection and talent artifacts, and writes the public board CSVs. |
-| `models/rookie_hit_model_{draft,college,full}.pkl` | The three shipped hit-probability models, one for each visible feature set, with display calibration. |
 | `board_data/rookie_board_{2024,2025,2026}.csv` | The board, one file per class. `oof_predictions.csv` holds out-of-fold scores for a future reliability chart. `DISCLOSURE.md` is the standing label. |
 | `../projections/results/{rb,wr,te}_rookie_board_projection.csv` | Public rookie-season projection inputs. The QB arm remains withheld. |
 | `../talent/college_{qb,rb,wr,te}_score_2026.csv` | Frozen per-position college talent inputs. |
 | `../../site_pages/page_rookie_board.py` | The dashboard page that renders the board. |
+
+Hit-probability models and the board builder stay in private storage. This public tree ships the CSVs the page reads.
 
 ## 4. Honest results
 

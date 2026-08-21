@@ -70,16 +70,15 @@ Published projection files remain immutable. Actual points and errors are writte
 | Path | Role |
 |---|---|
 | `fantasy_projections/` | Frozen 2025 demo projections |
-| `features.ipynb` | Feature research retained in the public tree |
-| `models/` | Frozen demo artifacts used by Help page integrity checks |
-| `dfs/` | DraftKings lineup optimizer research; currently off the top navigation |
-| `rookie/` | Rookie hit probability and rookie-season projections |
-| `talent/` | NFL and college talent-score artifacts |
+| `projections/results/` | Published seasonal projection CSVs the Draft Board reads |
+| `rookie/board_data/` | Published Rookie Board CSVs |
+| `talent/` | NFL and college talent-score CSVs |
+| `seasonal_projections/` | Draft Board ADP refresh overlays |
 | `../publishing/` | Candidate validation, builds, activation, rollback, and grading |
 | `../data/releases/` | Immutable release registry and result ledgers |
 | `../site_pages/page_weekly_fantasy.py` | Release-backed weekly fantasy page |
 
-The retired in-repo weekly training and inference code is preserved under `archive/legacy-inrepo-2026-08-18/fantasy_weekly/`. It explains the frozen demo but is not the 2026 production source.
+Training for the 2026 weekly producer is in the private `weekly_projections_v2_prod` repository. This public tree does not ship notebooks or serialized models.
 
 ## Reproducing the public state
 

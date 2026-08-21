@@ -1,13 +1,11 @@
 """Production-model importance data for the Help & Guide page.
 
-The displayed summaries are stored in a small, artifact-pinned JSON snapshot.
-CI verifies every source hash. Production therefore never imports the training
-stack or unpickles models just to render a collapsed Help-page expander.
+The displayed summaries are stored in a small JSON snapshot.
+Production never loads a serialized model to render Help.
 """
 from __future__ import annotations
 
 import copy
-import hashlib
 import html
 import json
 from functools import lru_cache
@@ -16,104 +14,6 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT_PATH = HERE / "model_explanations_snapshot.json"
-
-
-def _feature(name: str) -> str:
-    aliases = {
-        "prior_half_ppr": "Prior half-PPR",
-        "ppg_2yr": "2-year PPG",
-        "ppg_3yr": "3-year PPG",
-        "ppg_trend": "PPG trend",
-        "career_high_ppg": "Career-high PPG",
-        "prior_snap_share_pg": "Prior snap share",
-        "prior_ppg": "Prior PPG",
-        "prior_team_pass_rate": "Team pass rate",
-        "draft_pick": "Draft pick",
-        "draft_round": "Draft round",
-        "cfb_career_scrim_yds": "College career yards",
-        "cfb_rec_ypg": "College receiving YPG",
-        "cfb_best_dom": "College best dominance",
-        "cfb_final_recshare": "College final rec. share",
-        "pff_rushing_touchdowns": "Charted rush touchdowns",
-        "pff_receiving_grades_offense": "Charted offense grade",
-        "pff_receiving_yprr": "Yards per route run",
-        "pff_receiving_avg_depth_of_target": "Average target depth",
-        "pff_receiving_contested_catch_rate": "Contested-catch rate",
-        "pff_receiving_yards": "Charted receiving yards",
-        "pff_receiving_routes": "Routes run",
-        "vacated_target_share": "Vacated target share",
-        "prior_air_yards_share": "Prior air-yards share",
-        "prior_rec_epa": "Prior receiving EPA",
-        "prior_games": "Prior games",
-        "prior_td_rate": "Prior TD rate",
-        "spread_line": "Vegas spread",
-        "sack_diff": "Sack-rate matchup",
-        "scoring_diff": "Scoring differential",
-        "sack_diff_reverse": "Reverse sack matchup",
-        "home_coach_win_pct_roll3": "Home coach recent win rate",
-        "ffo_expected_pts": "Expected fantasy points",
-        "market_line": "Posted win total",
-        "true_home_venue_games": "True home games",
-        "qb_unavailable": "QB unavailable",
-        "st_epa_prior": "Prior special-teams EPA",
-        "pass_epa_off_prior": "Prior pass offense EPA",
-        "fwd_sos": "Forward strength of schedule",
-    }
-    if name in aliases:
-        return aliases[name]
-    label = name.replace("_", " ")
-    label = label.replace("roll3", "(last 3)").replace("roll5", "(last 5)")
-    label = label.replace("ffo ", "").replace("pct", "%")
-    return label[:1].upper() + label[1:]
-
-
-def _md5(path: Path) -> str:
-    return hashlib.md5(path.read_bytes()).hexdigest()
-
-
-# Mean absolute Tree SHAP over the exact 2026 deploy population for seasonal
-# models, and over 2014-2024 production-training games for the spread XGBoost
-# component. Shares are percentages of total mean absolute SHAP.
-SHAP_SNAPSHOTS = [
-    ("season_qb_vet", "QB", "Season projections · Non-rookie models", "fantasy/projections/models/qb_veteran_model.pkl",
-     "7632549f95995b9702baefdf016d7271", 87,
-     [("prior_half_ppr", 53.0), ("ppg_2yr", 6.2), ("draft_pick", 4.4),
-      ("prior_snap_share_pg", 4.3), ("ppg_trend", 3.0)]),
-    ("season_rb_vet", "RB", "Season projections · Non-rookie models", "fantasy/projections/models/rb_veteran_model.pkl",
-     "167aca71a8511afcced37c0abc846004", 144,
-     [("prior_half_ppr", 33.2), ("ppg_3yr", 9.4), ("prior_snap_share_pg", 7.1),
-      ("age", 5.5), ("career_high_ppg", 4.1)]),
-    ("season_rb_rook", "RB", "Season projections · Rookie models", "fantasy/projections/models/rb_rookie_model.pkl",
-     "da230ee66575ca574f02cbc2139e1a80", 71,
-     [("draft_pick", 26.4), ("age", 13.3), ("draft_round", 7.3),
-      ("cfb_career_scrim_yds", 5.7), ("cfb_rec_ypg", 3.7)]),
-    ("season_wr_vet", "WR", "Season projections · Non-rookie models", "fantasy/projections/models/wr_veteran_model.pkl",
-     "17dfbcf01054bdd5ce032f2b55df9ad2", 240,
-     [("prior_half_ppr", 34.8), ("ppg_3yr", 9.3), ("age", 8.4),
-      ("ppg_2yr", 7.8), ("prior_ppg", 7.2)]),
-    ("season_wr_rook", "WR", "Season projections · Rookie models", "fantasy/projections/models/wr_rookie_model.pkl",
-     "6c9a3f3ed02ce32c53594f383aade882", 154,
-     [("draft_pick", 29.8), ("age", 18.3), ("vacated_target_share", 5.8),
-      ("cfb_career_scrim_yds", 3.8), ("pff_receiving_contested_catch_rate", 3.0)]),
-    ("season_te_vet", "TE", "Season projections · Non-rookie models", "fantasy/projections/models/te_veteran_model.pkl",
-     "5a2f0b504d4cc6fc9a2e04453fd76a44", 129,
-     [("prior_half_ppr", 28.9), ("ppg_3yr", 17.3), ("ppg_2yr", 7.0),
-      ("draft_pick", 4.6), ("prior_air_yards_share", 3.3)]),
-    ("season_te_rook", "TE", "Season projections · Rookie models", "fantasy/projections/models/te_rookie_model.pkl",
-     "f79dad0ab26af5cb4e06a9f1723328cd", 66,
-     [("draft_pick", 18.2), ("pff_receiving_grades_offense", 8.7), ("age", 7.3),
-      ("pff_receiving_yprr", 4.7), ("pff_receiving_avg_depth_of_target", 4.5)]),
-    # RECOMPUTED 2026-08-03 after the dense-sack + All-Pro identity retrain. Note the
-    # shape change: `sack_diff` (was #2 at 11.783) and `sack_diff_reverse` (was #4 at
-    # 5.009) LEFT the top five entirely. Those were PROD_FEATURES_35 #2/#3 and carried the
-    # contemporaneous-outcome leak; with it removed the model leans on spread_line and
-    # coaching/rolling-form instead. Tree SHAP over the same n=3295 matrix.
-    ("spread_xgb", "Spread · XGBoost component", "Betting",
-     "betting/models/ensemble_prod_model.pkl", "58d1391be3bf68d17f74c36cb3ed77b7", 3295,
-     [("spread_line", 39.167), ("scoring_diff", 7.175),
-      ("away_coach_win_pct_prior", 4.225), ("home_coach_win_pct_prior", 3.906),
-      ("away_rolling_avg_yards", 3.862)]),
-]
 
 # Read-only walk-forward audit of non-rookie season-total projections. Bias is
 # prediction minus actual half-PPR points; negative values are underprojections.
@@ -162,8 +62,7 @@ ROOKIE_HIT_AUC = {
     "holdout": "2019-2023 classes",
 }
 
-# Cards Help actually draws. Snapshot still hashes the rest so a silent pkl
-# swap still fails CI; those archived veteran cards are not on the live board.
+# Cards Help actually draws. Frozen into model_explanations_snapshot.json.
 DISPLAYED_HELP_IDS = (
     "spread_xgb",
     "season_rb_rook",
@@ -244,7 +143,7 @@ def native_models():
 
 
 def snapshot_sources() -> dict[str, str]:
-    """Artifact fingerprints recorded when the checked snapshot was generated."""
+    """Static labels recorded with the Help snapshot. Not file hashes."""
     return dict(_snapshot().get("sources", {}))
 
 

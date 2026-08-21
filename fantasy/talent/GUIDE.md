@@ -1,14 +1,10 @@
 # NFL Talent Score and College Talent Score guide
 
 *Current wiring checked 2026-08-21. The shipped score artifacts remain frozen at
-the 2026-07-27 per-position migration (SPEC R34–R41). There are **eight** dedicated
-builds, one for each NFL and college position. The Draft Board and its outside-market
-projection explorer read those builds. The Rookie Board reads the college builds
-and retains the R29 rookie artifact as a fallback for uncovered players. The older single R29 build
-(`talent_score_2026.csv`) still sits on disk but feeds no column any more;
-`rookie_score_2026.csv` survives only as a fallback where a college build has no
-coverage. I wrote this for a smart reader with no machine-learning background.
-Full technical detail lives in the local-only `SPEC.md`.*
+the 2026-07-27 per-position migration. There are eight dedicated score CSVs, one
+for each NFL and college position. The Draft Board and Rookie Board read those
+files. Build code is private; this repository does not retrain talent scores.
+I wrote this for a smart reader with no machine-learning background.*
 
 ## 1. What this is trying to do
 

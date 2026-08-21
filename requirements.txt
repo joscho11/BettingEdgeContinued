@@ -1,9 +1,8 @@
 # Streamlit Community Cloud runtime only.
 #
-# Training, backtests, and model-artifact tooling use requirements-ci.txt or
-# requirements-test.txt. Help-page explanations are served from a checked JSON
-# snapshot, so the live app does not need the ML training/deserialization stack.
-# nflreadpy + polars + pyarrow remain for weekly-fantasy actual-stat refreshes.
+# This file is the live website. Help-page explanations are served from a
+# checked JSON snapshot. nflreadpy + polars + pyarrow remain for weekly-fantasy
+# actual-stat refreshes and for grading published releases.
 
 # Core data
 pandas>=2.0,<3.0

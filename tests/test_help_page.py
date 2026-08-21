@@ -56,7 +56,7 @@ def test_help_site_org_and_paused_copy(tmp_path):
     assert "opens on **Home**" in md
     assert any("What is the Season Totals page?" in str(e.label) for e in at.expander)
     assert not any("Season Totals (Beta)" in str(e.label) for e in at.expander)
-    assert "Coming soon" in md
+    assert not any("What is the DFS Optimizer page?" in str(e.label) for e in at.expander)
     assert "currently uses mock data" not in md
     assert "roadmap for the 2026 season" not in md
     assert "same automated pipeline that runs the betting predictions" not in md

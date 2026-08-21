@@ -34,20 +34,16 @@ The frozen 2025 demo remains available for reproducibility. It used a three-vote
 | Totals model | Walk-forward cross-validation | 55.7% UNDER accuracy, n=575 | Research result, not a deployed performance claim |
 | Totals model | 2025 live tracking, Weeks 10-17 | 52.2%, n=46 | Too small and too close to chance for an edge claim |
 
-The archived spread model once showed an apparent 64.2% result. That number was retracted after a pregame feature leak and player-identity errors were found. The corrected result is 129/238. The full audit and provenance are in [`experiments/audit_2026-08-03c_final/PROVENANCE.md`](experiments/audit_2026-08-03c_final/PROVENANCE.md).
+The archived spread model once showed an apparent 64.2% result. That number was retracted after a pregame feature leak and player-identity errors were found. The corrected result is 129/238. The live 2026 claim is the Tuesday HIGH book, 192/336.
 
 ## Totals model
 
-The totals work is an UNDER-only experiment. `totals_features.ipynb`, `totals_model.ipynb`, and `predict_totals.ipynb` contain the feature, validation, and inference path. The weekly workflow can update its tracking data, but the 2026 spread page does not present totals as part of the current product.
-
-The main filters are intended to remove games where the historical signal was unstable:
+The 2025 totals work is an UNDER-only experiment shown as a demo. It is not on the 2026 week page. The filters below are research choices, not evidence of future profitability:
 
 - only positive UNDER edges;
 - predicted total below 45;
 - dome games excluded;
 - late-season games excluded from the tracked subset.
-
-These filters are research choices, not evidence of future profitability.
 
 ## Data and release flow
 
@@ -68,18 +64,15 @@ Publication keeps prediction inputs immutable. Final scores and ATS results are 
 | Path | Role |
 |---|---|
 | `live_2026.py` | 2026 confidence and display rules |
-| `features.py` | Shared feature code used by the totals research and archived in-repo work |
-| `predict_totals.ipynb` | Weekly totals inference and tracking |
-| `totals_model.ipynb` | Totals model training and walk-forward evaluation |
-| `totals_features.ipynb` | Totals feature engineering |
-| `predictions/` | Frozen 2025 demo prediction files |
-| `totals_predictions/` | Frozen totals outputs and tracking data |
-| `models/` | Frozen 2025 demo artifacts used by the Help page integrity checks |
-| `experiments/` | Audits and retired research artifacts |
+| `calibration.py` | Cover rates from the graded tracker |
+| `predictions_tracker.csv` | Graded 2025 demo plus any stamped 2026 rows |
+| `totals_tracker.csv` | 2025 experimental totals tracking |
+| `slate_2026.csv` | 2026 matchup skeleton for the week page |
 | `../publishing/` | Candidate validation, immutable builds, activation, rollback, and grading |
 | `../site_pages/page_weekly_predictions.py` | Release-backed weekly spread page |
+| `../data/releases/` | Immutable published prediction builds |
 
-The old in-repo spread notebooks and training code are preserved under `archive/legacy-inrepo-2026-08-18/betting/`. They are not the 2026 production source. A retired generated-commentary experiment is also outside the live site path.
+Training code for the live spread is in the private `spread_v3_prod` repository. This public tree does not ship notebooks or serialized models.
 
 ## Reproducing the public state
 
