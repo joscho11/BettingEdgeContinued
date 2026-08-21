@@ -32,7 +32,6 @@ def build_candidate_metadata(
     model_version: str,
     produced_at: str,
     legacy_bootstrap: bool = False,
-    matchup_artifact: str | Path | None = None,
 ) -> dict:
     if product not in PRODUCTS:
         raise ValueError(f"product must be one of {PRODUCTS}, got {product!r}")
@@ -61,21 +60,6 @@ def build_candidate_metadata(
             if col in frame:
                 teams.update(frame[col].dropna().astype(str))
         metadata["expected_teams"] = sorted(team for team in teams if team)
-        if matchup_artifact is not None:
-            matchups = Path(matchup_artifact)
-            if matchups.resolve().parent != path.resolve().parent:
-                raise ValueError("matchup artifact must be beside the prediction artifact")
-            payload = json.loads(matchups.read_text(encoding="utf-8"))
-            games = payload.get("games") if isinstance(payload, dict) else None
-            if not isinstance(games, dict):
-                raise ValueError("matchup artifact needs an object keyed by game_id")
-            metadata.update(
-                {
-                    "matchup_artifact_name": matchups.name,
-                    "matchup_artifact_sha256": sha256_file(matchups),
-                    "expected_matchup_game_ids_sha256": canonical_values_hash(games.keys()),
-                }
-            )
     else:
         if "player_id" in frame:
             metadata["expected_player_ids_sha256"] = canonical_values_hash(frame["player_id"])
@@ -105,7 +89,6 @@ def write_candidate_sidecar(
     model_version: str,
     produced_at: str,
     legacy_bootstrap: bool = False,
-    matchup_artifact: str | Path | None = None,
     destination: str | Path | None = None,
 ) -> Path:
     metadata = build_candidate_metadata(
@@ -116,7 +99,6 @@ def write_candidate_sidecar(
         model_version=model_version,
         produced_at=produced_at,
         legacy_bootstrap=legacy_bootstrap,
-        matchup_artifact=matchup_artifact,
     )
     out = Path(destination) if destination is not None else candidate_sidecar_path(artifact)
     out.parent.mkdir(parents=True, exist_ok=True)

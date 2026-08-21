@@ -2,7 +2,7 @@
 
 Status: checked against the current code and release contract on 2026-08-21.
 
-The betting area contains the 2026 spread product, a frozen 2025 demo, an experimental totals model, and release-backed matchup pages. These systems do not share the same claim or lifecycle.
+The betting area contains the 2026 spread product, a frozen 2025 demo, and an experimental totals model. These systems do not share the same claim or lifecycle.
 
 ## Current 2026 spread product
 
@@ -22,8 +22,6 @@ The locked historical evaluation contains 336 qualifying picks from 2021 through
 ## What appears on the site
 
 The current weekly page reads only active release artifacts. It shows the model margin, the line used for the Tuesday decision, the current line when available, the model side, confidence, and result after grading.
-
-The matchup route is also release-backed. It joins a prediction row to optional matchup detail and model-context artifacts. Publication rejects partial matchup bundles, so an active week cannot expose a mix of complete and incomplete game pages.
 
 The frozen 2025 demo remains available for reproducibility. It used a three-voter consensus with `HIGH`, `MEDIUM`, and `PASS` labels. Those rules do not describe the 2026 product.
 
@@ -59,7 +57,7 @@ private producer
     -> publishing validation
     -> immutable data/releases/builds artifact
     -> active manifest pointer
-    -> weekly page and matchup routes
+    -> weekly page
     -> separate grading ledger
 ```
 
@@ -80,7 +78,6 @@ Publication keeps prediction inputs immutable. Final scores and ATS results are 
 | `experiments/` | Audits and retired research artifacts |
 | `../publishing/` | Candidate validation, immutable builds, activation, rollback, and grading |
 | `../site_pages/page_weekly_predictions.py` | Release-backed weekly spread page |
-| `../site_pages/page_matchup.py` | Hidden release-backed matchup route |
 
 The old in-repo spread notebooks and training code are preserved under `archive/legacy-inrepo-2026-08-18/betting/`. They are not the 2026 production source. A retired generated-commentary experiment is also outside the live site path.
 

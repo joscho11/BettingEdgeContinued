@@ -16,7 +16,6 @@ import theme_redesign  # redesign preview skin (revertible) — delete this impo
 import mobile  # phone/tablet layer (revertible) — delete this import + the call below to revert
 import nav_registry
 import runtime_telemetry  # OFF unless APP_TELEMETRY=1; remove this import + begin/end to strip
-from matchups.catalog import load_matchup_routes
 
 runtime_telemetry.begin()
 
@@ -61,19 +60,6 @@ def _lazy_render(module_name: str):
     render.__name__ = f"render_{module_name}"
     return render
 
-
-def _lazy_matchup_render(game_id: str):
-    """Return one zero-argument callable for a hidden release-backed game page."""
-    def render():
-        _refresh_cloud_synced_modules()
-        page_common = importlib.import_module("page_common")
-        module = page_common.reload_if_stale(importlib.import_module("page_matchup"))
-        sys.modules["page_matchup"] = module
-        module.render(game_id)
-
-    render.__name__ = f"render_matchup_{game_id.lower()}"
-    return render
-
 st.set_page_config(page_title="JoScho Analytics | NFL predictions",
                    page_icon="🏈", layout="wide")
 chrome.inject_css()
@@ -105,21 +91,6 @@ rb_pg = st.Page(_lazy_render("page_rookie_board"), title="Rookie Board", icon=":
 fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals", icon=":material/bar_chart:",
                  url_path="season-totals")
 
-# Every validated release game gets a hidden, directly shareable route. Streamlit
-# forbids slashes inside st.Page.url_path, so the native form is
-# /matchup-2025-week-10-ari-sea rather than /matchup/2025-week-10-ari-sea.
-_matchup_routes = load_matchup_routes(_HERE)
-matchup_pages = {
-    route.game_id: st.Page(
-        _lazy_matchup_render(route.game_id),
-        title=route.title,
-        icon=":material/sports_football:",
-        url_path=route.slug,
-        visibility="hidden",
-    )
-    for route in _matchup_routes
-}
-
 # cross-link registry (design 4g) — populated before nav.run() so pages can link
 nav_registry.PAGES = {
     "home": home_pg, "draft-board": board_pg, "weekly-predictions": wp_pg, "weekly-fantasy": wf_pg,
@@ -127,7 +98,6 @@ nav_registry.PAGES = {
     "league-history": lh_pg, "help": help_pg, "rookie-board": rb_pg,
     "season-totals": fut_pg,
 }
-nav_registry.MATCHUPS = matchup_pages
 
 # Persistent brand label above the top nav. It is intentionally non-interactive;
 # repository and support actions live in the normal-flow footer.
@@ -143,7 +113,7 @@ mobile.inject()
 nav = st.navigation(
     {"": [home_pg],
      "Fantasy": [board_pg, rb_pg, wf_pg],
-     "Betting": [wp_pg, tr_pg, fut_pg, *matchup_pages.values()],
+     "Betting": [wp_pg, tr_pg, fut_pg],
      "More": [film_pg, lh_pg, help_pg]},
     position="top",
 )

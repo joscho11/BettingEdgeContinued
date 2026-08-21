@@ -43,27 +43,12 @@ def publish_candidate(
         raise PublicationError(f"unsupported artifact format {suffix!r}")
     stored_artifact = build_dir / f"artifact{suffix}"
     stored_metadata = build_dir / "metadata.json"
-    matchup_source = None
-    stored_matchups = build_dir / "matchups.json"
-    if meta.get("matchup_artifact_name"):
-        matchup_source = source.with_name(str(meta["matchup_artifact_name"]))
 
     if stored_artifact.exists():
         if sha256_file(stored_artifact) != meta["artifact_sha256"]:
             raise PublicationError(f"immutable build collision at {build_dir}")
     else:
         shutil.copy2(source, stored_artifact)
-    if matchup_source is not None:
-        if not matchup_source.is_file():
-            raise PublicationError(f"matchup artifact is missing: {matchup_source}")
-        expected_matchup_hash = str(meta.get("matchup_artifact_sha256") or "")
-        if sha256_file(matchup_source) != expected_matchup_hash:
-            raise PublicationError("matchup artifact changed after validation")
-        if stored_matchups.exists():
-            if sha256_file(stored_matchups) != expected_matchup_hash:
-                raise PublicationError(f"immutable matchup artifact collision at {stored_matchups}")
-        else:
-            shutil.copy2(matchup_source, stored_matchups)
     normalized_meta = dict(meta)
     normalized_meta["validation"] = report.to_dict()
     if stored_metadata.exists():
@@ -71,7 +56,6 @@ def publish_candidate(
         immutable_fields = (
             "schema_version", "product", "season", "week", "model_version",
             "produced_at", "artifact_sha256", "expected_rows",
-            "matchup_artifact_sha256", "expected_matchup_game_ids_sha256",
         )
         if any(existing.get(key) != normalized_meta.get(key) for key in immutable_fields):
             raise PublicationError(f"immutable metadata collision at {stored_metadata}")
@@ -100,12 +84,6 @@ def publish_candidate(
     }
     if existing_entry.get("grading"):
         entry["grading"] = existing_entry["grading"]
-    if matchup_source is not None:
-        entry["matchups"] = {
-            "artifact": relative_to_site(stored_matchups, root),
-            "sha256": str(meta["matchup_artifact_sha256"]),
-            "schema_version": 1,
-        }
     state["builds"][build_id] = entry
     if activate:
         prior = state.get("active_build")

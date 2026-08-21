@@ -12,8 +12,7 @@ JoScho Analytics is a source-available Streamlit site for NFL betting analysis, 
 | **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper or ESPN ADP, positional ranks, rank gaps, and talent context. |
 | **Rookie Board** | Rookie hit probabilities, season projections, college production, and athletic context. |
 | **Weekly Fantasy** | Half-PPR and stat projections for QB, RB, WR, and TE. Actual results appear after games finish. |
-| **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, release status, and links to each matchup. |
-| **Matchup Pages** | Shareable game pages with the model margin, market line, edge, injuries, team form, and a downloadable social card. |
+| **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, and release status. |
 | **Track Record** | Graded against-the-spread results, confidence tiers, model comparisons, streaks, and betting simulations. |
 | **Season Totals** | Win projections for all 32 teams compared with posted season totals. |
 | **League History** | Sleeper and ESPN league records, rivalries, manager profiles, draft habits, roster production, and league-wide trends. |
@@ -38,11 +37,10 @@ The live spread and weekly-fantasy producers submit candidate files to this repo
 | Path | Contents |
 |---|---|
 | `app.py` | Streamlit entrypoint and navigation. |
-| `site_pages/` | One module per visible page plus hidden matchup routes. |
+| `site_pages/` | One module per visible page. |
 | `dashboard_*.py`, `mobile.py`, `theme_redesign.py` | Shared data loading, UI components, responsive styles, and site chrome. |
 | `publishing/` | Candidate validation, immutable releases, manifests, grading, rollback, and CLI commands. |
 | `data/releases/` | Published build artifacts and the active release manifest. |
-| `matchups/`, `data/matchups/` | Matchup contracts, detail-page loaders, injury and model context, and social-card generation. |
 | `betting/` | Shared NFL features, totals notebooks, historical trackers, frozen demo models, audits, and tests. |
 | `fantasy/` | Weekly fantasy artifacts, draft and rookie products, talent scores, and the DFS optimizer. |
 | `futures/` | Published season-win projections and their evidence file. |

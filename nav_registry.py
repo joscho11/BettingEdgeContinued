@@ -4,7 +4,3 @@ time to build st.page_link cross-links without importing the entrypoint (no circ
 import). Empty until the entrypoint runs — page modules must handle a missing key.
 """
 PAGES = {}
-
-# Hidden, release-backed matchup pages keyed by game_id. Populated by app.py on
-# every session before st.navigation runs so direct shared URLs resolve cleanly.
-MATCHUPS = {}
