@@ -91,6 +91,11 @@ details summary{
   padding:6px 12px !important;
 }
 [data-testid="stBaseButton-elementToolbar"]{ min-width:2rem !important; min-height:2rem !important; }
+.stPageLink a{
+  min-height:2.5rem !important;
+  padding:.45rem .75rem !important;
+  align-items:center !important;
+}
 /* Streamlit's own `⋮` is deliberately left at its native 28px: growing it pushes its
    box under the tip jar, and it is app chrome rather than site navigation. */
 

@@ -17,6 +17,7 @@ from .contract import (
     parse_aware_datetime,
     sha256_file,
 )
+from matchups.artifact import validate_matchup_artifact
 
 PREDICTION_REQUIRED = {
     "game_id", "home_team", "away_team", "season", "week",
@@ -248,6 +249,58 @@ def _validate_predictions(
     report.checks["scheduled_games"] = int(len(sched))
 
 
+def _resolve_matchup_candidate(artifact: Path, metadata: dict) -> Path | None:
+    name = metadata.get("matchup_artifact_name")
+    if not name:
+        return None
+    try:
+        candidate = artifact.with_name(str(name))
+        candidate.resolve().relative_to(artifact.parent.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def _validate_matchup_sidecar(
+    report: ValidationReport,
+    artifact: Path,
+    frame: pd.DataFrame,
+    metadata: dict,
+) -> None:
+    matchup_path = _resolve_matchup_candidate(artifact, metadata)
+    if matchup_path is None:
+        if not metadata.get("legacy_bootstrap"):
+            report.warnings.append(
+                "no matchup detail sidecar; public pages will omit exact drivers and frozen context"
+            )
+        return
+    expected_hash = str(metadata.get("matchup_artifact_sha256") or "")
+    if not expected_hash:
+        report.errors.append("matchup_artifact_sha256 is required when a matchup artifact is named")
+        return
+    if not matchup_path.is_file():
+        report.errors.append(f"matchup artifact does not exist: {matchup_path}")
+        return
+    actual_hash = sha256_file(matchup_path)
+    report.checks["matchup_artifact_sha256"] = actual_hash
+    if actual_hash != expected_hash:
+        report.errors.append("matchup artifact SHA-256 does not match sidecar")
+    expected_ids = set(frame["game_id"].astype(str))
+    expected_coverage = str(metadata.get("expected_matchup_game_ids_sha256") or "")
+    if not expected_coverage:
+        report.errors.append("expected_matchup_game_ids_sha256 is required")
+    elif expected_coverage != canonical_values_hash(expected_ids):
+        report.errors.append("matchup game-ID coverage hash does not match predictions")
+    errors, checks = validate_matchup_artifact(
+        matchup_path,
+        expected_game_ids=expected_ids,
+        season=int(metadata["season"]),
+        week=int(metadata["week"]),
+    )
+    report.errors.extend(errors)
+    report.checks.update(checks)
+
+
 def _validate_fantasy(
     report: ValidationReport,
     frame: pd.DataFrame,
@@ -395,6 +448,8 @@ def validate_candidate(
             report.errors.append(f"schedule could not be read: {exc}")
     if report.product == "predictions":
         _validate_predictions(report, frame, meta, schedule_frame)
+        if PREDICTION_REQUIRED <= set(frame.columns):
+            _validate_matchup_sidecar(report, path, frame, meta)
     elif report.product == "fantasy":
         _validate_fantasy(report, frame, meta, schedule_frame)
     elif report.product not in PRODUCTS:

@@ -43,6 +43,40 @@ python -m publishing.cli publish `
 A validation failure returns exit code 1 and leaves the active and previous pointers
 unchanged. `--no-activate` registers a passing build without moving the default.
 
+### Per-game matchup details
+
+Prediction producers may add a `matchup_artifact` field to the candidate metadata.
+The value is a filename beside the prediction CSV. The optional artifact is a JSON
+object with a `games` list keyed by `game_id`; each game must contain model inputs,
+local driver attribution, sourced injury and weather context, and social metadata.
+
+When present, the publisher validates exact game coverage and content, verifies its
+SHA-256, copies it into the immutable release build, and records it in the release
+manifest. A declared artifact that is missing, incomplete, or hash-mismatched blocks
+publication. Live prediction releases without one still publish with a warning so
+the existing Week 1 producer is not broken; their matchup pages explicitly mark the
+unavailable sections instead of substituting invented data.
+
+```powershell
+python -m publishing.cli sidecar `
+  --product predictions `
+  --artifact ..\spread_v3_prod\outputs\predictions_2026_week01.csv `
+  --matchups ..\spread_v3_prod\outputs\matchups_2026_week01.json `
+  --season 2026 --week 1 `
+  --model-version spread-v3.1 `
+  --out ..\spread_v3_prod\outputs\predictions_2026_week01.metadata.json
+```
+
+The current historical demo covers the 105 released games in 2025 Weeks 10–16.
+It uses the archived final injury reports and observed kickoff-hour weather that
+exist in this workspace. Because those prediction releases were backfilled, their
+pages label the timestamp as an archive build time rather than a pregame freeze.
+The original input matrix was not serialized, but the exact generating notebook and
+model blobs remain in git. `scripts/build_matchup_demo_model_context.py` rebuilds all
+35 inputs, verifies all 105 rounded ensemble margins against the immutable releases,
+and generates local 0.75 XGBoost TreeSHAP + 0.25 Ridge contributions. The pages label
+these explanations as post-hoc reconstruction rather than contemporaneous snapshots.
+
 ## Status, scheduling, grading, and rollback
 
 ```powershell

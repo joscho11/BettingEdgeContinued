@@ -170,6 +170,10 @@ def parser() -> argparse.ArgumentParser:
     sidecar.add_argument("--model-version", required=True)
     sidecar.add_argument("--produced-at", default=None)
     sidecar.add_argument("--out", type=Path, default=None)
+    sidecar.add_argument(
+        "--matchups", type=Path, default=None,
+        help="optional per-game inputs/drivers/context JSON for prediction candidates",
+    )
 
     validate = commands.add_parser("validate", help="validate without publishing")
     validate.add_argument("--artifact", type=Path, required=True)
@@ -227,6 +231,7 @@ def main(argv=None) -> int:
                 week=args.week,
                 model_version=args.model_version,
                 produced_at=produced_at,
+                matchup_artifact=args.matchups,
                 destination=args.out,
             )
             _print({"sidecar": str(out)})

@@ -14,6 +14,7 @@ import pandas as pd
 import streamlit as st
 
 import dashboard_data
+import nav_registry
 import page_common
 from dashboard_utils import get_confidence, _md_to_html
 from live_2026 import (
@@ -480,6 +481,15 @@ def render():
                 b1.markdown(stat_box(bot_spread),                       unsafe_allow_html=True)
                 b2.markdown(stat_box(bot_predicted, is_rec=bot_is_rec), unsafe_allow_html=True)
                 b4.markdown(bet_box(bot_team, rec_color) if bot_is_rec else empty_box(), unsafe_allow_html=True)
+
+                _matchup_page = nav_registry.MATCHUPS.get(str(row.get("game_id") or ""))
+                if _matchup_page is not None:
+                    st.page_link(
+                        _matchup_page,
+                        label="Matchup details",
+                        icon=":material/open_in_new:",
+                        width="content",
+                    )
 
                 if _show_agent:
                     game_key  = f"{home}_{away}"
