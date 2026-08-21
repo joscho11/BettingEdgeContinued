@@ -1,145 +1,93 @@
-# A guide to the weekly fantasy model
+# Weekly fantasy projections
 
-**Status 2026-08-18.** This document describes the **2025 demo** weekly system that
-still sits on the site for weeks 10-17 of that season. Live weekly projections
-starting **2026 Week 1** come from `cowork_OS/weekly_projections_v2` as prediction
-CSVs only; that model's code does not live in this repo. Do not overwrite the
-2025 CSVs in `fantasy/fantasy_projections/`.
+Status: checked against the current producer card, site code, and release contract on 2026-08-21.
 
-This is the plain-language tour of that 2025 demo system. It's
-separate from the pre-season Draft Board, whose projection engine is documented in
-`fantasy/projections/GUIDE.md`, whose talent columns are in `fantasy/talent/GUIDE.md`, and whose
-closed band-research campaign is in `fantasy/seasonal_projections/GUIDE.md`.
-I built and run this, and my aim here is to explain how it
-works and to be straight about how good it actually is.
+The current weekly fantasy product is built in `weekly_projections_v2_prod`, a separate private repository. This public repository owns candidate validation, immutable releases, the website, and the frozen 2025 demo.
 
-## What I'm trying to do
+## Current 2026 system
 
-Every week during the NFL season, I want a good estimate of how many fantasy points each skill
-player — quarterback, running back, wide receiver, tight end — will score in their next game.
-"Fantasy points" here means half-PPR scoring, a common system where a player gets points for
-yards and touchdowns plus half a point per catch (PPR stands for "points per reception," and
-"half" means half a point each). These projections do two jobs: they help set weekly lineups,
-and they feed the DraftKings lineup optimizer (its own guide is in `fantasy/dfs/`).
+The production recipe is `l1_wipe_prior_share_ranks`. It uses a gradient-boosted tree with 95 features covering prior usage, opportunity, recent production, team context, opponent context, availability, and position-specific rates. It produces the top 180 player projections for each released week.
 
-The bar I have to clear is not "predict points" in the abstract — it's "predict them better than
-the obvious simple method." The obvious method is to just average a player's last three games and
-call that the projection. If my model can't beat that, it isn't worth running. So a three-week
-rolling average is the baseline every result is measured against.
+Sleeper projections are an evaluation benchmark, not a model feature. The producer can publish without Sleeper data. Benchmark coverage is reported separately so a missing market snapshot cannot change the model inputs.
 
-A quick note on why this is a *different* model from the betting side and the Draft Board. The
-betting model predicts team outcomes; the Draft Board predicts a whole season before it starts.
-This one predicts a single player's next game, using how they've been used and performing
-recently — information that only exists *during* the season.
+The producer writes a candidate CSV and SHA-256 sidecar. The public [publishing contract](../publishing/README.md) validates the schema, coverage, source metadata, and sidecar before copying the candidate into `data/releases/builds/`. The site reads the active manifest pointer. Direct writes into `fantasy/fantasy_projections/` are retired for 2026.
 
-## How it works, end to end
+No 2026 fantasy week has been graded yet. The manifest remains on the frozen 2025 demo baseline until a valid 2026 candidate is published.
 
-**Data in.** A pipeline pulls and joins everything I need from nflreadpy (a public NFL data
-library): player game stats, expected-points data, schedules, Vegas lines, weather, injury
-reports, and depth charts. That lands in one big table, `raw_dataset.csv`, about 35,000 rows —
-one row per player per week — by 84 columns.
+## Locked evaluation
 
-**Features.** From the raw table I build the model's actual inputs (called features). The core
-ones are rolling averages — a player's production over their last 3 and 5 games — plus the
-*trend* between them, which is just the 3-game average minus the 5-game average: a positive trend
-means a player is heating up, a negative one means cooling down. I add matchup difficulty (how many
-fantasy points a defense has been giving up to that position lately, which separates a soft matchup
-from a tough one), the strength of the opponent overall, and the team's Vegas implied point total —
-how many points the betting market expects that team to score, which is one of the strongest
-available hints at game flow, since a team expected to score a lot gives its skill players more
-chances. On top of that I fold in weather, and whether the player is healthy and starting according
-to the latest depth chart. All of that produces `features_dataset.csv`, about 40,000 rows by 97
-columns.
+The production card scores a 2025 holdout with training restricted to 2021 through 2024. The comparison below uses the 3,060 top-180 player-weeks that also had Sleeper coverage.
 
-Why these inputs and not just last week's points? Because a single game is noisy — a player can
-have a quiet week against a great defense and a huge week when the script breaks his way. Averaging
-recent form smooths that out, the trend catches players whose role is genuinely changing, and the
-matchup and game-total features capture the *situation* the player is walking into, which last
-week's raw score can't see.
+| Metric | JoScho model | Sleeper | Difference |
+|---|---:|---:|---:|
+| Mean absolute error | 5.003 | 5.188 | Model lower by 0.185 points |
+| Within-position, within-week Spearman | 0.397 | 0.402 | Model lower by 0.005 |
+| Historical lineup points | 2,016.00 | 2,080.72 | Model lower by 64.72 points |
 
-**No leakage.** The same discipline as the betting side applies: every rolling number is computed
-with a one-week shift, so a player's current-week stats can never sneak into their own
-current-week prediction. There's one fantasy-specific twist I want to call out, because it's a
-subtle trap. When I attach a player's prior-season numbers, I don't just grab "the row above" —
-I do an explicit season-to-season join keyed on the player. The reason: a player who missed a
-whole season should get a blank for that season, not have his stats from two years ago quietly
-pulled forward as if nothing happened. Getting this wrong doesn't crash anything — it just makes
-the model silently wrong, which is worse.
+The model has a modest point-error advantage on the matched sample. It does not beat Sleeper on player ordering or the lineup simulation, so the current evidence does not support a broad superiority claim.
 
-**The models.** I train one model per position — a separate XGBoost regressor (a tree-based model
-that predicts a number) for quarterbacks, running backs, receivers, and tight ends. Each learns
-its position's own scoring pattern. They train on 2020–2024 and I hold out 2025 as a clean test
-season. Each is saved as a model file in `fantasy/models/`.
+Position results show where the average error improvement comes from:
 
-**Prop models.** On top of the four main models, I train eight more that predict *individual*
-stats rather than total points — passing yards, rushing yards, receiving yards, and receptions,
-split across the positions where each matters. These exist as a reference for prop bets, where the
-question isn't "how many fantasy points" but "will this specific stat land over or under the number
-a sportsbook posted." Each of the eight uses the same features as its position's main model but
-aims at a different target — a receiver's receiving-yards model and his receptions model share
-inputs but predict different things. One honest caveat I want to flag: these eight are independent
-models, so their stat predictions won't add up to exactly the same number as the main points
-projection. That's expected — each was trained to be as accurate as it can be on its own stat, not
-to reconcile with the others — but it means they're a reference, not a tidy breakdown of the points
-number.
+| Position | Player-weeks | Model MAE | Sleeper MAE | Model rank correlation | Sleeper rank correlation |
+|---|---:|---:|---:|---:|---:|
+| QB | 408 | 6.373 | 7.081 | 0.294 | 0.266 |
+| RB | 1,020 | 4.980 | 4.966 | 0.580 | 0.625 |
+| WR | 1,224 | 4.748 | 4.953 | 0.402 | 0.422 |
+| TE | 408 | 4.452 | 4.552 | 0.312 | 0.298 |
 
-**Weekly run.** During the season, an inference pipeline detects the next unplayed week, pulls
-that week's game context (spread, total, weather, home/away), takes each player's most recent form,
-rebuilds the live defensive-matchup numbers from the current season's play-by-play, folds in the
-latest injury and depth-chart status (and drops players ruled Out), runs all twelve models, and
-writes the week's projections to a CSV. That file is what the dashboard's Weekly Fantasy tab and
-the DFS optimizer read.
+QB, WR, and TE lower mean absolute error in this holdout. RB does not. Rank correlation is better for QB and TE, and worse for RB and WR. These are historical holdout results, not live 2026 performance.
 
-## A map of the key files
+## Frozen 2025 demo
 
-| File | What it is |
+The public repository keeps Weeks 10 through 17 of the earlier system under `fantasy/fantasy_projections/`. Those CSVs support the demo and reproducibility checks. They are not updated by the 2026 producer.
+
+The corrected version-one holdout comparison against a rolling three-game baseline was:
+
+| Position | Model MAE | Rolling-3 MAE | Paired result |
+|---|---:|---:|---|
+| QB | 6.859 | 7.378 | Difference was distinguishable in the audit |
+| RB | 4.489 | 4.578 | No distinguishable difference |
+| WR | 4.015 | 4.027 | No distinguishable difference |
+| TE | 3.200 | 3.485 | Difference was distinguishable in the audit |
+
+The earlier statement that every position clearly beat the baseline was too strong. Only QB and TE separated from the rolling baseline in that audit.
+
+## Release and grading flow
+
+```text
+private producer
+    -> candidate CSV + SHA-256 sidecar
+    -> public validation and immutable build
+    -> active manifest pointer
+    -> Weekly Fantasy page
+    -> separate result ledger after games finish
+```
+
+Published projection files remain immutable. Actual points and errors are written under `data/releases/results/`. This separates what the model knew at release time from what happened later.
+
+## Public repository map
+
+| Path | Role |
 |---|---|
-| `fantasy/data_pipeline.ipynb` | Pulls and joins the raw data into `raw_dataset.csv`. |
-| `fantasy/features.ipynb` | Builds the model inputs into `features_dataset.csv`. |
-| `fantasy/model.ipynb` | Trains and evaluates the per-position models. |
-| `fantasy/retrain_models.py` | The one command that retrains all twelve models (4 main + 8 prop) consistently. |
-| `fantasy/predict_fantasy.ipynb` | The weekly run that writes the projections. |
-| `fantasy/models/*.pkl` | The trained model files. |
-| `fantasy/fantasy_projections/` | The weekly projection CSVs the dashboard reads. |
+| `fantasy_projections/` | Frozen 2025 demo projections |
+| `features.ipynb` | Feature research retained in the public tree |
+| `models/` | Frozen demo artifacts used by Help page integrity checks |
+| `dfs/` | DraftKings lineup optimizer research; currently off the top navigation |
+| `rookie/` | Rookie hit probability and rookie-season projections |
+| `talent/` | NFL and college talent-score artifacts |
+| `../publishing/` | Candidate validation, builds, activation, rollback, and grading |
+| `../data/releases/` | Immutable release registry and result ledgers |
+| `../site_pages/page_weekly_fantasy.py` | Release-backed weekly fantasy page |
 
-## Honest results
+The retired in-repo weekly training and inference code is preserved under `archive/legacy-inrepo-2026-08-18/fantasy_weekly/`. It explains the frozen demo but is not the 2026 production source.
 
-On the held-out 2025 season, the model beats the three-week-average baseline at every position.
-Here's the full picture — I'm showing the error (mean absolute error, the average number of
-fantasy points the projection is off by; lower is better) next to the baseline's error:
+## Reproducing the public state
 
-| Position | Test rows | Model error | Baseline error |
-|---|---|---|---|
-| Quarterback | 508 | 6.86 | 7.38 |
-| Running back | 1,284 | 4.49 | 4.58 |
-| Receiver | 2,030 | 4.01 | 4.03 |
-| Tight end | 1,022 | 3.20 | 3.48 |
+The public repository can verify and render a release. It cannot retrain the private 2026 producer.
 
-So the model is a real improvement over the naive method, but a modest one — it shaves roughly
-half a point to two-thirds of a point of error off the baseline. That's genuinely useful for
-setting lineups and building DFS rosters, and I'm not going to dress it up as more than it is.
-Tight ends have the lowest error because tight-end scoring is the most concentrated and
-predictable week to week; quarterbacks have the highest because their scoring swings the most.
+```bash
+python -m publishing.cli status
+python -m publishing.cli validate --artifact path/to/candidate.csv --metadata path/to/candidate.metadata.json
+```
 
-What's untested: the eight prop models exist and are trained the same way, but I don't publish a
-verified live hit-rate for them against real sportsbook prop lines — treat them as a reference
-signal, not a proven edge.
-
-## The rules and fences, and why they exist
-
-- **The three-week average is the baseline, always.** A projection model that can't beat a simple
-  average isn't earning its complexity. Every result is stated against it.
-- **Every rolling feature uses a one-week shift.** No current-week information reaches a
-  current-week prediction. This is the difference between a model that works and one that only
-  looks like it works in a backtest.
-- **Prior-season stats use an explicit player-keyed join, never a positional shortcut.** A missed
-  season becomes a blank, not stale data pulled forward. Silent wrongness is the danger here.
-- **2025 is held out on purpose.** I keep a clean, unseen season to measure against and improve
-  toward. When I eventually fold 2025 into training, I do it deliberately, not by accident.
-- **The projection CSVs live in `fantasy/fantasy_projections/` and nowhere else.** The dashboard
-  and the writer both depend on that exact path; moving it silently breaks the weekly run.
-- **The prop models don't reconcile to the points model,** and I say so — they're independent
-  estimates for a different question, not a breakdown of the points projection.
-
-The short version: a genuine, modest improvement over the simple baseline at every position,
-useful for lineups and DFS, with the prop models offered as a reference rather than a proven edge.
+Use the build ID and SHA-256 recorded in `data/releases/manifest.json` when tying a displayed week back to a candidate artifact.

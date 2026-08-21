@@ -1,5 +1,9 @@
 # Weekly publication contract
 
+Status: checked against the current CLI, validators, manifest, and grading workflow on 2026-08-21.
+At this check, the active public baselines are the 2025 Week 10 demos, Weeks 10-17 are registered,
+and no 2026 release has been graded.
+
 This package is the only public write boundary for spread predictions and weekly
 fantasy projections. Producer repositories write candidates to their own `outputs/`
 directories; the website validates, snapshots, and activates them. No new top-level
@@ -22,7 +26,7 @@ folder under `cowork_OS` is required.
    projection snapshot is never edited.
 
 The checked-in manifest also drives the `Published`, `Scheduled`, and
-`Awaiting projections` badges. A missing, malformed, absent, or hash-mismatched
+`Awaiting projections` badges. A missing, malformed, or hash-mismatched
 artifact fails closed and cannot become the default.
 
 ## Publish a producer candidate
@@ -45,9 +49,10 @@ unchanged. `--no-activate` registers a passing build without moving the default.
 
 ### Per-game matchup details
 
-Prediction producers may add a `matchup_artifact` field to the candidate metadata.
-The value is a filename beside the prediction CSV. The optional artifact is a JSON
-object with a `games` list keyed by `game_id`; each game must contain model inputs,
+Prediction producers may pass a matchup JSON file when generating the sidecar. The
+metadata records its filename in `matchup_artifact_name` and its content hash in
+`matchup_artifact_sha256`. The optional artifact is a JSON object with a `games`
+object keyed by `game_id`; each game must contain model inputs,
 local driver attribution, sourced injury and weather context, and social metadata.
 
 When present, the publisher validates exact game coverage and content, verifies its

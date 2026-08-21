@@ -1,153 +1,96 @@
-# A guide to the betting models
+# Betting models
 
-This is the plain-language tour of the betting side of the project: the model that bets NFL
-point spreads, the experimental one that bets over/unders, and the language model that writes
-up each game. I wrote all of it, and I run it live. My goal here is to explain how it works and
-to be honest about what holds up and what doesn't — not to sell you anything.
+Status: checked against the current code and release contract on 2026-08-21.
 
-## What I'm trying to do
+The betting area contains the 2026 spread product, a frozen 2025 demo, an experimental totals model, and release-backed matchup pages. These systems do not share the same claim or lifecycle.
 
-When a sportsbook posts a line like "Chiefs by 7," that number is not their best guess at the
-final margin. It's the number they think will split the betting money evenly, so they collect
-their cut no matter who wins. To make money betting against that line, I don't need to predict
-who wins — I need to predict which *side of the line* is mispriced, and I need to be right often
-enough to overcome the book's cut.
+## Current 2026 spread product
 
-That bar is a specific number. At standard pricing you risk \$110 to win \$100, so you have to
-win **52.4%** of your bets just to break even. (That figure is called the break-even rate; it's
-just the price of the bet expressed as a win percentage.) Everything on the betting side is
-measured against 52.4%. Beating it consistently is hard because the line is already sharp — the
-market has absorbed the injuries, the weather, and the public opinion before I ever see it. So
-the honest question isn't "can I predict football," it's "can I find a small, repeatable edge in
-an efficient market without fooling myself." Most of the engineering is about not fooling myself.
+The live spread producer is `spread_v3_prod`, a separate private repository. It writes candidate predictions and a SHA-256 sidecar. This public repository validates those candidates, stores immutable builds, and activates them through the [publishing contract](../publishing/README.md).
 
-The right thing to measure against is the market, not a naive average. A model that beats
-"predict the historical average" has proven nothing. The bars that matter are the opening line
-(the book's first number) and the closing line (the book's final, sharpest number right before
-kickoff). I'll be specific below about which one I beat.
+The 2026 display logic lives in `live_2026.py`:
 
-## How it works, end to end
+- The model predicts home margin from information available by Tuesday at 9:00 p.m. ET.
+- A game is marked `HIGH` when the model differs from the Tuesday spread by at least three points.
+- A later line can remove a `HIGH` label, but cannot create one.
+- The final regular-season week is excluded from `HIGH` labels.
+- There is no `MEDIUM` tier and no all-bets performance claim.
+- Every game remains visible, including `PASS` games.
 
-**Data in.** I pull play-by-play, schedules, injuries, and depth charts from a public NFL data
-library called nflreadpy, going back to 1999. Every number a game's prediction uses has to be
-knowable *before* that game kicks off — this is the single most important rule, because the
-easiest way to build a model that looks brilliant and loses money is to accidentally let a game
-see its own result. I enforce it with a technique called a rolling window with a one-game shift:
-every "recent form" number for a game is computed only from earlier games. This is what people
-mean by "no data leakage."
+The locked historical evaluation contains 336 qualifying picks from 2021 through 2025. It went 192-144 ATS, or 57.14%. The one-sided lower confidence bound is 52.66%, just above the declared 52.4% break-even threshold. That supports launching a tracked 2026 test; it is not a substitute for graded 2026 results. No 2026 games have been graded yet.
 
-**Features.** From that raw data I build 85 numbers per game (these are called features — the
-inputs the model learns from). The most important one is rolling EPA, short for Expected Points
-Added, which measures how much each play moved a team toward scoring while accounting for down,
-distance, and field position — a much better read on team quality than raw yards. Others include
-strength of schedule (who a team actually played), a talent score built from All-Pro selections
-with injured stars subtracted out, and situational stats like sacks and third-down rate. After
-an ablation study (systematically dropping the least useful features and re-checking the score),
-I cut the 85 down to the **35** that actually carry signal — fewer inputs means less room to
-overfit, which is when a model memorizes noise instead of learning the pattern.
+## What appears on the site
 
-**The model.** I use an ensemble — a blend of several models — because different algorithms make
-different mistakes, and averaging them cancels some of the noise. The primary model, which I call
-Ensemble fixed75, is 75% XGBoost (a tree-based model good at capturing "this matters only when
-that is also true" interactions) and 25% Ridge (a simple, stable linear model that doesn't chase
-noise). It predicts the home team's margin, which I compare to the Vegas line to find an edge.
+The current weekly page reads only active release artifacts. It shows the model margin, the line used for the Tuesday decision, the current line when available, the model side, confidence, and result after grading.
 
-Separately, three models (XGBoost, Ridge, and LightGBM) each vote on which side to bet. When all
-three independently agree *and* the ensemble's edge is at least 3 points, I call that a **HIGH**
-confidence pick; agreement with at least a 1-point edge is **MEDIUM**; anything else is **PASS**
-(no bet). Requiring both agreement and a real edge is a filter: it throws away the coin-flips.
+The matchup route is also release-backed. It joins a prediction row to optional matchup detail and model-context artifacts. Publication rejects partial matchup bundles, so an active week cannot expose a mix of complete and incomplete game pages.
 
-**Validation.** I test the way the model would actually have been used: train on everything up to
-a year, test on the next year, and step forward. This is called walk-forward validation, and it's
-the only honest kind when time matters — you can never use the future to predict the past. On top
-of that, the production models train through 2024 and I hold out 2025 entirely as a live test.
+The frozen 2025 demo remains available for reproducibility. It used a three-voter consensus with `HIGH`, `MEDIUM`, and `PASS` labels. Those rules do not describe the 2026 product.
 
-**Totals model.** The over/under market gets its own separate model, because "who's better" and
-"how many points" are different questions. It leans on a known quirk: casual bettors love betting
-the OVER, so books nudge the total a little high, which leaves the UNDER slightly underpriced. So
-this model only bets UNDER, and only when two of its models agree. It uses the 35 spread features
-plus 14 built for scoring (the posted total, weather including wind, pace, dome flag, and rolling
-points). I keep it strictly separate from the spread model.
+## Results and claim boundaries
 
-**The language model.** A large language model (an AI that reads and writes text — here, Claude)
-writes a short analysis of each game using five tools that look up the prediction, live injuries,
-line movement, and head-to-head history. It doesn't override the model; it's the qualitative
-sanity check a raw number can't give — it flags when an injury or sharp money cuts against the
-pick. Its write-ups are cached each week and shown in the dashboard.
+| System | Evaluation | Result | Current interpretation |
+|---|---:|---:|---|
+| 2026 spread product | 2021-2025 locked historical evaluation | 192/336, 57.14% ATS | Cleared its launch threshold; awaiting a true 2026 live test |
+| Archived in-repo spread model | Corrected 2018-2025 audit | 129/238, 54.20% ATS | No demonstrated edge; 95% Wilson lower bound is 47.86% |
+| Totals model | Walk-forward cross-validation | 55.7% UNDER accuracy, n=575 | Research result, not a deployed performance claim |
+| Totals model | 2025 live tracking, Weeks 10-17 | 52.2%, n=46 | Too small and too close to chance for an edge claim |
 
-## A map of the key files
+The archived spread model once showed an apparent 64.2% result. That number was retracted after a pregame feature leak and player-identity errors were found. The corrected result is 129/238. The full audit and provenance are in [`experiments/audit_2026-08-03c_final/PROVENANCE.md`](experiments/audit_2026-08-03c_final/PROVENANCE.md).
 
-| File | What it is |
+## Totals model
+
+The totals work is an UNDER-only experiment. `totals_features.ipynb`, `totals_model.ipynb`, and `predict_totals.ipynb` contain the feature, validation, and inference path. The weekly workflow can update its tracking data, but the 2026 spread page does not present totals as part of the current product.
+
+The main filters are intended to remove games where the historical signal was unstable:
+
+- only positive UNDER edges;
+- predicted total below 45;
+- dome games excluded;
+- late-season games excluded from the tracked subset.
+
+These filters are research choices, not evidence of future profitability.
+
+## Data and release flow
+
+```text
+private producer
+    -> candidate CSV + SHA-256 sidecar
+    -> publishing validation
+    -> immutable data/releases/builds artifact
+    -> active manifest pointer
+    -> weekly page and matchup routes
+    -> separate grading ledger
+```
+
+Publication keeps prediction inputs immutable. Final scores and ATS results are stored under `data/releases/results/` rather than written back into the released prediction CSV.
+
+## Public repository map
+
+| Path | Role |
 |---|---|
-| `betting/features.py` | The single source of truth for the 85-feature pipeline. All the models read from this. |
-| `cowork_OS/spread_v3_prod/` | 2026 website spread. Leftover 75/25. HIGH 192/336, Wilson 0.5266. |
-| `archive/legacy-inrepo-2026-08-18/betting/model_comparison.ipynb` | Archived. Where I used to compare designs and retrain in-repo spread pkls. |
-| `archive/legacy-inrepo-2026-08-18/betting/predict_betting.ipynb` | Archived weekly spread papermill. Do not restore as prod. |
-| `betting/predict_totals.ipynb` | The weekly over/under pipeline. |
-| `betting/sports_betting_agent.ipynb` | LLM write-ups. Disabled 2026-08-03. Artifact quarantined. |
-| `betting/models/*.pkl` | Frozen 2025 demo + Help SHAP hashes. Do not overwrite. |
-| `betting/predictions_tracker.csv` | The running log of every spread pick and its result. |
-| `betting/test_features.py` | Automated tests that lock the feature pipeline (run on every change). |
+| `live_2026.py` | 2026 confidence and display rules |
+| `features.py` | Shared feature code used by the totals research and archived in-repo work |
+| `predict_totals.ipynb` | Weekly totals inference and tracking |
+| `totals_model.ipynb` | Totals model training and walk-forward evaluation |
+| `totals_features.ipynb` | Totals feature engineering |
+| `predictions/` | Frozen 2025 demo prediction files |
+| `totals_predictions/` | Frozen totals outputs and tracking data |
+| `models/` | Frozen 2025 demo artifacts used by the Help page integrity checks |
+| `experiments/` | Audits and retired research artifacts |
+| `../publishing/` | Candidate validation, immutable builds, activation, rollback, and grading |
+| `../site_pages/page_weekly_predictions.py` | Release-backed weekly spread page |
+| `../site_pages/page_matchup.py` | Hidden release-backed matchup route |
 
-## Honest results
+The old in-repo spread notebooks and training code are preserved under `archive/legacy-inrepo-2026-08-18/betting/`. They are not the 2026 production source. A retired generated-commentary experiment is also outside the live site path.
 
-**RETRACTED 2026-08-03. The spread model has no demonstrated edge.** I previously reported
-64.2% ATS-vs-open on the HIGH tier (380 of 592, walk-forward 2018–2025) and called it a real
-edge. That number came through a leaking feature: the sack history was built only from
-sack-positive game/team rows, so a zero-sack team-game had no row, presence encoded that
-game's own outcome, and a downstream `fillna(0)` wrote 0 onto exactly those rows.
-Regenerated in a declared pinned environment with a dense sack table AND corrected
-All-Pro player identity (aggregate + injury paths), the HIGH tier is **129 of 238 =
-54.2017%**, Wilson lower bound **47.86%** — *below* the 52.4% break-even. A
-control run of the leaking build in the same environment reproduces 380/592 exactly, so the
-collapse is the leak, not drift. No tier clears break-even. Provenance (final): `betting/experiments/audit_2026-08-03c_final/PROVENANCE.md`. In the 2025 live test (weeks
-10–17, 117 graded games) the HIGH tier hit 64.7% (11 of 17), MEDIUM hit 59.5% (25 of 42), and
-overall the model was 56.4%. The live samples are small and there will be losing weeks; the point
-is to track it honestly over multiple seasons.
+## Reproducing the public state
 
-**One thing I'm careful about: the model does not beat the closing line.** Early on it looked like
-it did, but that was a mirage — the model's most important feature is nearly identical to the
-closing line itself (they correlate at 0.994), so "beats the close" was just the model echoing the
-market. Measured against the *closing* line there was never an edge, and after the 2026-08-03 leak
-fix there is no demonstrated edge against the *opening* line either (see the retraction
-above). So I never claim the model beats the close, and I
-never claim what's called closing line value. Being able to state that plainly is the point of all
-the validation discipline.
+The public repository can validate and display a candidate, but it cannot retrain the private 2026 spread producer. To inspect what is live:
 
-**The spread model is at its ceiling.** I ran a long list of "make it better" experiments —
-weather features, re-weighting the ensemble, an extra "ULTRA" confidence tier, time-decay
-weighting, extending the training data back to 2009. Almost all were rejected against a strict
-bar. The lesson that kept repeating: the gains from here are in execution (shopping for better
-prices, sizing bets, tracking closing line value), not in more model tuning.
+```bash
+python -m publishing.cli status
+python -m publishing.cli validate --artifact path/to/candidate.csv --metadata path/to/candidate.metadata.json
+```
 
-**The totals model is experimental and I label it that way.** In cross-validation the UNDER-only
-strategy hit 55.7% (on 575 picks), but the live sample so far is 52.2% on just 46 picks — right at
-break-even, and far too small to tell a real edge from luck. So on the dashboard it carries an
-amber "tracking only — do not bet" banner, and it stays that way until a full season of picks is
-in.
-
-## The rules and fences, and why they exist
-
-- **Every result carries its sample size, date range, and baseline.** "64% ATS" alone is not a
-  claim; "54.2% ATS-vs-open, 129/238, walk-forward 2018–2025, pinned env, sha256 37830520…" is.
-  A number without those things has fooled someone before and will again — including me: the
-  retracted 64.2% carried all three and was still wrong, because the *pipeline* leaked. Add a
-  fourth requirement: name the environment and the artifact hash.
-- **The feature list order is a contract.** The order of the feature lists determines the exact
-  bytes of the trained models, so an automated test locks it. If I reorder features, I have to
-  retrain and update the test in the same change. This exists because I once reordered a list "for
-  readability" and silently changed every model.
-- **A "refactor only" claim has to be proven, not asserted.** If I move model code around and
-  claim it didn't change behavior, I prove it by checking the trained model files are byte-for-byte
-  identical.
-- **I never claim the model beats the closing line, and never claim closing line value** — see the
-  0.994 correlation story above.
-- **EXPERIMENTAL stays EXPERIMENTAL** until a full live season clears the bar. The totals model
-  doesn't get promoted on a hot 46-pick stretch.
-- **Live data beats the backtest.** When the test set and the small live sample disagree on a
-  close call, I trust the live read for real-money decisions — that's how the ULTRA tier got cut
-  after it fired only twice in seven weeks.
-
-None of this is financial advice, and sports betting carries real risk. The honest summary is: a
-real, measurable edge against the opening line on the confident tier; no edge against the closing
-line; and a totals model that's promising but unproven.
+Use the immutable build ID and SHA-256 value in the manifest when comparing a site result with an exported candidate.

@@ -79,6 +79,8 @@ betting/models_staged/*.pkl
 # fenced in the private nested data repo.
 fantasy/talent/*.py
 fantasy/talent/*.md
+# Public overview linked from the repository README.
+!fantasy/talent/GUIDE.md
 fantasy/talent/*.provenance.json
 fantasy/talent/rho_provenance.json
 fantasy/talent/tests/
@@ -101,7 +103,8 @@ fantasy/seasonal_projections/PREREGISTRATION.md
 fantasy/seasonal_projections/ARTIFACTS.md
 fantasy/seasonal_projections/build_rookie_arm0_features.py
 fantasy/rookie/harness/
-fantasy/rookie/GUIDE.md
+# Public overview linked from the repository README.
+!fantasy/rookie/GUIDE.md
 fantasy/rookie/PREREG_rookie_production_2026-07-20.md
 fantasy/rookie/build_rookie_board.py
 betting/archive/JoSchoAnalytics.ipynb

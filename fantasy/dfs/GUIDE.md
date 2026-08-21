@@ -1,4 +1,8 @@
-# A guide to the DFS lineup optimizer
+# DFS lineup optimizer guide
+
+Status: checked against the current optimizer and site registry on 2026-08-21. The DFS page exists
+in code but is deliberately absent from the top navigation. Its pipeline still reads the frozen
+2025 projection directory and has not moved to the immutable 2026 release contract.
 
 This is the plain-language tour of the daily-fantasy (DFS) lineup optimizer — the tool that builds
 a DraftKings roster out of my weekly player projections. I built it, and I want to be clear up
@@ -27,7 +31,7 @@ is. That's the entire job of this tool: take my weekly projections and return th
 lineup.
 
 One thing this tool does *not* do is decide whether the players are any good — that comes from the
-weekly fantasy model (its own guide is in `fantasy/`). The optimizer just arranges the best legal
+weekly fantasy model (see the [weekly fantasy guide](../GUIDE.md)). The optimizer just arranges the best legal
 roster out of whatever projections it's given. Good projections in, good lineup out; the reverse
 is just as true. This is worth stressing, because a slick optimizer can create a false sense of
 confidence: the lineup it returns is optimal *for the projections*, and if the projections are off,
@@ -88,15 +92,18 @@ retyped.
 | `fantasy/dfs/optimizer.ipynb` | Reference notebook: explains each constraint and exercises the module. It no longer contains the solver code. |
 | `fantasy/dfs/dfs_pipeline.ipynb` | The weekly workflow: load projections and salaries, solve, export the DraftKings file. |
 | `fantasy/dfs/test_lineup_optimizer.py` | Proof the solve is a real one: it checks the CBC program is installed, runs it on the kept week-10 slate, and measures every roster rule off the answer. |
-| `fantasy/fantasy_projections/` | The weekly projections (written by the fantasy model) that the optimizer reads. |
+| `fantasy/dfs/test_dfs_matching.py` | Regression tests for name matching and DraftKings scoring conversion. |
+| `fantasy/fantasy_projections/` | Frozen 2025 demo projections that the current DFS notebook reads. |
+| `site_pages/page_dfs.py` | Streamlit page implementation, registered in code but kept off the visible navigation. |
 
 ## Honest results
 
 There's no hit-rate to report here, and I won't invent one. The optimizer is a correctness tool,
 not a prediction: given a set of projections and salaries, it returns the best legal lineup, and it
 does that job reliably. Whether that lineup actually wins money depends almost entirely on the
-projections feeding it — and those, as I explain in the fantasy guide, are a modest improvement
-over a simple baseline, not a crystal ball.
+projections feeding it. The current weekly model has a modest holdout MAE advantage over Sleeper,
+but trails Sleeper on player ordering and lineup points. The DFS pipeline does not consume that
+2026 release path yet, so those results cannot be claimed for this optimizer's current inputs.
 
 It's also worth being honest about variance. A single nine-player lineup is a high-variance bet
 even when every projection is good: football is noisy, one injury or blowout can sink a roster, and
@@ -111,8 +118,8 @@ every lineup. It's on the list to fix.
 
 The tool is also built for a single best lineup, not for large tournaments. Tournament play rewards
 building many *different* lineups and picking less-popular players on purpose; this optimizer
-doesn't do either of those yet. So it's genuinely useful for cash-style single-lineup play and as a
-starting point, but it is not a tournament engine.
+doesn't do either of those yet. It solves the single-lineup constraint problem, but there is no
+contest-performance validation for treating the result as a profitable lineup.
 
 ## The rules and fences, and why they exist
 
@@ -122,13 +129,13 @@ starting point, but it is not a tournament engine.
 - **The DraftKings export format is exact.** The upload has to be one column per roster slot in the
   right order, or DraftKings rejects it. This is worth guarding because a subtly wrong export looks
   fine and fails silently at upload time.
-- **The projections come from `fantasy/fantasy_projections/` and nowhere else** — the same path the
-  fantasy model writes to. The two tools are joined at that file.
+- **The current DFS pipeline reads `fantasy/fantasy_projections/`.** That directory is the frozen
+  2025 demo path. Migrating DFS to the active `data/releases/` fantasy build is still open work.
 - **The defense slot uses a season-average fallback,** and I say so rather than pretending it's
   modeled. Naming the weak spot is better than hiding it.
 - **This is a single-lineup optimizer, not a tournament generator.** I don't claim tournament
   features (many diverse lineups, opponent-popularity leverage) that aren't built yet.
 
-The short version: a correct, reliable tool that builds the best legal DraftKings lineup from my
-projections — useful as far as the projections are, honest about the defense gap, and not yet a
-tournament engine.
+The short version: this is a tested solver for the best legal DraftKings lineup under its supplied
+numbers. Its projection feed is still on the frozen demo path, its defense input is weak, and it
+has no tournament or contest-performance claim.
