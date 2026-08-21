@@ -1,27 +1,8 @@
-"""2026 Draft Board page — season-projection comparison table (2026-07-22 rebuild).
+"""2026 Draft Board. CSV-only. No training in this repository.
 
-This page retires the licensed Phase-4 band as its spine. It lists the 180-player capped
-preseason universe published by the independent V2 pipeline (24 QB / 60 RB / 72 WR / 24 TE)
-and shows, side by side, the snapshot's draft price and positional rank next to Sleeper's
-season-total projection when available and the published Model Proj, plus the
-positional-rank gap for each and two descriptive talent scores. Draft price is Sleeper ADP
-by default, with ESPN ADP as a second source for the same 180 players. A detail toggle
-(ON by default) can drop the four raw-estimate/talent columns for a compact 9-column
-comparison view. Public copy must not mention the 75/25 Sleeper mix (Joseph, 2026-08-18).
-
-The frozen artifacts (phase4_band_2026.csv, talent_index_2026.csv) stay on disk, read-only,
-for the closed H-campaign. This module reads neither, and neither does the daily Sleeper
-market refresh; its frozen source is the 180-player publication CSV.
-
-Compliance. DESCRIPTIVE ONLY.
-  • Sleeper ADP + Sleeper Proj are Sleeper's data (attributed). ESPN ADP is ESPN's.
-  • Model Proj + Model Gap are the published board number (internally 75% independent
-    v6 plus 25% Sleeper's published projection), BACKTESTED (2021-2025) and NOT
-    live-validated. The displayed values are the immutable pipeline output; no analyst
-    overlay is applied. Do not name that mix on the page.
-  • The gap columns are neutral positional-rank differences, not recommendations.
-  • Talent Scores are descriptive context on their own scales, and feed no other column.
-  • No buy/sell/fade/steal/reach/target/tier/valued/hit-rate/accuracy language anywhere.
+The page compares market draft price to a published season projection for a frozen
+180-player universe. Talent scores are descriptive context. They do not feed any
+other column. Public copy must not name the Sleeper mix.
 """
 from datetime import date
 from pathlib import Path

@@ -1,19 +1,4 @@
-"""REBOUND 2026-08-03 by the qb_changed DEPLOY REFRESH (inference only; the seven position
-model pkls are byte-identical). Provenance:
-fantasy/projections/results/QB_CHANGED_DEPLOY_REFRESH_2026-08-03.json
-
-Proof for the rebuilt Draft Board tab (2026-07-22): the licensed Phase-4 band was
-retired and the tab is now a 245-row season-projection comparison table (Sleeper ADP +
-Position Rank + two independent projections with their positional-rank gaps + descriptive
-talent scores). Renders the board page function directly via AppTest.from_function
-(nav-independent). Hermetic (APP_OFFLINE=1).
-
-Asserts: renders via st.dataframe (not st.table); the "What each column means" guide lives
-INSIDE the collapsed How-to-read expander; all 245 rows render; the default sort is Sleeper
-ADP ascending; the two un-projected rookie QBs are KEPT with a blank Model Proj; the exact
-on-screen column labels are present; the CSV download exists; and the rendered copy carries no
-forbidden buy/sell/value language.
-"""
+"""Draft Board page tests. Hermetic (APP_OFFLINE=1).
 import os
 import re
 import sys

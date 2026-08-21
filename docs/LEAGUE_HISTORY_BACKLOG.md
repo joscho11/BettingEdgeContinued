@@ -1,5 +1,7 @@
 # League History backlog
 
+Internal product notes. Not site copy.
+
 ## Cloud load crash (2026-08-15)
 
 - Streamlit Cloud can copy a new `page_league_history.py` into a live process

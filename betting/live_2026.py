@@ -1,9 +1,9 @@
 """2026 live Tuesday-model display rules. Not the 2025 3-voter demo.
 
-Production is spread_v3_prod leftover 75/25, scored vs the Tuesday 9:00 ET line.
-HIGH is |predicted home margin - Tuesday spread| >= 3, last REG week skipped.
-A later line can drop HIGH. It cannot create HIGH. No MEDIUM tier.
-All-bets stays off the claim.
+Production lives in the private leftover ensemble (`spread_v3_prod`), scored vs
+the Tuesday 9:00 ET line. HIGH is |predicted home margin - Tuesday spread| >= 3,
+last REG week skipped. A later line can drop HIGH. It cannot create HIGH.
+No MEDIUM tier. All-bets stays off the claim.
 """
 from __future__ import annotations
 

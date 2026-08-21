@@ -1,4 +1,4 @@
-"""Dependency-free shared schedule settings for the seasonal board and dashboard."""
+"""Shared Draft Board freeze date. No other seasonal settings live here."""
 import os
 from datetime import date
 

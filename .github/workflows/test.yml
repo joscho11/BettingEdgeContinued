@@ -40,7 +40,7 @@ jobs:
           pytest -v
           tests/test_public_boundary.py
           tests/test_dashboard_utils.py
-          betting/test_calibration.py
+          tests/test_calibration.py
           tests/test_app_draft_board.py
           tests/test_site_nav.py
           tests/test_board_page.py

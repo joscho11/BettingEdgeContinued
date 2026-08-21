@@ -16,7 +16,7 @@ Design choices (deliberate, given the data):
   point estimate once it clears ``MIN_BUCKET_N``.
 - **Wilson interval, not normal approximation.** Small n and rates near the 52.4%
   break-even are exactly where the normal approximation lies; Wilson does not.
-- **Pools whatever it's given.** Feed it one season or five — it recomputes from the
+- Pools whatever it's given. Feed it one season or five. It recomputes from the
   graded rows present, so it sharpens automatically as the live record grows.
 
 Pure functions, no Streamlit, no I/O — unit-tested in ``test_calibration.py`` (CI).

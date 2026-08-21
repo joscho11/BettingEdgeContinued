@@ -9,7 +9,6 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE / "site_pages"))
 sys.path.insert(0, str(_HERE / "betting"))
-sys.path.insert(0, str(_HERE / "fantasy" / "seasonal_projections"))
 
 import dashboard_chrome as chrome
 import theme_redesign  # redesign preview skin (revertible) — delete this import + the call below to revert

@@ -1,7 +1,4 @@
-"""Weekly Fantasy page (site revamp Batch 3c). Its projection loader and actual-stat
-lookup originated in app.py; own Season+Week controls (wf_*, filter independence) are
-preserved. Stale "tab" wording is verbatim.
-"""
+"""Weekly Fantasy page. 2025 demo CSVs plus validated 2026 releases."""
 import html as _html
 import itertools as _it
 import json
@@ -23,18 +20,6 @@ LIVE_FROM_SEASON = 2026
 LIVE_WEEK = 1
 REG_WEEKS = tuple(range(1, 19))
 _JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
-
-
-def _sibling_proj_dir() -> Path:
-    parent = _HERE.parent
-    for name in ("weekly_projections_v2_prod", "weekly_projections_v2"):
-        cand = parent / name / "independent_model" / "outputs"
-        if cand.is_dir():
-            return cand
-    return parent / "weekly_projections_v2_prod" / "independent_model" / "outputs"
-
-
-_SIBLING_PROJ_DIR = _sibling_proj_dir()
 
 
 def _parse_proj_name(name: str) -> tuple[int, int] | None:

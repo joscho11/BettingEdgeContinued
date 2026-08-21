@@ -4,6 +4,22 @@ JoScho Analytics is a source-available Streamlit site for NFL betting analysis, 
 
 **Live site:** [joschoanalytics.streamlit.app](https://joschoanalytics.streamlit.app)
 
+## How to read this repo
+
+```text
+app.py                 Streamlit entrypoint and nav
+site_pages/            One module per page
+dashboard_*.py         Shared data loaders and chrome
+publishing/            Validate a producer CSV, freeze it, grade it
+data/releases/         Immutable published builds + active manifest
+betting/               Spread display rules and graded trackers
+fantasy/               Draft, rookie, talent, and 2025 weekly demo CSVs
+futures/published/     Season Totals CSV + evidence
+tests/                 Offline page tests and the public-boundary scanner
+```
+
+A page should load CSV or JSON. If a change needs a `.pkl`, it belongs in a private producer, not here.
+
 ## Website coverage
 
 | Page | What it covers |
@@ -79,10 +95,10 @@ Set `APP_OFFLINE=1` when running page tests without network access. CI uses the 
 
 ## Guides
 
-- [Betting models](betting/GUIDE.md)
+- [Betting](betting/README.md)
 - [Weekly fantasy](fantasy/GUIDE.md)
-- [Talent scores](fantasy/talent/GUIDE.md)
-- [Rookie Board](fantasy/rookie/GUIDE.md)
+- [Talent scores](fantasy/talent/README.md)
+- [Rookie Board](fantasy/rookie/README.md)
 - [Draft Board](fantasy/seasonal_projections/GUIDE.md)
 - [Publication system](publishing/README.md)
 

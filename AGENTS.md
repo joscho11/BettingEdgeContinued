@@ -41,8 +41,9 @@ python -m publishing.cli status
 | `site_pages/` | One module per page |
 | `publishing/` | Candidate validation, immutable releases, grading |
 | `data/releases/` | Published builds and the active manifest |
-| `betting/live_2026.py` | 2026 HIGH display rules |
-| `betting/calibration.py` | Cover rates from the graded tracker |
+| `betting/` | 2026 HIGH rules, graded trackers |
+| `fantasy/` | Draft, rookie, talent, and 2025 demo CSVs |
+| `futures/published/` | Season Totals artifacts |
 | `draft_board_2026.py` | Draft Board, CSV-only |
 | `tests/test_public_boundary.py` | Fails if modeling files or ML imports return |
 

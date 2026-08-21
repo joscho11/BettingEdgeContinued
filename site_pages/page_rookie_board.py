@@ -1,15 +1,8 @@
-"""Rookie Board page — the rookie hit-probability product (ships regardless; research REJECTED).
+"""Rookie Board page. Reads published CSVs only.
 
-Additive page: reads the pre-built board CSVs in fantasy/rookie/board_data/ (no model runs here,
-no network). The hit-probability research was fired 2026-07-20 and REJECTED (college/athletic add no
-measured edge beyond draft capital: full AUC 0.843 vs draft-only 0.838, 2019-2023 hold-out). The
-disclosure below rides on every surface.
-
-The rookie-year PROJECTION columns are sourced from the RB, WR, and TE season-total models
-(`fantasy/projections/results/*_rookie_board_projection.csv`). The old starved per-game
-`rookie_ppg` surface is retired from display; its pkl is untouched in-repo. The projections are
-shown beside Sleeper's projection when Sleeper has published one, with a descriptive difference;
-they make no claim to beat Sleeper.
+Hit-probability research was fired 2026-07-20 and rejected: college and athletic
+testing added no measured edge beyond draft capital on the 2019-2023 hold-out.
+The disclosure below rides on every surface.
 """
 import sys
 from pathlib import Path

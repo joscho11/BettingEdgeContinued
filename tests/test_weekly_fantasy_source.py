@@ -42,32 +42,23 @@ def test_parse_proj_name():
     assert weekly._parse_proj_name("notes.txt") is None
 
 
-def test_available_files_ignore_sibling_2025(tmp_path, monkeypatch):
+def test_available_files_are_demo_csvs_only_without_releases(tmp_path, monkeypatch):
     jsa = tmp_path / "jsa"
-    sib = tmp_path / "sib"
     jsa.mkdir()
-    sib.mkdir()
     (jsa / "projections_2025_week10.csv").write_text("player_id\n1\n", encoding="utf-8")
-    (sib / "projections_2025_week10.csv").write_text("SHOULD_NOT_WIN\n", encoding="utf-8")
-    (sib / "projections_2026_week01.csv").write_text("player_id\n2\n", encoding="utf-8")
+    (jsa / "projections_2026_week01.csv").write_text("site\n", encoding="utf-8")
     monkeypatch.setattr(weekly, "_JSA_PROJ_DIR", jsa)
-    monkeypatch.setattr(weekly, "_SIBLING_PROJ_DIR", sib)
     monkeypatch.setattr(weekly, "published_builds", lambda *args, **kwargs: [])
     got = weekly.available_projection_files()
     assert got[(2025, 10)] == jsa / "projections_2025_week10.csv"
     assert (2026, 1) not in got
-    assert (sib / "projections_2025_week10.csv").read_text(encoding="utf-8") == "SHOULD_NOT_WIN\n"
 
 
 def test_unvalidated_2026_files_are_not_public(tmp_path, monkeypatch):
     jsa = tmp_path / "jsa"
-    sib = tmp_path / "sib"
     jsa.mkdir()
-    sib.mkdir()
     (jsa / "projections_2026_week01.csv").write_text("site\n", encoding="utf-8")
-    (sib / "projections_2026_week01.csv").write_text("lab\n", encoding="utf-8")
     monkeypatch.setattr(weekly, "_JSA_PROJ_DIR", jsa)
-    monkeypatch.setattr(weekly, "_SIBLING_PROJ_DIR", sib)
     monkeypatch.setattr(weekly, "published_builds", lambda *args, **kwargs: [])
     got = weekly.available_projection_files()
     assert (2026, 1) not in got
