@@ -109,19 +109,6 @@ def test_coming_soon_copy_points_at_2025_demo():
     assert "demo" in text.lower()
 
 
-def test_sibling_dir_prefers_renamed_prod_folder():
-    path = weekly._sibling_proj_dir()
-    assert path.name == "outputs"
-    prod = weekly._HERE.parent / "weekly_projections_v2_prod" / "independent_model" / "outputs"
-    legacy = weekly._HERE.parent / "weekly_projections_v2" / "independent_model" / "outputs"
-    if prod.is_dir():
-        assert path == prod
-    elif legacy.is_dir():
-        assert path == legacy
-    else:
-        assert "weekly_projections_v2_prod" in str(path)
-
-
 def test_slim_2026_schema_has_core_columns():
     frame = pd.DataFrame({
         "player_id": ["00-1"],

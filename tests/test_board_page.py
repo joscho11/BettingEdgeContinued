@@ -1,4 +1,4 @@
-"""Draft Board page tests. Hermetic (APP_OFFLINE=1).
+"""Draft Board page tests. Hermetic (APP_OFFLINE=1)."""
 import os
 import re
 import sys
