@@ -1,437 +1,99 @@
-# JoSchoAnalytics: NFL Prediction System
+# JoScho Analytics
 
-Live dashboard: [joschoanalytics.streamlit.app](https://joschoanalytics.streamlit.app) - May need to be woken up
+JoScho Analytics is a source-available Streamlit site for NFL betting analysis, fantasy football projections, and league-history research. I publish the model assumptions, results, limits, and code beside the products.
 
----
+**Live site:** [joschoanalytics.streamlit.app](https://joschoanalytics.streamlit.app)
 
-## What This Is
+## Website coverage
 
-I built this to find out if a data-driven model can actually find an edge against the spread. Anyone can pick winners. The harder question is whether you can consistently beat the number Vegas sets.
+| Page | What it covers |
+|---|---|
+| **Home** | Site status, release timing, and links to the main products. |
+| **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper or ESPN ADP, positional ranks, rank gaps, and talent context. |
+| **Rookie Board** | Rookie hit probabilities, season projections, college production, and athletic context. |
+| **Weekly Fantasy** | Half-PPR and stat projections for QB, RB, WR, and TE. Actual results appear after games finish. |
+| **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, release status, and links to each matchup. |
+| **Matchup Pages** | Shareable game pages with the model margin, market line, edge, injuries, team form, and a downloadable social card. |
+| **Track Record** | Graded against-the-spread results, confidence tiers, model comparisons, streaks, and betting simulations. |
+| **Season Totals (Beta)** | Win projections for all 32 teams compared with posted season totals. |
+| **League History** | Sleeper and ESPN league records, rivalries, manager profiles, draft habits, roster production, and league-wide trends. |
+| **Film Room** | Short video breakdowns with written analysis and links to the related product. |
+| **Help & Guide** | Betting definitions, model summaries, feature explanations, confidence rules, and product limitations. |
 
-> ### ⚠️ RETRACTED 2026-08-03 — the 64.2% ATS edge does not survive a leak fix
->
-> I previously published: *"HIGH-confidence picks hit 64.2% against the opening spread,
-> 380 of 592 games, 2018–2025, 95% Wilson lower bound 60.2%."* **That number was produced
-> through a leaking feature and I am withdrawing it.**
->
-> **The defect.** The sack history was built only from sack-positive game/team rows, so a
-> defense that recorded zero sacks in a game had *no row at all*. Row presence therefore
-> encoded that game's own outcome, and a downstream `fillna(0)` wrote 0 onto exactly those
-> rows — contemporaneous information inside a pregame feature. `sack_diff` and
-> `sack_diff_reverse` are the #2 and #3 of the 35 features the model trains on.
->
-> **The regenerated numbers** (walk-forward out-of-sample, 2018–2025, 2,138 predictions,
-> pushes excluded via `won_open.notna()`, tiers over games with |edge| ≥ 1):
->
-> All numbers below come from ONE declared pinned environment
-> (`requirements-backtest.txt`, pandas 2.3.3, Python 3.11.9). Full provenance and the
-> controlled 2×2:
-> [`betting/experiments/audit_2026-08-03c_final/PROVENANCE.md`](betting/experiments/audit_2026-08-03c_final/PROVENANCE.md).
->
-> Two defects were found, and they are separated rather than conflated. **(1)** the sack
-> leak above; **(2)** an All-Pro **identity collision** — the roster file has no player ID
-> and two distinct players named C.J. Mosley were merged under a name key, with the
-> survivor decided by an unstable sort.
->
-> | Arm | sack | identity | HIGH | win% | 95% Wilson lower | Clears 52.4%? |
-> |---|---|---|---|---|---|---|
-> | A | leaking | legacy | 380/592 | 64.1892% | 60.2469% | yes |
-> | B | dense | legacy | 133/240 | 55.4167% | 49.0918% | no |
-> | C | leaking | fixed | 378/589 | 64.1766% | 60.2239% | yes |
-> | **D (published)** | **dense** | **fixed** | **129/238** | **54.2017%** | **47.8551%** | **no** |
->
-> Arm A reproduces the originally published figure **exactly**, which licenses the causal
-> claim: the collapse is the leak, not drift. The sack repair is the dominant effect (mean
-> margin change 1.77 pts, HIGH 592→240); the identity repair is small but real (mean 0.09,
-> HIGH 240→238). Arm D was run twice and is byte-identical.
->
-> **Published: HIGH 129/238 = 54.2017%, Wilson lower 47.8551% — below break-even.**
-> MEDIUM 382/718 = 53.2033%, lower 49.5462% — also below. **No tier clears break-even.**
->
-> **What I now claim: nothing.** 54.2% on 238 picks is a point estimate whose 95% interval
-> contains break-even. This system has **no demonstrated ATS edge**; the 2026 forward
-> record is the first real test.
->
-> Reproduce (the pinned env is required — `requirements-ci.txt` alone lacks openpyxl):
-> ```
-> python -m venv C:/tmp/jsa-bt
-> C:/tmp/jsa-bt/Scripts/python.exe -m pip install -r requirements-backtest.txt
-> C:/tmp/jsa-bt/Scripts/python.exe betting/experiments/walkforward_oos_preds.py --line open --out <path>.csv
-> cd betting && C:/tmp/jsa-bt/Scripts/python.exe kelly_staking.py --preds <path>.csv
-> ```
-> Fix: `betting/features.py::_build_situational_pbp` + `model_comparison.ipynb` §7 build a
-> dense sack table. Guard: `betting/test_sack_leak.py` mutates the target game's sack count
-> and asserts every pregame feature is unchanged, with a red proof that the pre-fix builder
-> fails that test.
+The repository also contains a DraftKings Classic lineup optimizer. Its page stays off the main navigation while that product remains in development.
 
-The model does **not** beat the closing line, and I do not claim it does — an earlier "beats the close" reading turned out to be an artifact of the closing line being one of the model's own inputs.
+## Models and publication
 
-The 2025 live sample (weeks 10 through 17, 117 graded games) reads 56.4% overall, HIGH 64.7% and MEDIUM 59.5% — but HIGH is only 11 of 17 graded picks there, far too few to separate from luck. Cite the walk-forward figure, not that one.
+The site covers four model families:
 
-The repo is the full system: ATS predictions, an experimental over/under model, weekly fantasy projections, a DFS lineup optimizer, a paused LLM agent (disabled August 2026), and a pre-season Draft Board and Rookie Board built on from-scratch season projections and descriptive talent scores.
+- **NFL spreads:** an independent margin estimate compared with the sportsbook line. The site separates the live 2026 record from the 2025 demo.
+- **Game and season totals:** an experimental game-total model plus a separate 32-team season-win model.
+- **Weekly fantasy:** player-level half-PPR and stat projections with postgame grading.
+- **Draft and rookie analysis:** season projections, market ranks, rookie hit probabilities, and descriptive NFL and college talent scores.
 
----
+The live spread and weekly-fantasy producers submit candidate files to this repository. The code in `publishing/` validates schemas, coverage, timestamps, hashes, and model versions before it creates an immutable release. The site reads those releases, while the grading workflow writes results without changing the original prediction.
+
+## Codebase map
+
+| Path | Contents |
+|---|---|
+| `app.py` | Streamlit entrypoint and navigation. |
+| `site_pages/` | One module per visible page plus hidden matchup routes. |
+| `dashboard_*.py`, `mobile.py`, `theme_redesign.py` | Shared data loading, UI components, responsive styles, and site chrome. |
+| `publishing/` | Candidate validation, immutable releases, manifests, grading, rollback, and CLI commands. |
+| `data/releases/` | Published build artifacts and the active release manifest. |
+| `matchups/`, `data/matchups/` | Matchup contracts, detail-page loaders, injury and model context, and social-card generation. |
+| `betting/` | Shared NFL features, totals notebooks, historical trackers, frozen demo models, audits, and tests. |
+| `fantasy/` | Weekly fantasy artifacts, draft and rookie products, talent scores, and the DFS optimizer. |
+| `futures/` | Published season-win projections and their evidence file. |
+| `film_room.py`, `video_content.py`, `video_breakdowns/` | Video registry and written breakdowns. |
+| `tests/` | Unit, contract, offline page-render, responsive, and publication tests. |
+| `.github/workflows/` | CI, release grading, board refreshes, and scheduled totals runs. |
+| `docs/`, `memory/` | Product specifications, backlogs, decisions, and engineering notes. |
+| `archive/` | Retired pipelines and research that no live page imports. |
+
+Read [AGENTS.md](AGENTS.md) before changing model artifacts or production data paths. It documents the active sources, frozen files, test contracts, and known failure modes.
+
+## Evidence and limits
+
+Sportsbooks charge enough margin that a bettor needs about a 52.4% win rate at standard `-110` odds to break even. Backtests can overstate performance, so the site labels backtested, demo, experimental, and live results as separate evidence.
+
+I retracted the old 64.2% spread-model claim after finding a pregame feature leak. I measured the corrected historical HIGH tier at 129/238, or 54.2017%, with a 47.8551% Wilson lower bound. That result does not demonstrate an edge over break-even. The full reproduction record lives in [`betting/experiments/audit_2026-08-03c_final/PROVENANCE.md`](betting/experiments/audit_2026-08-03c_final/PROVENANCE.md). The Track Record page shows the live evidence used for current decisions.
+
+The site provides research and model outputs, not paid picks or financial advice. Sports betting involves risk.
+
+## Run locally
+
+```bash
+git clone https://github.com/joscho11/JoSchoAnalytics.git
+cd JoSchoAnalytics
+python -m venv .venv
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Streamlit serves the app at `http://localhost:8501`.
+
+Use the test dependency set for development:
+
+```bash
+pip install -r requirements-test.txt
+python -m pytest tests/test_site_nav.py -q
+```
+
+Set `APP_OFFLINE=1` when running page tests without network access. CI uses the same offline path for dashboard coverage.
 
 ## Guides
 
-Each subsystem has a plain-language guide — what it is trying to do, how it works end to end, the key files, and the honest results:
-
-- [betting/GUIDE.md](betting/GUIDE.md) — the ATS spread model, the experimental totals model, and the LLM agent.
-- [fantasy/GUIDE.md](fantasy/GUIDE.md) — the weekly fantasy projection system (per-position and per-stat models).
-- [fantasy/projections/GUIDE.md](fantasy/projections/GUIDE.md) — the from-scratch 2026 season-total half-PPR projections (RB, WR, TE and veteran QB) behind the Draft Board's Model Proj column.
-- [fantasy/seasonal_projections/GUIDE.md](fantasy/seasonal_projections/GUIDE.md) — the closed value-signal research campaign behind the pre-season board (the band it validated was retired from the page on 2026-07-22).
-- [fantasy/talent/GUIDE.md](fantasy/talent/GUIDE.md) — the NFL Talent Score and College Talent Score columns: the eight per-position builds behind them, what they measure, and where they fail (no strength-of-schedule adjustment; FBS only on the college side).
-- [fantasy/rookie/GUIDE.md](fantasy/rookie/GUIDE.md) — the Rookie Board's hit-probability score.
-- [fantasy/dfs/GUIDE.md](fantasy/dfs/GUIDE.md) — the DraftKings lineup optimizer.
-- [publishing/README.md](publishing/README.md) — the validated weekly release contract,
-  immutable builds, status manifest, grading, and rollback commands.
-
-`fantasy/breakout/` is a one-off research notebook (a breakout-probability experiment with saved charts); it is not wired into the dashboard or any pipeline, so it has no guide.
-
----
-
-## The Thinking Behind It
-
-This section is the part I care about most, because the modeling choices only make sense once you understand the problem.
-
-### You are not predicting who wins. You are beating a number.
-
-When a book posts "Chiefs by 7," that line is not their honest guess at the final margin. It is the number that splits betting money close to evenly so they collect their cut no matter who wins. At standard odds you risk 110 to win 100, which means you have to win **52.4%** of your bets just to break even. That number is the bar everything in this project is measured against.
-
-So the goal is narrow and hard: figure out which side of an already-sharp line is mispriced, often enough to clear 52.4%. The market is efficient, the edge is thin (high-50s percent at best), and most of the engineering is about finding that edge without fooling myself into seeing one that is not there.
-
-### Why these features
-
-The model builds 85 features per game and uses the top 35 in production. The ones that carry the most signal:
-
-- **Rolling EPA (Expected Points Added).** The single most important input. EPA measures how much each play moved a team toward scoring, accounting for down, distance, and field position. A 5-yard gain on 3rd-and-4 is worth far more than the same gain on 1st-and-10. It is a much better read on team quality than raw yards or points. I use a 5-game rolling window for both offense and defense.
-- **Strength of schedule.** A team's stats mean nothing without knowing who they played. I track opponents' win percentage so dominant numbers against weak teams get discounted.
-- **All-Pro roster quality.** Talent is predictive but hard to quantify. All-Pro selections are a clean public talent signal. I weight them over a 3-year lookback (4/2/1, since recent selections matter most and talent decays), split by offense and defense.
-- **Injuries.** Instead of a standalone flag, injured stars (Out or Doubtful) get subtracted from a team's weighted All-Pro score. So a starting QB being ruled out automatically deflates that team's talent rating. Injuries feed straight into the talent feature.
-- The rest: rolling points and win percentage, situational stats (sacks, turnovers, 3rd-down rate), QB-change flags, prior-year passer rating from Next Gen Stats, and coach win percentage.
-
-I trimmed 85 features down to 35 after an ablation study showed that dropping the lowest-importance features actually improved the cross-validation score. Fewer features means less room to overfit noise. The pipeline still computes all 85 for analysis, but only the top 35 (ranked by combined model importance) train the production models.
-
-### Why no data leakage, ever
-
-Every rolling feature uses `shift(1).rolling(N)`, which guarantees a game's own result never sneaks into its own prediction. This sounds obvious but it is the easiest way to build a model that looks brilliant in backtest and loses money live. The whole pipeline only ever uses information that existed before a given game kicked off.
-
-### Why an ensemble, and why three voters
-
-There are two jobs being done.
-
-**Setting the edge.** The primary model, "Ensemble fixed75," is a fixed blend of 75% XGBoost and 25% Ridge. It predicts the home margin, which gets compared to the Vegas spread to find the edge. The two are blended on purpose:
-
-- **XGBoost** (gradient-boosted trees) captures nonlinear interactions, the "this matters only when that is also true" patterns. Powerful, but it can overfit.
-- **Ridge** (linear regression with L2 regularization) is a stable, regularized baseline. It cannot model interactions but it does not chase noise.
-
-Blending them dampens XGBoost's variance with Ridge's stability. I swept the 75/25 weight and it is near optimal. Retuning it was tested and rejected as noise.
-
-**Voting on direction.** Three independent models (XGBoost, Ridge, LightGBM) each pick a side. LightGBM grows its trees leaf-first rather than level-first, so it makes genuinely different mistakes than XGBoost. The idea: different algorithms err differently, so when all three independently agree on a side, that agreement filters out noise. That agreement plus the size of the ensemble edge is what drives the confidence tiers.
-
-### Why I measure ATS, not prediction error
-
-Being off by 3 points on the margin does not matter if I got the side right. A model can have mediocre point-accuracy and still be profitable as long as it lands on the correct side of the spread often enough. So every result is reported as ATS hit-rate against the 52.4% bar, not as mean error.
-
-### Why walk-forward validation and a live holdout
-
-You cannot use 2024 games to predict 2023, that is leakage. So validation trains on everything up to year N and tests on year N, stepping forward through 2020 to 2025 (6 folds). That mimics how the model would actually have been used week to week. On top of that, the production models train through 2024 and **2025 is held out as a true live test**, the only data the model has genuinely never seen. That holdout is the honest read on whether the edge is real.
-
-One caveat I am upfront about: the cross-validation win rate (around 57%) is an *optimistic* number, because the hyperparameters and the feature set were chosen by looking at those same folds. That is not data leakage (nothing trains on the test set), it is selection bias from tuning, and it inflates the point estimate a little. The unbiased read is the forward live tracking, not the backtest. A research-only nested re-tune (tuning inside each fold on prior seasons only) put a number on it: the headline drops from about 57.2% to about 56.4%, roughly 0.9 points of optimism, with the edge still well clear of the 52.4% break-even.
-
-### Why so many experiments got rejected
-
-Through 2026 I ran a long list of "make it better" experiments: weather features, re-weighting the ensemble, an ULTRA confidence tier, time-decay sample weighting, extending training data back to 2009. Almost all were rejected against a strict bar (the primary model has to improve at least 0.5pp, most models have to improve, and stability cannot get meaningfully worse).
-
-Two things came out of that:
-
-1. **The spread model is near its ceiling, around 57% on cross-validation.** Adding data or down-weighting old data does not move the mean and tends to hurt stability. Once the cleanest version of an experiment still fails the bar, re-running it is wasted effort.
-2. **The real gains are in execution, not the model.** Tracking closing line value, shopping lines across books, sizing bets by edge, and opening new markets (totals, props) matter more than squeezing another fraction of a percent out of the spread model.
-
-One rule I hold to: when a backtest and the live data disagree, the live data wins for production decisions. The ULTRA tier looked great in backtest, fired about twice in seven live weeks, and got cut.
-
----
-
-## What's Inside
-
-### ATS Prediction Model
-
-A three-voter ensemble trained on 4,300+ NFL games across 15+ seasons.
-
-- **Ensemble fixed75** is the primary model. 75% XGBoost + 25% Ridge, trained 2014 through 2024. It sets the edge and ranks the games.
-- **XGBoost, Ridge, LightGBM** are three independent direction voters. When all three agree on a side and the ensemble edge is at least 3 points the tier is **HIGH**. At least 1 point is **MEDIUM**. Otherwise it is **PASS**. Agreement alone is not enough (the edge still has to be meaningful), and a big edge alone is not enough (the voters still have to agree).
-- **35 production features** selected from 85 engineered. I trimmed the set via a walk-forward ablation, which improved XGBoost cross-validation ATS by about 1.6pp.
-- **Tuned hyperparameters**: Ridge alpha 50, XGBoost reg_alpha 2 and reg_lambda 5, confirmed stable across 3 seeds.
-
-Walk-forward CV (6 folds, test years 2020 through 2025, 35-feature subset, tuned hyperparameters):
-
-| Model | Mean ATS | Std | Notes |
-|-------|----------|-----|-------|
-| Random Forest | 57.1% | 2.9% | Highest mean but highest variance, so not in production. |
-| XGBoost (cv) | 56.9% | 1.9% | Best on a risk-adjusted basis. Direction voter. |
-| LightGBM | 56.5% | 1.7% | Most consistent. Direction voter. |
-| Ridge | 55.6% | 2.0% | Direction voter plus the linear half of the ensemble. |
-
-![Walk-forward CV results across 5 models, 2020 through 2025](betting/images/model_cv_results.png)
-
-![Head-to-head model comparison on the 2023 through 2025 test set](betting/images/model_comparison_results.png)
-
-The most important features by combined XGBoost gain, Ridge coefficient, and LightGBM gain:
-
-![Feature importance ranking across all three voter models](betting/images/model_comparison_importance.png)
-
-### Over/Under (Totals) Model (Experimental)
-
-A separate two-model system predicting whether the combined final score goes over or under the Vegas total. It is flagged experimental on the dashboard because the cross-validation result looks real but the live 2025 sample has not confirmed it yet.
-
-The thesis is a known market quirk: recreational bettors love betting the OVER (everyone wants a shootout), so books shade total lines slightly high. That leaves a systematic edge on the UNDER side. The model is built to find it.
-
-- **XGBoost + Ridge** trained on the same 2014 through 2024 data, predicting the residual from Vegas (`actual_total - vegas_line`) rather than the raw total. They only have to learn small adjustments on top of an already well-calibrated number.
-- **49 features**: the 35 spread features plus 14 totals-specific ones (the Vegas total, implied team totals, weather including wind which suppresses scoring, dome flag, rolling points scored and allowed, league scoring environment, pace, and a division-game flag). Wind does nothing for spreads but matters for totals, which is exactly why the two models keep separate feature sets.
-- **UNDER only.** A game gets an UNDER pick only when both XGBoost and Ridge agree the score comes in low. OVER picks showed no edge (50.8% in CV, below break-even), which is what the retail-bias thesis predicts.
-
-Walk-forward CV (6 folds, 2020 through 2025, 49 features):
-
-| Strategy | Hit rate | Picks per season | Notes |
-|---|---|---|---|
-| Always UNDER (naive baseline) | 51.2% | every game | Free, just the market bias |
-| **Consensus UNDER (XGB + Ridge agree)** | **55.7%** | **~96** | 95% CI 51.6 to 59.7% |
-| Consensus OVER | 50.8% | ~100 | Below break-even, not bet |
-
-Live test (2025 weeks 10 through 17, 46 picks): **52.2%**, essentially at break-even. The sample is too small to separate a real 55.7% edge from no edge at all (the confidence interval spans both). That is why the dashboard tags these picks experimental: track, do not bet. A full live season of about 96 picks will be enough to either promote the model or pull it.
-
-### Fantasy Football Projections
-
-Half-PPR points for QB, RB, WR, and TE. v1 training is archived. 2026 work is `weekly_projections_v2`. 2025 site CSVs are a demo.
-
-| Notebook | Role |
-|----------|------|
-| `archive/.../fantasy_weekly/data_pipeline.ipynb` | Archived. Pulled nflreadpy into `raw_dataset.csv` |
-| `fantasy/features.ipynb` | Rolling averages and matchup features into `features_dataset.csv` |
-| `archive/.../fantasy_weekly/model.ipynb` | Archived train path |
-| `archive/.../fantasy_weekly/predict_fantasy.ipynb` | Archived weekly inference |
-
-Same leakage discipline as the betting side: every rolling window uses `shift(1).rolling(N)` so a player's current-week stats never leak into their current-week prediction.
-
-**2025 holdout results** (against a 3-week rolling-average baseline):
-
-| Position | Train rows | Test rows | MAE | RMSE | Baseline MAE |
-|----------|-----------|-----------|-----|------|--------------|
-
-> **Corrected 2026-08-03.** The previous table was measured on a `features_dataset.csv` whose 2025 season had **16 of 16 depth/availability columns constant** — nflverse changed the depth-chart schema and the legacy filter silently dropped 100% of 2025, so defaults filled in. Rebuilt via `fantasy/depth_adapter.py`; 0 of 16 constant now. Holdout n falls because per-season rolling windows drop each player's week-1 row (3,072 of 3,185 removed rows; 0 unexplained). **Every MAE got slightly worse — the corrupted data made the holdout easier — and the "all four beat the baseline" claim does NOT survive: only QB and TE are statistically distinguishable from the rolling average.** Provenance: `fantasy/staging/manifest_primary.json`, `gate_report.json`.
-
-| Position | Holdout n | MAE | RMSE | Rolling baseline MAE | Paired gain vs baseline | t |
-|---|---|---|---|---|---|---|
-| QB | 508 | **6.859** | 8.502 | 7.378 | +0.519 | **3.13** |
-| RB | 1,284 | **4.489** | 6.331 | 4.578 | +0.089 | 1.15 |
-| WR | 2,030 | **4.015** | 5.293 | 4.027 | +0.012 | 0.23 |
-| TE | 1,022 | **3.200** | 4.646 | 3.485 | +0.284 | **4.16** |
-
-**Read plainly: QB and TE beat the rolling-average baseline; RB (t=1.15) and WR (t=0.23) do
-not.** WR is essentially indistinguishable from just averaging a player's last three games.
-
-
-Training notebooks (`data_pipeline.ipynb`, `model.ipynb`, `predict_fantasy.ipynb`, `retrain_models.py`) were archived 2026-08-18 to `archive/legacy-inrepo-2026-08-18/fantasy_weekly/`. 2026 weekly work is `cowork_OS/weekly_projections_v2`. The 2025 CSVs on the site stay as a demo.
-
-**Per-stat prop models** are 8 separate XGBoost regressors (QB pass and rush yards, RB rush and rec yards, WR receptions and rec yards, TE receptions and rec yards). Each uses the same features as its position model but a different target. The values are independent, so they will not sum exactly to the main projected points. They exist as a reference for prop bets, where the question is whether the projected stat clears the sportsbook line.
-
-The archived canonical retrain path is `archive/legacy-inrepo-2026-08-18/fantasy_weekly/retrain_models.py`. 2025 remains the holdout for the frozen v1 pkls.
-
-### DFS Lineup Optimizer
-
-An integer-linear-program optimizer for DraftKings NFL Classic, using the weekly fantasy projections as the value signal. It fuzzy-matches DraftKings salary CSVs to player names and solves a salary-capped roster as a binary integer program.
-
-- Constraints: 1 QB, 2 or more RB, 3 or more WR, 1 or more TE, 1 DST, 9 total, 50k cap, max 8 from one team
-- The FLEX slot is filled implicitly by the solver
-- Export is a proper DraftKings Classic upload (one column per roster slot)
-
-### LLM Agent
-
-**Paused as of August 2026.** A LlamaIndex ReActAgent was built with tools for predictions, live injuries, head-to-head history, and confidence analysis. Its line-movement tool never had a real market feed (hardcoded example values), so the weekly agent run is disabled and the one cached week is quarantined. The site refuses to render any agent artifact that cannot prove where its market claims came from. Re-enabling needs a real odds adapter.
-
-### Dashboard
-
-A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Board (landing page), Rookie Board, Weekly Fantasy. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **More**: Film Room, League History, Help & Guide.
-
-- **Draft Board**: my pre-season board for the independent model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Sleeper ADP is the default draft price; ESPN ADP is a second source for the same 180. Both ADPs and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. Model Proj points and ranks remain frozen until the planned early-September snapshot. Model Proj is backtested on 2021-2025 and **not** live-validated. Its first live test is 2026. On that backtest it beat Sleeper ADP ordering in 5 of 6 seasons. The gaps are neutral rank differences shown for context, not calls about any player.
-
-- **Rookie Board**: a per-position hit-probability score for drafted rookies, beside the rookie season-total projections (RB, WR and TE; the QB rookie arm was built and held as too thin), a College Talent score, and college/athletic percentiles. Backtested, not live-validated: at this sample college production and athletic testing added no measured edge beyond draft capital.
-
-- **Weekly Predictions**: game cards with ensemble edge and model-consensus HIGH/MED/PASS tiers. Agent-confidence overlays are paused. Games where the experimental totals model says UNDER show a dashed amber badge below the spread card.
-- **Track Record**: ATS record by tier and week, profit at standard odds, longest streaks, and a separate over/under section flagged as tracking-only.
-- **Season Totals (Beta)**: line_in team win projections next to the posted win total. Point estimate, no simulated range. Every team is projected. Certified picks are HIGH only. The page states plainly that the model does not beat the posted win total. Re-publish from `season_totals_v2_prod` with `python src/publish_site.py`.
-- **Weekly Fantasy**: per-position projections with both projected and actual stat columns that fill in after games are played.
-- **DFS Optimizer**: DraftKings Classic lineup solver in `fantasy/dfs/` and `site_pages/page_dfs.py`. Off the nav until it is live.
-
-- **Film Room**: one embedded TikTok from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel at a time, picked from a title list, each with a click-to-open written breakdown. Newest episode is the default. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
-- **League History**: loads a public Sleeper league chain or an ESPN league plus season and presents records, matchups, manager report cards, draft-room tendencies, four-week-qualified player scoring, and descriptive draft-versus-production value charts. Private ESPN access accepts masked SWID and espn_s2 values for one uncached import, keeps normalized results in per-user session state, and clears the credential fields after success. Its focused Rivalries views separate the week builder, single-matchup explorer, and league matrix; the builder scores every current-manager pairing in three modes, globally optimizes a complete slate, explains each matchup, and supports locked alternatives. ESPN imports do not yet include complete waiver-bid and trade history, so those transaction details remain Sleeper-only. Transaction-level acquisition labels and player-season counts are tracked in [`docs/LEAGUE_HISTORY_BACKLOG.md`](docs/LEAGUE_HISTORY_BACKLOG.md).
-
-### Weekly release automation
-
-**`weekly_predictions.yml`** still runs totals on three schedules. The 2026 spread
-producer now lives in `cowork_OS/spread_v3_prod`; it emits a candidate rather than
-writing this repository's tracker directly.
-
-| Time | Action |
-|------|--------|
-| Tuesday 9am ET | Totals weekly run; spread production is external |
-| Thursday 9pm ET | Totals refresh |
-| Sunday 9am ET | Totals final run |
-
-The LLM agent step is commented out (paused August 2026).
-
-**The weekly publication contract** lives in `publishing/`. Spread and fantasy
-producers emit a CSV and hash-bound sidecar. `python -m publishing.cli publish`
-checks schedule and player/team coverage, schema, duplicates, timestamps, hashes,
-and model version before creating an immutable build and moving the page default.
-The manifest supplies the Published/Scheduled/Awaiting projections state. Failed
-validation leaves the prior pointer untouched.
-
-**`grade_releases.yml`** polls published 2026 weeks after NFL game windows and writes
-idempotent grading artifacts separately from the frozen release. Track Record moves
-to 2026 only after at least one final prediction has graded.
-
-**`test.yml`** runs on every push and PR to `main`, in three jobs: a `features` job runs the `features.py` contract tests (including an order-hash check that catches feature-list changes which would silently alter the trained models) plus the calibration tests; a `pytests` job runs the seasonal, dashboard and talent suites plus the betting execution layer; and a `deploy-parity` job re-runs everything on Python 3.12 against the exact package set Streamlit Cloud installs, so a resolver conflict fails here instead of on the live site. Catches regressions in seconds instead of on the next cron.
-
-The only manual step each season is updating the All-Pro CSV in January.
-
----
-
-## Results (2025 Season, Weeks 10 through 17, 117 graded games)
-
-| Tier | Games | Correct | Win % |
-|------|-------|---------|-------|
-| **HIGH** (all 3 voters agree, ensemble edge 3pt or more) | 17 | 11 | **64.7%** |
-| **MEDIUM** (all 3 voters agree, ensemble edge 1pt or more) | 42 | 25 | **59.5%** |
-| PASS | 58 | 30 | 51.7% |
-| **Overall (Ensemble)** | **117** | **66** | **56.4%** |
-
-Best week: 9 of 14 (Week 14, 64.3%). These are encouraging but it is a small live sample, and there will be bad weeks. The point is to track this honestly over multiple seasons and see if the edge holds.
-
----
-
-## Stack
-
-| Component | Tech |
-|-----------|------|
-| ATS and totals models | XGBoost, LightGBM, Scikit-learn (Ridge, Ensemble) |
-| Fantasy models | XGBoost (per-position plus per-stat prop models) |
-| DFS optimizer | PuLP (integer linear program), fuzzy name matching |
-| Feature engineering | nflreadpy, pandas, NumPy |
-| LLM agent | LlamaIndex, Anthropic Claude API |
-| Dashboard | Streamlit |
-| Automation | GitHub Actions (papermill) |
-| Data | nflreadpy, custom All-Pro CSV, Meteostat weather |
-
----
-
-## Repo Structure
-
-```
-app.py                                 # Multipage entry point (st.navigation, 10 pages, top nav)
-site_pages/                            # One module per page (draft_board, rookie_board, weekly_predictions,
-  page_*.py                            #   weekly_fantasy, dfs, track_record, film_room, league_history, help,
-                                       #   futures/season-totals)
-  page_common.py                       # Shared page scaffolding
-tests/                                 # Dashboard + board suites; conftest.py puts the repo root on sys.path
-nav_registry.py                        # Cross-link registry, populated before nav.run()
-dashboard_chrome.py / dashboard_data.py   # Shared chrome and data loaders
-dashboard_utils.py                     # Streamlit-free dashboard helpers (testable; metric_card, loaders, etc.)
-publishing/                             # Weekly validation, immutable publish, status, grading, rollback CLI
-data/releases/                         # Checked manifest plus immutable build/result artifacts
-draft_board_2026.py                    # Draft Board renderer (frozen Model Proj + daily Sleeper overlay +
-                                       #   fantasy/talent scores)
-film_room.py                           # Film Room renderer (embedded TikToks + breakdown popups)
-video_content.py                       # Registry of published videos (embed ids + breakdown files)
-video_breakdowns/                      # Long-form written breakdowns (markdown), one per video
-docs/                                  # Long-form specs kept out of the root
-archive/                               # Retired material, on no live path (incl. legacy-inrepo-2026-08-18)
-betting/
-  features.py                          # Shared 85-feature engineering (single source of truth, importable)
-  test_features.py                     # Hermetic synthetic-data tests for features.py (run in CI)
-  predict_totals.ipynb                 # Weekly over/under pipeline (imports features.py + totals_features)
-  totals_features.ipynb                # 14 totals-specific features (single source of truth)
-  totals_model.ipynb                   # Totals walk-forward CV + production retrain
-  sports_betting_agent.ipynb           # LLM agent (DISABLED 2026-08-03)
-  ARCHIVED_SPREAD.md                   # Pointer: 2026 spread is cowork_OS/spread_v3_beta
-  models/                              # Frozen 2025 demo + Help hashes. Do not overwrite.
-  predictions_tracker.csv              # Historical spread tracker; 2026 releases overlay from the manifest
-  totals_tracker.csv                   # Totals predictions and results (auto-committed)
-  nfl_allpro_1997_2025.csv             # All-Pro roster data (updated manually each January)
-  nfl_weather_2014_2025.csv            # Kickoff-hour temp and wind (Meteostat)
-  quarantine/                          # Disabled agent artifact (not on the public path)
-  experiments/                         # Reusable analysis scripts and result snapshots
-  archive/                             # Retired notebooks and model files
-fantasy/
-  ARCHIVED_WEEKLY.md                   # Pointer: weekly training archived 2026-08-18
-  GUIDE.md                             # Weekly fantasy guide (v1 numbers; 2026 work is weekly_projections_v2)
-  features.ipynb                       # Feature engineering, writes features_dataset.csv
-  models/                              # Frozen weekly pkls (Help hashes). Do not overwrite for 2026.
-  fantasy_projections/                 # Legacy 2025 demo CSVs; 2026 serves only validated releases
-  dfs/
-    optimizer.ipynb                    # ILP formulation and helper reference
-    dfs_pipeline.ipynb                 # Weekly DFS workflow (papermill)
-  projections/                         # Live board CSV from projections_v2. Training archived 2026-08-18.
-    ARCHIVED.md                        # Pointer
-    results/                           # Published 2026 board CSV (hardlink to workspace)
-    models/                            # Help SHAP hashes. Do not overwrite.
-  talent/                              # Descriptive talent scores (SPEC R34-R41, shipped 2026-07-27)
-    build_nfl_{qb,rb,wr,te}_score.py   # -> nfl_{pos}_score_2026.csv    (+ .provenance.json)
-    build_college_{qb,rb,wr,te}_score.py  # -> college_{pos}_score_2026.csv (+ .provenance.json)
-    talent_score_2026.csv              # R29, SUPERSEDED: feeds no rendered column; hash-pinned on disk
-    rookie_score_2026.csv              # Fallback only, where a college build has no coverage
-    SPEC.md, GUIDE.md, tests/          # Formulas of record, plain-language guide, build tests
-    preregs/PREREG_*.md                # Frozen pre-registrations for the fired talent instruments
-  rookie/                              # Rookie Board hit-probability score + its frozen (spent) harness
-  seasonal_projections/                # The closed value-signal research campaign
-    phase4_band_2026.csv               # FROZEN, RETIRED FROM THE PAGE (2026-07-22): kept for the closed
-                                       #   campaign only
-    talent_index_2026.csv              # FROZEN, RETIRED: superseded by fantasy/talent/ per-position builds
-    refresh_board_adp.py               # Daily Sleeper market refresh -> board_adp_live_2026.csv (180 rows)
-    phase4_band.py                     # Band engine (walk-forward isotonic + residual quantiles)
-    apply_board_labels.py              # Post-process: population flags + licensed signal_status wording
-    build_talent_index.py              # Regenerates talent_index_2026.csv (descriptive only, never blended)
-    PREREGISTRATION.md                 # The campaign constitution (blind decision rules, OUTCOMES ledger)
-    h6/h7/h8v/h11/h12_*.py, *_results.json  # Fired pre-registered tests + their frozen results
-    build_value_board.py               # RETIRED engine for the old Draft Value Finder (kept for history)
-    ARTIFACTS.md                       # Every file in this dir: frozen / regenerable / retired
-    GUIDE.md                           # Plain-language guide to the board and the campaign
-    README.md                          # Design decisions, results, and the honest verdict
-memory/                                # Repo-specific engineering notes, the dated changelog
-                                       #   (completed-work-log.md), and dated session logs
-.github/workflows/
-  weekly_predictions.yml               # Tue/Thu/Sun automation (spread, totals; agent paused)
-  grade_releases.yml                    # Poll final games and commit separate 2026 grading results
-  test.yml                             # Push/PR CI: features + calibration; seasonal/dashboard/talent +
-                                       #   betting execution layer; deploy-parity on py3.12
-  board_refresh.yml                    # Daily Sleeper market refresh for the Draft Board
-```
-
----
-
-## What's Next
-
-The spread model is at the ceiling of what this architecture delivers, confirmed by a long run of rejected experiments (the full log is in `AGENTS.md`). The gains from here are in execution and in opening new markets, not in more spread-model tuning.
-
-1. **Closing Line Value tracking.** The leading indicator of long-term profit, more predictive than win rate over short samples. The tracker already has empty columns reserved for it. The plan is to record the line at pick time and again near kickoff once the 2026 season starts.
-2. **Multi-book line shopping.** The same pick at one book's price versus another's is a couple percent of implied edge per bet, which compounds across a season more than model tuning would.
-3. **Kelly fractional sizing.** Real fractional Kelly sizing by edge magnitude, surfaced once it's validated (an earlier flat-tier unit chip was removed as premature).
-4. **Player props model.** A lower-efficiency market with higher edge potential. The per-stat fantasy models already exist, so the leap to "is the prop line over or under our projection" is small.
-
-DFS follow-ups (lower priority, already functional):
-
-5. **DST projection model** to replace the season-average fallback.
-6. **Multi-lineup GPP generator** with ownership-diversity constraints.
-7. **Game-stacking constraints** to co-select correlated players in high-total games.
-8. **Automated salary fetching** to replace the manual DraftKings CSV download.
-9. **End-to-end automation** chaining the fantasy and DFS pipelines in GitHub Actions.
-
----
+- [Betting models](betting/GUIDE.md)
+- [Weekly fantasy](fantasy/GUIDE.md)
+- [Talent scores](fantasy/talent/GUIDE.md)
+- [Rookie Board](fantasy/rookie/GUIDE.md)
+- [DFS optimizer](fantasy/dfs/GUIDE.md)
+- [Publication system](publishing/README.md)
 
 ## License
 
-The code in this repository is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): you're free to read it, learn from it, and use it for any **noncommercial** purpose. Using it commercially (including running it as a paid product or service) requires a separate license. Copyright © 2026 Joseph Schoenbaum.
+This repository uses the [PolyForm Noncommercial License 1.0.0](LICENSE). You may read, modify, and use the code for noncommercial work. Commercial use requires a separate license.
 
----
-
-*Not financial advice. Sports betting involves real risk. Bet responsibly.*
+Copyright © 2026 Joseph Schoenbaum.
