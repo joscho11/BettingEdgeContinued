@@ -15,10 +15,11 @@ _HERE = Path(__file__).resolve().parents[1]
 _SITE_PAGES = _HERE / "site_pages"
 sys.path.insert(0, str(_HERE))
 
-from film_room import _embed_src  # noqa: E402
+from film_room import _embed_src, _sectioned_episodes  # noqa: E402
 from video_content import (  # noqa: E402
     INTRO_VIDEO,
     LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
+    VIDEO_SECTIONS,
     VIDEOS,
 )
 
@@ -74,6 +75,53 @@ def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
     breakdowns = [b for b in at.button if "Full breakdown" in str(b.label)
                   or "What is this?" in str(b.label)]
     assert len(breakdowns) == 1
+    captions = {str(c.value) for c in at.caption}
+    for _key, section_label in VIDEO_SECTIONS:
+        assert section_label in captions
+
+
+def test_catalog_sections_and_archive_membership():
+    newest_first = sorted(
+        VIDEOS, key=lambda item: item.get("date") or "", reverse=True
+    )
+    grouped = {
+        label: [item["slug"] for item in items]
+        for label, items in _sectioned_episodes(newest_first)
+    }
+    assert grouped["Site walkthroughs"] == [LATEST_LEAGUE_HISTORY_VIDEO_SLUG]
+    assert grouped["Draft strategy & research"] == [
+        "qb-te-draft-timing",
+        "draft-order",
+        "how-to-leverage-adp-wr",
+        "how-to-leverage-adp-rb",
+        "how-to-leverage-adp-te",
+        "how-to-leverage-adp-qb",
+        "how-to-leverage-adp-guide",
+    ]
+    assert grouped["Player breakdowns"] == [
+        "jefferson-deep-dive",
+        "bijan-robinson-jahmyr-gibbs",
+        "makai-lemon",
+    ]
+    assert grouped["Archive"] == ["league-history", "brian-thomas-jr"]
+    assert newest_first[0]["slug"] == LATEST_LEAGUE_HISTORY_VIDEO_SLUG
+
+
+def test_every_episode_has_a_known_content_section():
+    active_sections = {key for key, _label in VIDEO_SECTIONS if key != "archive"}
+    for item in VIDEOS:
+        assert item["section"] in active_sections, item["slug"]
+
+
+def test_superseded_league_history_links_to_current_walkthrough():
+    old = next(item for item in VIDEOS if item["slug"] == "league-history")
+    assert old["archived"] is True
+    assert old["archive_link"] == {
+        "page": "film-room",
+        "label": "Watch the current walkthrough",
+        "icon": ":material/play_circle:",
+        "query_params": {"video": LATEST_LEAGUE_HISTORY_VIDEO_SLUG},
+    }
 
 
 def test_switching_episode_swaps_the_embed(tmp_path):

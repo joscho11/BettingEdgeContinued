@@ -1,8 +1,8 @@
 """Registry of TikTok videos surfaced in the Film Room tab.
 
 To add a video after posting it:
-  1. Append an entry to VIDEOS below (slug, title, subtitle, date, tiktok_url, video_id,
-     breakdown_file).
+  1. Append an entry to VIDEOS below (slug, title, subtitle, date, section, tiktok_url,
+     video_id, breakdown_file).
   2. Drop its in-depth breakdown as markdown in  video_breakdowns/<breakdown_file>.
 The `video_id` is the number at the end of the TikTok URL (.../video/<id>).
 
@@ -22,14 +22,24 @@ INTRO_VIDEO = None
 # Help & Guide deep-links to the current walkthrough without owning a second copy.
 LATEST_LEAGUE_HISTORY_VIDEO_SLUG = "league-history-guide"
 
+# Picker order is intentional; videos remain newest-first within each section.
+# Archived entries always render in Archive regardless of their original section.
+VIDEO_SECTIONS = (
+    ("site-walkthroughs", "Site walkthroughs"),
+    ("draft-strategy", "Draft strategy & research"),
+    ("player-breakdowns", "Player breakdowns"),
+    ("archive", "Archive"),
+)
+
 # Analysis / walkthrough videos. Each gets an embed + click-to-open written context.
-# `archived: True` + `archive_note` adds a compact "📼 Archived: why?" pop-out to the
-# card (the note + Draft Board cross-link live inside it; see film_room.render_film_room).
+# `archived: True` + `archive_note` adds a compact "📼 Archived: why?" pop-out.
+# `archive_link` can point to the current replacement or another relevant site page.
 VIDEOS = [
     {
         "slug": "brian-thomas-jr",
         "title": "The Market Is Wrong About Brian Thomas Jr.",
         "date": "2026-07-07",
+        "section": "player-breakdowns",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7660252626046553374",
         "video_id": "7660252626046553374",
         "breakdown_file": "brian_thomas_jr.md",
@@ -44,12 +54,18 @@ VIDEOS = [
             "unedited, as part of the record. For what I publish today: the "
             "Draft Board page."
         ),
+        "archive_link": {
+            "page": "draft-board",
+            "label": "Open the Draft Board",
+            "icon": ":material/list_alt:",
+        },
     },
     {
         "slug": "makai-lemon",
         "title": "Makai Lemon: Rookie Receiver Profile",
         "subtitle": "2026 · WR, Philadelphia Eagles",
         "date": "2026-07-30",
+        "section": "player-breakdowns",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7668110810039717151",
         "video_id": "7668110810039717151",
         "breakdown_file": "makai_lemon.md",
@@ -59,6 +75,7 @@ VIDEOS = [
         "title": "Bijan Robinson vs. Jahmyr Gibbs",
         "subtitle": "2025 season review · RB, Atlanta / Detroit",
         "date": "2026-08-02",
+        "section": "player-breakdowns",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7669558168984309022",
         "video_id": "7669558168984309022",
         "breakdown_file": "bijan_robinson_jahmyr_gibbs.md",
@@ -68,6 +85,7 @@ VIDEOS = [
         "title": "How to Leverage ADP: Guide",
         "subtitle": "2026 · when two projections both disagree with the market",
         "date": "2026-08-04",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7670323446793915679",
         "video_id": "7670323446793915679",
         "breakdown_file": "how_to_leverage_adp_guide.md",
@@ -77,6 +95,7 @@ VIDEOS = [
         "title": "How to Leverage ADP: QB Edition",
         "subtitle": "2026 · the five QBs with a gap",
         "date": "2026-08-05",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7670687538364845342",
         "video_id": "7670687538364845342",
         "breakdown_file": "how_to_leverage_adp_qb.md",
@@ -86,6 +105,7 @@ VIDEOS = [
         "title": "How to Leverage ADP: TE Edition",
         "subtitle": "2026 · the seven TEs with a gap",
         "date": "2026-08-06",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7671059325892349214",
         "video_id": "7671059325892349214",
         "breakdown_file": "how_to_leverage_adp_te.md",
@@ -95,6 +115,7 @@ VIDEOS = [
         "title": "How to Leverage ADP: RB Edition",
         "subtitle": "2026 · one backfield, six rounds apart",
         "date": "2026-08-08",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7671785941031324958",
         "video_id": "7671785941031324958",
         "breakdown_file": "how_to_leverage_adp_rb.md",
@@ -104,6 +125,7 @@ VIDEOS = [
         "title": "How to Leverage ADP: WR Edition",
         "subtitle": "2026 · Flowers +7, Moore −11",
         "date": "2026-08-11",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7672900851412847902",
         "video_id": "7672900851412847902",
         "breakdown_file": "how_to_leverage_adp_wr.md",
@@ -113,6 +135,7 @@ VIDEOS = [
         "title": "Does draft order actually decide your season?",
         "subtitle": "2026 · 3,641 public Sleeper snake leagues",
         "date": "2026-08-13",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7673639176264355102",
         "video_id": "7673639176264355102",
         "breakdown_file": "draft_order.md",
@@ -122,6 +145,7 @@ VIDEOS = [
         "title": "When Should You Draft a QB and TE?",
         "subtitle": "2018-2025 · 1,422 public 1QB Sleeper leagues",
         "date": "2026-08-15",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7674314953565670687",
         "video_id": "7674314953565670687",
         "breakdown_file": "qb_te_draft_timing.md",
@@ -131,15 +155,29 @@ VIDEOS = [
         "title": "Who's the best manager in your league?",
         "subtitle": "2026 · Sleeper League History walkthrough",
         "date": "2026-08-16",
+        "section": "site-walkthroughs",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7674717547266133278",
         "video_id": "7674717547266133278",
         "breakdown_file": "league_history.md",
+        "archived": True,
+        "archive_note": (
+            "Superseded by the August 20 walkthrough, which covers both Sleeper and "
+            "ESPN and matches the current League History page. This Sleeper-only "
+            "version stays available as part of the record."
+        ),
+        "archive_link": {
+            "page": "film-room",
+            "label": "Watch the current walkthrough",
+            "icon": ":material/play_circle:",
+            "query_params": {"video": LATEST_LEAGUE_HISTORY_VIDEO_SLUG},
+        },
     },
     {
         "slug": "jefferson-deep-dive",
         "title": "Justin Jefferson's Fantasy Outlook 2026",
         "subtitle": "2026 · WR, Minnesota",
         "date": "2026-08-17",
+        "section": "player-breakdowns",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7675129111659957534",
         "video_id": "7675129111659957534",
         "breakdown_file": "jefferson_deep_dive.md",
@@ -149,6 +187,7 @@ VIDEOS = [
         "title": "How to See Your League's History",
         "subtitle": "2026 · Sleeper + ESPN League History walkthrough",
         "date": "2026-08-20",
+        "section": "site-walkthroughs",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7676271983297940766",
         "video_id": "7676271983297940766",
         "breakdown_file": "league_history_guide.md",

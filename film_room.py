@@ -13,7 +13,7 @@ import streamlit as st
 
 import page_common
 import nav_registry
-from video_content import INTRO_VIDEO, VIDEOS
+from video_content import INTRO_VIDEO, VIDEO_SECTIONS, VIDEOS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _BREAKDOWN_DIR = os.path.join(_HERE, "video_breakdowns")
@@ -105,6 +105,21 @@ def _episodes() -> list:
     return sorted(VIDEOS, key=lambda v: v.get("date") or "", reverse=True)
 
 
+def _sectioned_episodes(episodes: list) -> list[tuple[str, list]]:
+    """Return configured sections, omitting empty ones and preserving episode order."""
+    grouped = {key: [] for key, _label in VIDEO_SECTIONS}
+    for item in episodes:
+        key = "archive" if item.get("archived") else item.get("section")
+        if key not in grouped:
+            key = "player-breakdowns"
+        grouped[key].append(item)
+    return [
+        (label, grouped[key])
+        for key, label in VIDEO_SECTIONS
+        if grouped[key]
+    ]
+
+
 def _item_for(sel: str, intro: dict | None, episodes: list) -> dict | None:
     if intro is not None and sel == _INTRO_KEY:
         return intro
@@ -141,15 +156,20 @@ def _make_dialog():
 
 
 def _render_archive_popout(item: dict) -> None:
-    """The archived-video note as a compact pop-out button. The Draft Board cross-link
-    (design 4g) lives inside it. The note copy is rendered verbatim from video_content."""
+    """Render an archive explanation and its optional replacement/current destination."""
     note = item["archive_note"]
-    board_pg = nav_registry.PAGES.get("draft-board")
+    link = item.get("archive_link") or {}
+    page = nav_registry.PAGES.get(link.get("page"))
 
     def _body() -> None:
         st.markdown(note)
-        if board_pg is not None:
-            st.page_link(board_pg, label="Open the Draft Board", icon="📋")
+        if page is not None:
+            st.page_link(
+                page,
+                label=link["label"],
+                icon=link.get("icon"),
+                query_params=link.get("query_params"),
+            )
 
     if hasattr(st, "popover"):
         with st.popover("📼 Archived: why?"):
@@ -223,6 +243,7 @@ def render_film_room(*, show_header: bool = True) -> None:
 
     intro = _intro_item()
     episodes = _episodes()
+    sections = _sectioned_episodes(episodes)
     default = episodes[0]["slug"] if episodes else (_INTRO_KEY if intro else "")
     valid = {item["slug"] for item in episodes}
     if intro is not None:
@@ -249,11 +270,13 @@ def render_film_room(*, show_header: bool = True) -> None:
                     _INTRO_KEY,
                     selected,
                 )
-            for item in episodes:
-                label = item["title"]
-                if item.get("archived"):
-                    label = f"📼 {label}"
-                _pick_button(label, item["slug"], selected)
+            for section_label, section_items in sections:
+                st.caption(section_label)
+                for item in section_items:
+                    label = item["title"]
+                    if item.get("archived"):
+                        label = f"📼 {label}"
+                    _pick_button(label, item["slug"], selected)
 
     with player:
         _render_player(_item_for(selected, intro, episodes), open_breakdown)
