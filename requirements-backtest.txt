@@ -1,7 +1,7 @@
 # Backtest / walk-forward reproduction environment.
 #
 # WHY THIS FILE EXISTS (2026-08-03). The canonical ATS numbers published in README.md and
-# CLAUDE.md must come from a declared, pinned environment. Two problems made that
+# AGENTS.md must come from a declared, pinned environment. Two problems made that
 # impossible before:
 #   1. requirements-ci.txt alone CANNOT run the documented backtest command --
 #      betting/historical_lines.py reads betting/data/nfl.xlsx with engine="openpyxl",

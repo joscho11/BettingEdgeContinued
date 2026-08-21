@@ -16,7 +16,7 @@ Read-only network requests are allowed for official Sleeper documentation, the c
 
 Read:
 
-- `CLAUDE.md`
+- `AGENTS.md`
 - `memory/MEMORY.md`
 - `memory/prefer-ipynb-not-py.md`
 - `fantasy/projections/GUIDE.md`

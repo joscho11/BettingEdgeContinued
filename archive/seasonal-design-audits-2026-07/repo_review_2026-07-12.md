@@ -94,16 +94,16 @@ applied): a Kenny→Kenneth alias in `_utils.norm_name` or the dataset build,
 then dataset regen. The artifact side of his row is F1 below
 [FROZEN — Joseph's call].
 
-**M2. Root README and CLAUDE.md describe the retired Draft Value Finder as
+**M2. Root README and AGENTS.md describe the retired Draft Value Finder as
 the live product.** README.md:169 (tab list names "a pre-season Draft Value
 Finder"; actual tab is "📋 Draft Board"), README.md:171 (full DVF
 description, "🔥 Consensus values" box, "who the draft room is mispricing"),
 README.md:269-272 (`build_value_board.py` as "Builds the live tab data";
-`surprise_eval.py` "can we spot over/undervalued players"). CLAUDE.md:13
+`surprise_eval.py` "can we spot over/undervalued players"). AGENTS.md:13
 ("surfaced as the Draft Value Finder dashboard tab — our model's calls vs
-ADP"), CLAUDE.md:88 ("7 tabs ... 📋 Draft Value Finder (tab5)" — there are 8
-tabs and tab5 is the 2026 Draft Board), CLAUDE.md:460-492 ("ADP-MISPRICING
-SKILL" framing with hit-rates — pre-fence wording). Also CLAUDE.md:559's two
+ADP"), AGENTS.md:88 ("7 tabs ... 📋 Draft Value Finder (tab5)" — there are 8
+tabs and tab5 is the 2026 Draft Board), AGENTS.md:460-492 ("ADP-MISPRICING
+SKILL" framing with hit-rates — pre-fence wording). Also AGENTS.md:559's two
 "known follow-ups needing Joseph's ruling" are both already resolved in the
 tree (`test_app_draft_board.py` was retargeted to the 2026 board and passes;
 the Help & Guide DVF copy is gone — only comment refs remain at
@@ -329,8 +329,8 @@ applies. Earlier text above is unchanged.
 - **M1 / F1 (Gainwell blank Draft Price / Gap; band CSV)** â†’ FIXED: `SLEEPER_NAME_ALIASES` builder
   alias (`_utils.py`); `season_dataset_2014_2026.csv` regenerated with a one-line diff (Gainwell's
   2026 row only; see the R4 note above); `phase4_band_2026.csv` left FROZEN, blank Gap renders "â€“".
-- **M2 / L2 (stale docs: retired Value Finder, tab list, repo map, CLAUDE.md bulk)** â†’ FIXED:
-  `README.md`, `fantasy/seasonal_projections/README.md` (strike-don't-replace), and `CLAUDE.md`
+- **M2 / L2 (stale docs: retired Value Finder, tab list, repo map, AGENTS.md bulk)** â†’ FIXED:
+  `README.md`, `fantasy/seasonal_projections/README.md` (strike-don't-replace), and `AGENTS.md`
   (Completed Work moved to `memory/completed-work-log.md`; refreshed to the closed campaign +
   shipped board; 40% of original by content) all refreshed; `app.py` tab5 header comment updated.
 - **M3 (band `p_bust` coverage / design note)** â†’ FIXED via the docs refresh: the band's

@@ -26,8 +26,8 @@ After running several model-improvement experiments in May 2026 (weather feature
 ## Process rules
 
 8. **Snapshot pkl md5s before EVERY retrain experiment.** Save as `betting/_pkl_baseline_*.json` and back up the pkls themselves to `*.pkl.<experiment_name>_baseline`. The first weather retrain in the session caught the PROD_FEATURES_35 reorder bug because we had baseline md5s on disk to compare against.
-9. **A "rejected experiment" must be fully reverted in the same session.** Don't leave half-reverted state across sessions. Restore pkls from backup, restore tracker, restore CLAUDE.md/README.md text. Keep only the analysis-cell evidence (so the work is documented) and any reusable artifacts (e.g., the weather CSV survives as a future-totals-model input, even though weather as a spread feature was rejected).
-10. **Document the rejection in CLAUDE.md Completed Work AND in a memory note.** The Completed Work entry is the project-history record; the memory note is the don't-redo-this guardrail. Both required. See `[[joschoanalytics-model-experiments-2026-05]]` for the canonical format.
+9. **A "rejected experiment" must be fully reverted in the same session.** Don't leave half-reverted state across sessions. Restore pkls from backup, restore tracker, restore AGENTS.md/README.md text. Keep only the analysis-cell evidence (so the work is documented) and any reusable artifacts (e.g., the weather CSV survives as a future-totals-model input, even though weather as a spread feature was rejected).
+10. **Document the rejection in AGENTS.md Completed Work AND in a memory note.** The Completed Work entry is the project-history record; the memory note is the don't-redo-this guardrail. Both required. See `[[joschoanalytics-model-experiments-2026-05]]` for the canonical format.
 
 ## When to break these rules
 

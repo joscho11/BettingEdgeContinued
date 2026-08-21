@@ -27,7 +27,7 @@ The canonical order is the descending-importance order produced by the
 **How to apply:**
 - Never reorder `PROD_FEATURES_35` or `FEATURE_COLS_85` "for readability".
 - If you change which 35 features are in the list (ablation rerun), retrain
-  the production pkls and document it in CLAUDE.md's Completed Work.
+  the production pkls and document it in AGENTS.md's Completed Work.
 - The Phase 2a dedup (2026-05-23) introduced exactly this bug by grouping
   related features together when extracting the list into `features.ipynb`.
   Caught by comparing pkl md5s before/after retrain — the safety net worked.

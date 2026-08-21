@@ -6,7 +6,7 @@ metadata:
 ---
 
 In late May 2026 we ran a series of model-improvement experiments on JoSchoAnalytics.
-**All of them were rejected** after empirical testing. Future contributors (including future-me) should not re-run these without strong reason — the negative findings are documented in CLAUDE.md's Completed Work entries dated 2026-05-24 / 25 / 26.
+**All of them were rejected** after empirical testing. Future contributors (including future-me) should not re-run these without strong reason — the negative findings are documented in AGENTS.md's Completed Work entries dated 2026-05-24 / 25 / 26.
 
 ## What did NOT work
 

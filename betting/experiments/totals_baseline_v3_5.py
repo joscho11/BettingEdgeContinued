@@ -1,6 +1,6 @@
 """Totals model baseline (v3.5 — canonical totals feature set).
 
-Final feature set after three iterations of exploration (see CLAUDE.md
+Final feature set after three iterations of exploration (see AGENTS.md
 Active Experiments). Best CV result on 6-fold walk-forward (2020-2025):
   - 2-voter consensus UNDER (XGBoost + Ridge agree): 55.7% on n=575
   - Random Forest best single model: 53.3% ± 2.1%

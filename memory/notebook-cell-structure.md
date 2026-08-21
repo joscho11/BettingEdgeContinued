@@ -55,4 +55,4 @@ analyzes them... so I don't have to explain it every time."
 - Keep the same headings across notebooks so the structure is scannable.
 
 Related: [[prefer-ipynb-not-py]] (new shared code goes in .ipynb, markdown → code →
-inline-test), and the repo's CLAUDE.md cell-structure tables.
+inline-test), and the repo's AGENTS.md cell-structure tables.

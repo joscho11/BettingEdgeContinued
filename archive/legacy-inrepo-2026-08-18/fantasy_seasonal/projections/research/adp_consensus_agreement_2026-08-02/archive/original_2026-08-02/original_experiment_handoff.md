@@ -2,7 +2,7 @@
 
 Work in `C:\Users\josep\Desktop\random_stuff\cowork_OS\JoSchoAnalytics`.
 
-Read `..\CLAUDE.md`, `CLAUDE.md`, the Claude memory index, `fantasy/projections/GUIDE.md`, and the generating sections of `fantasy/projections/build_{rb,wr,te,qb}_projection.py` before computing anything. Treat Joseph's expected direction as a hypothesis, not evidence. If the numbers reject it, say so without hedging.
+Read `..\AGENTS.md`, `AGENTS.md`, the Claude memory index, `fantasy/projections/GUIDE.md`, and the generating sections of `fantasy/projections/build_{rb,wr,te,qb}_projection.py` before computing anything. Treat Joseph's expected direction as a hypothesis, not evidence. If the numbers reject it, say so without hedging.
 
 ## Objective
 

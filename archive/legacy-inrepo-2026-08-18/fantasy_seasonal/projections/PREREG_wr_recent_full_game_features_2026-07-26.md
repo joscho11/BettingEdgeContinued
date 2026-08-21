@@ -732,7 +732,7 @@ panel and nothing there was edited. The two repo files created are this prereg a
 **Concurrent-modification disclosure.** The working tree was clean at session start; `.git/index` was
 rewritten at **12:03:50 ET on 2026-07-28 by a process other than this task**, staging a large
 repository reorganization (preregs → `fantasy/projections/preregs/`, pages → `site_pages/`, tests →
-`tests/`, plus modified `app.py`, `CLAUDE.md`, `README.md`). None of the fire's inputs were among the
+`tests/`, plus modified `app.py`, `AGENTS.md`, `README.md`). None of the fire's inputs were among the
 changed paths and every protected artifact survived byte-identical. Nothing was staged, committed,
 reverted, cleaned or absorbed by this task. **Note for the record:** this prereg and its harness were
 written to the paths named in the task specification, which is one directory above where that

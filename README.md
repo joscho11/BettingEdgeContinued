@@ -411,7 +411,7 @@ memory/                                # Repo-specific engineering notes, the da
 
 ## What's Next
 
-The spread model is at the ceiling of what this architecture delivers, confirmed by a long run of rejected experiments (the full log is in `CLAUDE.md`). The gains from here are in execution and in opening new markets, not in more spread-model tuning.
+The spread model is at the ceiling of what this architecture delivers, confirmed by a long run of rejected experiments (the full log is in `AGENTS.md`). The gains from here are in execution and in opening new markets, not in more spread-model tuning.
 
 1. **Closing Line Value tracking.** The leading indicator of long-term profit, more predictive than win rate over short samples. The tracker already has empty columns reserved for it. The plan is to record the line at pick time and again near kickoff once the 2026 season starts.
 2. **Multi-book line shopping.** The same pick at one book's price versus another's is a couple percent of implied edge per bet, which compounds across a season more than model tuning would.

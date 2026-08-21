@@ -14,7 +14,7 @@ Use that directory as the canonical project folder. Do not create another copy e
 
 Read these files before changing anything:
 
-- `CLAUDE.md`
+- `AGENTS.md`
 - `fantasy/GUIDE.md`
 - `fantasy/projections/GUIDE.md`
 - `memory/MEMORY.md`

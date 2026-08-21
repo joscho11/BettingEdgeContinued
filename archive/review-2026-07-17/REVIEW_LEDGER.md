@@ -15,7 +15,7 @@ replacement. 14/14 passes complete.
 | L-1 (U1B-2=U7B-1, AGREED) | HIGH | GATED | TEST-GAP | .github/workflows/test.yml | fantasy/talent/tests/ (26, incl. golden regressions) + test_app_talent_columns.py (4, incl. H7 fence + all-tabs AppTest) run in NO CI job. Checkpoint-dependent tests would skip in CI; static/schema/fence tests would still protect. Proposed: explicit add to pytests + deploy-parity lists. |
 | L-2 (U4A-1/U4B-3, AGREED-within-unit) | HIGH | GATED | RISK | betting/odds_client.py:208 | CLV snapshot rewrites the ENTIRE predictions_tracker.csv non-atomically (no tmp+replace, no row-count/schema assert). Intent is T5-compliant (fills reserved columns, first-write-wins pick_line); mechanism risks truncation/coercion of the forward record. Fix BEFORE the layer is wired for 2026 Week 1: tmp + os.replace + asserts. |
 | L-3 (U3A-1, AGREED) | MED (fwd) / INFO (today) | GATED | RISK | betting/features.py:681 | KeyError 'coach' under pandas 3.x (local venv); CI pins 2.3.3 green → ENV DRIFT today, breaks at the future pin bump. Fix then, with pkl md5 byte-equivalence proof. |
-| L-4 (U5B-1+U7B-3, AGREED) | MED | GATED-docs (partial SAFE-FIX) | DOCS-DRIFT | CLAUDE.md | Multipage st.Page refactor (app.py=70 lines, page_*.py, new CI page tests) vs CLAUDE.md's monolithic 167KB/8-tab description; stale cron-days + auto-commit claims. Dead URL corrected this session (safe-fix); section rewrite = owner. |
+| L-4 (U5B-1+U7B-3, AGREED) | MED | GATED-docs (partial SAFE-FIX) | DOCS-DRIFT | AGENTS.md | Multipage st.Page refactor (app.py=70 lines, page_*.py, new CI page tests) vs AGENTS.md's monolithic 167KB/8-tab description; stale cron-days + auto-commit claims. Dead URL corrected this session (safe-fix); section rewrite = owner. |
 | L-5 (U1B-1, UNIQUE) | MED | GATED | RISK | fantasy/talent/config.py:57; archive_rho.py:27-34 | Machine-specific paths (C:/tmp WORK, user scratchpad) — non-portable builds; tests skip on fresh clone. Env-var override proposal. |
 | L-6 (U6B-1, UNIQUE) | MED | GATED | TEST-GAP | fantasy/ weekly + dfs | Zero pytest coverage (inline notebook cells only). Low change-frequency; smoke test = new CI scope. |
 | L-7 (U4B-1, UNIQUE) | MED | GATED | TEST-GAP | betting/test_*.py (5 files) | 26 execution tests not in CI; must land with the wiring change. |
@@ -45,13 +45,13 @@ The screen caught 7 would-be findings. Nonzero = the screen worked.
 | LOW | 0 | 3 (L-9, L-10, L-13) | 4 (L-8, L-11, L-12, L-14) |
 
 ## SAFE-FIX log
-- L-4 (partial): CLAUDE.md:11 dead URL "joschoanalytics.streamlit.app" →
+- L-4 (partial): AGENTS.md:11 dead URL "joschoanalytics.streamlit.app" →
   "joschoanalytics.streamlit.app" (dead-claim correction per cowork-docs-and-writing).
   Test: none applicable (docs). Proof: full-suite + hash sweep below.
 
 ## Verification (STOP 4 proof standard) — recorded after the gauntlet run
 (see chat/final report: suite green, AppTest green, goldens unregenerated pass,
-hash sweep diff empty except this ledger dir + CLAUDE.md.)
+hash sweep diff empty except this ledger dir + AGENTS.md.)
 
 ---
 

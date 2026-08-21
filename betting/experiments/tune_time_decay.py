@@ -23,7 +23,7 @@ in nflreadpy, pre-2006 AllPro hardcoded floor in mc cell 15).
 Reuses data prep from betting/model_comparison.ipynb (cells 1-37), same pattern
 as tune_hyperparams.py.
 
-Experiments run May 2026 — all rejected (see CLAUDE.md Completed Work entry):
+Experiments run May 2026 — all rejected (see AGENTS.md Completed Work entry):
   Pass 1 (default):                       time-decay alone at TRAIN_SEASONS=2014+
   Pass 2 real (--earliest 2005):          extending range alone, partial coverage
   Pass 3 (--earliest 2005, full grid):    decay × range, partial coverage
@@ -275,7 +275,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Production hyperparameters (per CLAUDE.md 2026-05-20):
+# Production hyperparameters (per AGENTS.md 2026-05-20):
 XGB_PARAMS = dict(n_estimators=500, max_depth=3, learning_rate=0.01,
                   min_child_weight=3, subsample=0.6, colsample_bytree=0.6,
                   reg_alpha=2.0, reg_lambda=5.0,

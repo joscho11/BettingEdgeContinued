@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
 ## Project Overview
 
@@ -649,7 +649,7 @@ reweighting experiments, the notebook restructures and corruption recovery, and 
 - The feature logic lives in **`betting/features.py`**. Thin docs notebook is archived at `archive/legacy-inrepo-2026-08-18/betting/features.ipynb`.
 - After editing, run `pytest betting/test_features.py` to verify all 15 hermetic tests pass (imports-smoke, constants + order-hash, the 2 pure helpers, each of the 10 feature groups, `build_features` integration, `build_numeric_features`). Runs in ~2 seconds, offline. This is the same suite CI runs.
 - **If you change feature order** (`FEATURE_COLS_85` / `PROD_FEATURES_35`), the order-hash test fails by design — retrain the pkls and update the expected hash in `test_features.py` in the same commit.
-- If you change any name in the public surface, no consumer-notebook loader edit is needed (they `globals().update(vars(features))`), but update the cell-structure tables / file descriptions in this CLAUDE.md.
+- If you change any name in the public surface, no consumer-notebook loader edit is needed (they `globals().update(vars(features))`), but update the cell-structure tables / file descriptions in this AGENTS.md.
 
 
 ## Known Issues

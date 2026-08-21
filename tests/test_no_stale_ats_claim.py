@@ -75,14 +75,14 @@ def test_no_unlabelled_superseded_ats_number_remains():
 
 def test_the_final_number_is_actually_present_in_the_public_docs():
     """Guard against the scan passing because every number was deleted."""
-    for f in ("README.md", "CLAUDE.md", "betting/GUIDE.md",
+    for f in ("README.md", "AGENTS.md", "betting/GUIDE.md",
               "betting/PRODUCTION_WIRING.md"):
         text = (_ROOT / f).read_text(encoding="utf-8", errors="replace")
         assert FINAL_HIGH in text, f"{f} does not state the final result {FINAL_HIGH}"
 
 
 def test_docs_point_at_the_final_bundle():
-    for f in ("README.md", "CLAUDE.md", "betting/GUIDE.md",
+    for f in ("README.md", "AGENTS.md", "betting/GUIDE.md",
               "betting/PRODUCTION_WIRING.md"):
         text = (_ROOT / f).read_text(encoding="utf-8", errors="replace")
         assert "audit_2026-08-03c_final" in text, f"{f} references a superseded bundle"

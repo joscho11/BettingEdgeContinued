@@ -5,5 +5,5 @@
   frozen-artifact writes. The PRACTICE_MAP drift class (playbook §6) remains the known
   silent-failure vector; mitigated by the documented assert-NaN-rate practice.
 
-Coverage: retrain_models.py fully read; notebooks reviewed structurally via CLAUDE.md
+Coverage: retrain_models.py fully read; notebooks reviewed structurally via AGENTS.md
 cell tables + json-level spot-grep. NO FINDINGS of severity >= HIGH.

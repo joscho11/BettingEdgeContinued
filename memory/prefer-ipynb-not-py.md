@@ -16,7 +16,7 @@ Each cell must make sense on its own, be testable, and follow best practices
 **Why:** The repo is notebook-centric — every existing piece of code lives in a
 notebook (`predict_betting.ipynb`, `model_comparison.ipynb`, `data_pipeline.ipynb`,
 fantasy `features.ipynb` / `model.ipynb`, dfs `optimizer.ipynb` / `dfs_pipeline.ipynb`).
-The CLAUDE.md spec documents the markdown→code→inline-test convention. User
+The AGENTS.md spec documents the markdown→code→inline-test convention. User
 explicitly corrected a `.py` extraction in 2026-05-23 and asked for `.ipynb`
 with testable cells instead. .py modules break that convention.
 
