@@ -62,6 +62,16 @@ def _run_compact():
     return at
 
 
+def _query_entry():
+    import streamlit as st
+    st.query_params["db26_pos"] = "QB"
+    st.query_params["db26_search"] = "Mendoza"
+    st.query_params["db26_sortby"] = "Model Proj"
+    st.query_params["db26_order"] = "Descending"
+    import page_draft_board
+    page_draft_board.render()
+
+
 def _board_df(at, *, phone=False):
     matches = []
     for el in at.dataframe:
@@ -137,6 +147,22 @@ def test_full_v2_board_default_adp_ascending():
     # model_proj_raw stays internal in BOTH modes and out of the export
     for frame in (t, c):
         assert "model_proj_raw" not in frame.columns
+
+
+def test_draft_board_reads_shareable_filter_url():
+    at = AppTest.from_function(_query_entry, default_timeout=180).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert next(w for w in at.multiselect if w.key == "db26_pos").value == ["QB"]
+    assert next(w for w in at.text_input if w.key == "db26_search").value == "Mendoza"
+    assert next(w for w in at.selectbox if w.key == "db26_sortby").value == "Model Proj"
+    order = next(
+        w for w in at.segmented_control if str(w.key).startswith("db26_sortdir_")
+    )
+    assert order.value == "Descending"
+    board_df = _board_df(at)
+    assert board_df is not None and len(board_df) == 1
+    assert board_df.iloc[0]["player"] == "Fernando Mendoza"
 
 
 def test_phone_board_includes_nfl_talent():
@@ -858,6 +884,102 @@ def test_board_cache_key_tracks_projection_artifact_changes(monkeypatch, tmp_pat
 
     assert len(seen) == 2
     assert seen[0] != seen[1]
+
+
+def _adp_control(at):
+    matches = [
+        w for w in at.segmented_control
+        if str(getattr(w, "key", "")) == "db26_adp_src"
+        or "Draft price" in str(getattr(w, "label", ""))
+    ]
+    assert matches, (
+        "draft-price control missing: "
+        f"{[(getattr(w, 'key', None), getattr(w, 'label', None)) for w in at.segmented_control]}"
+    )
+    return matches[0]
+
+
+def test_espn_adp_toggle_reprices_board_without_moving_model_proj():
+    import draft_board_2026 as board
+
+    at = _run()
+    control = _adp_control(at)
+    assert control.value == "Sleeper ADP"
+    sleeper = _board_df(at).set_index("player")
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "5 of 6" in captions
+    assert "does not apply to ESPN ADP" not in captions
+
+    at = control.set_value("ESPN ADP").run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    espn = _board_df(at)
+    assert espn is not None and espn.shape[0] == 180
+    adp = espn["adp_half_ppr"].to_numpy()
+    assert (adp[:-1] <= adp[1:]).all(), "ESPN view must default to ESPN ADP ascending"
+    espn = espn.set_index("player")
+    assert sleeper["model_proj"].sort_index().equals(espn["model_proj"].sort_index())
+    assert sleeper["model_proj_pos_rank"].astype("Int64").sort_index().equals(
+        espn["model_proj_pos_rank"].astype("Int64").sort_index()
+    )
+    assert float(sleeper.loc["Oronde Gadsden", "adp_half_ppr"]) != float(
+        espn.loc["Oronde Gadsden", "adp_half_ppr"]
+    )
+    row = espn.loc["Oronde Gadsden"]
+    assert int(row["model_gap"]) == int(row["pos_rank"] - row["model_proj_pos_rank"])
+    assert int(row["sleeper_gap"]) == int(row["pos_rank"] - row["sleeper_proj_pos_rank"])
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "does not apply to ESPN ADP" in captions
+    assert "Live ESPN ADP refresh" in captions
+    assert _adp_control(at).value == "ESPN ADP"
+    text = " ".join(str(m.value) for m in at.markdown)
+    hits = _FORBIDDEN.findall(text)
+    assert not hits, f"forbidden language after ESPN toggle: {hits}"
+    dl = at.get("download_button")
+    assert any("Download board (CSV)" in b.label for b in dl)
+
+    toggles = [t for t in at.toggle if "detail" in str(t.label).lower()]
+    assert toggles
+    compact_at = toggles[0].set_value(False).run()
+    assert not compact_at.exception, compact_at.exception
+    compact = _board_df(compact_at)
+    assert compact.shape[0] == 180
+    assert not set(board._DETAIL_ONLY) & set(compact.columns)
+    phone = _board_df(compact_at, phone=True)
+    assert list(phone.columns) == [board._ROW_NO] + board._PHONE_COLS
+    cfg = board._phone_column_config(market=board.ESPN_ADP_MARKET)
+    assert cfg["adp_half_ppr"]["pinned"] is True
+    labels = [m[2] for m in board.column_meta_for(board.ESPN_ADP_MARKET)]
+    assert "ESPN ADP" in labels
+    assert "Sleeper ADP" not in labels
+
+
+def _espn_query_entry():
+    import streamlit as st
+    st.query_params["db26_adp_src"] = "ESPN ADP"
+    st.query_params["db26_pos"] = "TE"
+    st.query_params["db26_search"] = "Gadsden"
+    import page_draft_board
+    page_draft_board.render()
+
+
+def test_draft_board_reads_espn_market_from_shareable_url():
+    at = AppTest.from_function(_espn_query_entry, default_timeout=180).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert _adp_control(at).value == "ESPN ADP"
+    board_df = _board_df(at)
+    assert board_df is not None and len(board_df) == 1
+    assert board_df.iloc[0]["player"] == "Oronde Gadsden"
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "does not apply to ESPN ADP" in captions
+
+
+def test_espn_overlay_is_in_the_board_cache_fingerprint():
+    import draft_board_2026 as board
+    paths = [p for p, _mtime, _size in board._board_source_fingerprint()]
+    assert str(board.LIVE_ESPN_OVERLAY) in paths
+    assert str(board.LIVE_OVERLAY) in paths
 
 
 if __name__ == "__main__":

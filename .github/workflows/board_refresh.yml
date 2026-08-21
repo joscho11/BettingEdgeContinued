@@ -1,9 +1,9 @@
-name: Draft Board Sleeper Market Refresh
+name: Draft Board Market Refresh
 
-# Re-pulls LIVE Sleeper ADP and projection points for the exact 180-player 2026 Draft Board.
-# It recomputes live market-derived columns against the frozen V2 model (see refresh_board_adp.py and
-# .claude/skills/board-refresh/SKILL.md). Commits ONLY the regenerable overlay CSV;
-# never a frozen artifact. A failed pull publishes nothing — the last-good board stays live.
+# Re-pulls LIVE Sleeper ADP/projections and ESPN ADP for the exact 180-player 2026
+# Draft Board. Recomputes live market-derived columns against the frozen V2 model.
+# Commits ONLY the regenerable overlay CSVs; never a frozen artifact. A failed pull
+# for one source leaves that source's last-good overlay in place.
 
 on:
   schedule:
@@ -60,11 +60,20 @@ jobs:
         run: python fantasy/seasonal_projections/capture_market_snapshot.py --season 2026
 
       - name: Refresh board Sleeper market data
+        id: sleeper
+        continue-on-error: true
         env:
           # '1' only on a manual dispatch with force=true; empty on schedule so the
           # in-season date guard governs the scheduled run.
           BOARD_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
         run: python fantasy/seasonal_projections/refresh_board_adp.py
+
+      - name: Refresh board ESPN ADP
+        id: espn
+        continue-on-error: true
+        env:
+          BOARD_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
+        run: python fantasy/seasonal_projections/refresh_board_espn_adp.py
 
       # Capture the PRIVATE research log (adp_logs/ is gitignored — never on the tip).
       # Uploaded as a build artifact so CI runs' snapshots + ledger rows aren't lost,
@@ -94,13 +103,19 @@ jobs:
           include-hidden-files: true
           retention-days: 90
 
-      # Commit ONLY the overlay. Gated on success: an aborted run fails the job above and
-      # never reaches here; a paused run leaves the overlay unchanged so nothing commits.
-      - name: Commit the refreshed overlay
-        if: success()
+      # Commit whichever overlays actually changed. Runs even if one market failed so
+      # the other source can still publish. A paused run leaves both files unchanged
+      # and this step is a no-op.
+      - name: Commit the refreshed overlays
+        if: always()
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add fantasy/seasonal_projections/board_adp_live_2026.csv
-          git diff --staged --quiet || git commit -m "Board Sleeper market refresh $(date +'%Y-%m-%d')"
+          git add fantasy/seasonal_projections/board_adp_live_2026.csv \
+                  fantasy/seasonal_projections/board_espn_adp_live_2026.csv
+          git diff --staged --quiet || git commit -m "Board market refresh $(date +'%Y-%m-%d')"
           git push
+
+      - name: Fail if a market refresh failed
+        if: steps.sleeper.outcome == 'failure' || steps.espn.outcome == 'failure'
+        run: exit 1

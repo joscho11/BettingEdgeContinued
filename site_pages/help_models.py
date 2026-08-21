@@ -207,8 +207,9 @@ production, draft capital, age, and leftover opportunity on the new roster. **AD
 the two Talent Scores are not inputs.**
 
 Points and positional ranks stay frozen until the dated early-September public-information
-snapshot. Sleeper ADP and Sleeper Proj still refresh daily; those live values rewrite
-the market ranks and both gap columns, not Model Proj.
+snapshot. Sleeper ADP (the default) and ESPN ADP still refresh daily, as does Sleeper Proj;
+those live values rewrite the market ranks and both gap columns, not Model Proj. The 5-of-6
+ADP-ordering result is vs Sleeper ADP.
 
 **How it scored historically.** On 2021-2025 Model Proj pairwise **{ev['model_pairwise']:.4f}**
 versus ADP **{ev['adp_pairwise']:.4f}**, MAE **{ev['model_mae']:.2f}** versus **{ev['adp_mae']:.2f}**,

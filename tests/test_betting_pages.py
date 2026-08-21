@@ -35,7 +35,14 @@ def test_weekly_predictions_renders_and_owns_controls(tmp_path):
     keys = _control_keys(at)
     assert {"wp_season", "wp_week"} <= keys, \
         f"Weekly Predictions must own Season/Week; got {keys}"
-    assert "wp_edge" not in keys, "2026 live hides the Min Edge slider"
+    assert "wp_edge" in keys, "the default 2025 demo keeps the Min Edge slider"
+    controls = {w.key: w.value for w in at.selectbox}
+    assert controls["wp_season"] == 2025
+    assert controls["wp_week"] == 10
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "green-badge" in markdown and "Published" in markdown
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "Next: 2026 Week 1 · Scheduled" in captions
     assert not any(str(k).startswith("tr_") for k in keys), \
         "Weekly Predictions must not carry Track Record's controls"
 
@@ -51,16 +58,42 @@ def test_weekly_predictions_shows_min_edge_on_2025_demo(tmp_path):
     assert "wp_edge" in keys, f"2025 demo must keep Min Edge; got {keys}"
 
 
+def test_weekly_predictions_reads_shared_season_week_url(tmp_path):
+    h = tmp_path / "h_weekly_query.py"
+    h.write_text(
+        f"import sys; sys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "import streamlit as st\n"
+        "st.query_params['wp_season'] = '2026'\n"
+        "st.query_params['wp_week'] = '1'\n"
+        "import page_weekly_predictions as p\n"
+        "p.render()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(h), default_timeout=180).run()
+    assert not at.exception, at.exception
+    controls = {w.key: w.value for w in at.selectbox}
+    assert controls["wp_season"] == 2026
+    assert controls["wp_week"] == 1
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "orange-badge" in markdown and "Scheduled" in markdown
+
+
 def test_track_record_renders_and_owns_controls(tmp_path):
     at = _render_page(tmp_path, "page_track_record")
     keys = _control_keys(at)
     assert "tr_season" in keys, f"Track Record must own its Season control; got {keys}"
+    season = next(w for w in at.selectbox if getattr(w, "key", None) == "tr_season")
+    assert season.value == 2025
     assert not any(str(k).startswith("wp_") for k in keys), \
         "Track Record must not carry Weekly Predictions' controls"
 
 
 def test_track_record_2026_has_no_medium_edge_bucket(tmp_path):
     at = _render_page(tmp_path, "page_track_record")
+    season = next(w for w in at.selectbox if getattr(w, "key", None) == "tr_season")
+    season.set_value(2026)
+    at.run()
+    assert not at.exception, at.exception
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Med Edge" not in md
     assert "no medium" in " ".join(str(s.value) for s in at.success).lower()
@@ -73,12 +106,17 @@ def test_track_record_2025_demo_keeps_edge_buckets(tmp_path):
     at.run()
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
-    md = " ".join(str(m.value) for m in at.markdown)
-    assert "Med Edge" in md
+    labels = [str(metric.label) for metric in at.metric]
+    assert "Medium edge (1–3 points)" in labels
+    assert "Low edge (<1 point)" in labels
 
 
 def test_weekly_predictions_hides_paused_agent_chrome(tmp_path):
     at = _render_page(tmp_path, "page_weekly_predictions")
+    season = next(w for w in at.selectbox if getattr(w, "key", None) == "wp_season")
+    season.set_value(2026)
+    at.run()
+    assert not at.exception, at.exception
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Agent Confidence:" not in md
     assert "Matchup Analysis" not in md
@@ -92,6 +130,10 @@ def test_weekly_predictions_hides_paused_agent_chrome(tmp_path):
 
 def test_weekly_predictions_live_2026_banner(tmp_path):
     at = _render_page(tmp_path, "page_weekly_predictions")
+    season = next(w for w in at.selectbox if getattr(w, "key", None) == "wp_season")
+    season.set_value(2026)
+    at.run()
+    assert not at.exception, at.exception
     successes = " ".join(str(s.value) for s in at.success)
     assert "Live 2026" in successes
     assert "one-sided 95% Wilson" in successes
@@ -100,9 +142,9 @@ def test_weekly_predictions_live_2026_banner(tmp_path):
     assert "52.66%" in successes
     assert "No medium tier" in successes
     assert "No totals on this season" in successes
-    titles = " ".join(str(t.value) for t in at.title)
-    assert "2026" in titles
-    assert "Week 1" in titles
+    headings = " ".join(str(t.value) for t in [*at.title, *at.subheader])
+    assert "2026" in headings
+    assert "Week 1" in headings
     for module in ("page_weekly_predictions", "page_track_record"):
         at = _render_page(tmp_path, module)
         md = " ".join(str(m.value) for m in at.markdown)

@@ -52,9 +52,9 @@ def test_default_is_newest_episode(tmp_path):
     md = _md(at)
     assert newest["title"] in md
     assert "Welcome to JoScho Analytics" not in md
-    watch = [m for m in at.markdown if "Watch on TikTok" in str(m.value)]
+    watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
     assert len(watch) == 1, "only the selected video should render a Watch link"
-    assert newest["tiktok_url"] in str(watch[0].value)
+    assert watch[0].url == newest["tiktok_url"]
 
 
 def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
@@ -80,10 +80,27 @@ def test_switching_episode_swaps_the_embed(tmp_path):
     at.run()
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
-    watch = [m for m in at.markdown if "Watch on TikTok" in str(m.value)]
+    watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
     assert len(watch) == 1
-    assert other["tiktok_url"] in str(watch[0].value)
-    assert newest["tiktok_url"] not in str(watch[0].value)
+    assert watch[0].url == other["tiktok_url"]
+    assert watch[0].url != newest["tiktok_url"]
+
+
+def test_shared_video_url_selects_episode(tmp_path):
+    other = next(v for v in VIDEOS if v["slug"] != _newest()["slug"])
+    harness = tmp_path / "film_query.py"
+    harness.write_text(
+        f"import sys; sys.path[:0] = [r'{_HERE}', r'{_HERE / 'site_pages'}']\n"
+        "import streamlit as st\n"
+        f"st.query_params['video'] = {other['slug']!r}\n"
+        "import page_film_room as p\n"
+        "p.render()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness), default_timeout=180).run()
+    assert not at.exception, at.exception
+    watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
+    assert len(watch) == 1 and watch[0].url == other["tiktok_url"]
 
 
 def test_every_episode_has_a_breakdown_file():

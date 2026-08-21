@@ -73,10 +73,12 @@ _CSS = """
 /* Links -------------------------------------------------------------------- */
 [data-testid="stMarkdownContainer"] a{
   color:var(--jsa-accent);
-  text-decoration:none;
+  text-decoration:underline;
+  text-decoration-thickness:.08em;
+  text-underline-offset:.16em;
   transition:color 120ms var(--jsa-ease);
 }
-[data-testid="stMarkdownContainer"] a:hover{ color:var(--jsa-text); text-decoration:underline; }
+[data-testid="stMarkdownContainer"] a:hover{ color:var(--jsa-text); }
 
 /* Buttons: one radius, press feedback, ease-out ---------------------------- */
 .stButton > button, .stDownloadButton > button, .stFormSubmitButton > button{
@@ -136,7 +138,7 @@ details > div{
   color:var(--jsa-text) !important;
 }
 
-/* Header band + tip jar re-skinned to the accent (was stock blue) ---------- */
+/* Header band + Venmo support --------------------------------------------- */
 [data-testid="stHeader"]{
   background:var(--jsa-bg);
   border-bottom:1px solid var(--jsa-border);
@@ -154,7 +156,7 @@ details > div{
 hr{ border-color:var(--jsa-border) !important; }
 
 /* NOTE — deliberately NO transform/filter/animation on stMainBlockContainer.
-   The fixed header overlay (#jsa-topbar = brand + tip jar, from render_header) is a
+   The fixed header overlay (#jsa-topbar = brand + Venmo, from render_header) is a
    DESCENDANT of this container. A transform on an ancestor re-anchors position:fixed
    to that ancestor instead of the viewport, which displaces/hides the header. If a
    content entrance is ever wanted, animate opacity ONLY (opacity does not create a

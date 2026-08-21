@@ -27,7 +27,7 @@ def _render(tmp_path):
 
 def test_help_renders_offline_clean(tmp_path):
     at = _render(tmp_path)
-    assert any("Help & Guide" in str(t.value) for t in at.title), "Help title missing"
+    assert any("Help & guide" in str(t.value) for t in at.title), "Help title missing"
     assert len(list(at.markdown)) > 10, "Help body (expanders/markdown) did not render"
     assert any("How the models work" in str(s.value) for s in at.subheader)
     assert any(
@@ -51,8 +51,8 @@ def test_help_site_org_and_paused_copy(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Season Totals (Beta)" in md
-    assert "2026 Draft Board" in md
-    assert "the page you land on" in md
+    assert "Draft Board" in md
+    assert "opens on **Home**" in md
     assert any("Season Totals (Beta)" in str(e.label) for e in at.expander)
     assert "Coming soon" in md
     assert "currently uses mock data" not in md

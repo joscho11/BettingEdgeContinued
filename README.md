@@ -83,6 +83,8 @@ Each subsystem has a plain-language guide — what it is trying to do, how it wo
 - [fantasy/talent/GUIDE.md](fantasy/talent/GUIDE.md) — the NFL Talent Score and College Talent Score columns: the eight per-position builds behind them, what they measure, and where they fail (no strength-of-schedule adjustment; FBS only on the college side).
 - [fantasy/rookie/GUIDE.md](fantasy/rookie/GUIDE.md) — the Rookie Board's hit-probability score.
 - [fantasy/dfs/GUIDE.md](fantasy/dfs/GUIDE.md) — the DraftKings lineup optimizer.
+- [publishing/README.md](publishing/README.md) — the validated weekly release contract,
+  immutable builds, status manifest, grading, and rollback commands.
 
 `fantasy/breakout/` is a one-off research notebook (a breakout-probability experiment with saved charts); it is not wired into the dashboard or any pipeline, so it has no guide.
 
@@ -251,7 +253,7 @@ An integer-linear-program optimizer for DraftKings NFL Classic, using the weekly
 
 A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Board (landing page), Rookie Board, Weekly Fantasy. **Betting**: Weekly Predictions, Track Record, Season Totals (Beta). **More**: Film Room, League History, Help & Guide.
 
-- **Draft Board**: my pre-season board for the independent model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Sleeper ADP and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. Model Proj points and ranks remain frozen until the planned early-September snapshot. Model Proj is backtested on 2021-2025 and **not** live-validated. Its first live test is 2026. On that backtest it beat ADP ordering in 5 of 6 seasons. The gaps are neutral rank differences shown for context, not calls about any player.
+- **Draft Board**: my pre-season board for the independent model's exact 180-player 2026 universe: 24 QB, 60 RB, 72 WR, and 24 TE. Sleeper ADP is the default draft price; ESPN ADP is a second source for the same 180. Both ADPs and Sleeper projection points refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull. Model Proj points and ranks remain frozen until the planned early-September snapshot. Model Proj is backtested on 2021-2025 and **not** live-validated. Its first live test is 2026. On that backtest it beat Sleeper ADP ordering in 5 of 6 seasons. The gaps are neutral rank differences shown for context, not calls about any player.
 
 - **Rookie Board**: a per-position hit-probability score for drafted rookies, beside the rookie season-total projections (RB, WR and TE; the QB rookie arm was built and held as too thin), a College Talent score, and college/athletic percentiles. Backtested, not live-validated: at this sample college production and athletic testing added no measured edge beyond draft capital.
 
@@ -262,21 +264,32 @@ A Streamlit multipage site with a top nav in three groups. **Fantasy**: Draft Bo
 - **DFS Optimizer**: DraftKings Classic lineup solver in `fantasy/dfs/` and `site_pages/page_dfs.py`. Off the nav until it is live.
 
 - **Film Room**: one embedded TikTok from the [@joschoanalytics](https://www.tiktok.com/@joschoanalytics) channel at a time, picked from a title list, each with a click-to-open written breakdown. Newest episode is the default. Add one by appending to `video_content.py` and dropping a markdown file in `video_breakdowns/`.
-- **League History**: loads a public Sleeper league chain and presents records, matchups, manager report cards, draft-room tendencies, four-week-qualified player scoring, and descriptive draft-versus-production value charts. Its focused Rivalries views separate the week builder, single-matchup explorer, and league matrix; the builder scores every current-manager pairing in three modes, globally optimizes a complete slate, explains each matchup, and supports locked alternatives. Transaction-level acquisition labels and player-season counts are tracked in [`docs/LEAGUE_HISTORY_BACKLOG.md`](docs/LEAGUE_HISTORY_BACKLOG.md).
+- **League History**: loads a public Sleeper league chain or an ESPN league plus season and presents records, matchups, manager report cards, draft-room tendencies, four-week-qualified player scoring, and descriptive draft-versus-production value charts. Private ESPN access accepts masked SWID and espn_s2 values for one uncached import, keeps normalized results in per-user session state, and clears the credential fields after success. Its focused Rivalries views separate the week builder, single-matchup explorer, and league matrix; the builder scores every current-manager pairing in three modes, globally optimizes a complete slate, explains each matchup, and supports locked alternatives. ESPN imports do not yet include complete waiver-bid and trade history, so those transaction details remain Sleeper-only. Transaction-level acquisition labels and player-season counts are tracked in [`docs/LEAGUE_HISTORY_BACKLOG.md`](docs/LEAGUE_HISTORY_BACKLOG.md).
 
-### Automation
+### Weekly release automation
 
-Two GitHub Actions workflows.
-
-**`weekly_predictions.yml`** runs on three schedules and auto-commits the updated trackers:
+**`weekly_predictions.yml`** still runs totals on three schedules. The 2026 spread
+producer now lives in `cowork_OS/spread_v3_prod`; it emits a candidate rather than
+writing this repository's tracker directly.
 
 | Time | Action |
 |------|--------|
-| Tuesday 9am ET | Previous week graded, new week predicted (spread and totals) |
-| Thursday 9pm ET | Predictions refreshed with injury reports |
-| Sunday 9am ET | Final predictions locked |
+| Tuesday 9am ET | Totals weekly run; spread production is external |
+| Thursday 9pm ET | Totals refresh |
+| Sunday 9am ET | Totals final run |
 
-The LLM agent step is commented out (paused August 2026). The job stages only the two tracker CSVs.
+The LLM agent step is commented out (paused August 2026).
+
+**The weekly publication contract** lives in `publishing/`. Spread and fantasy
+producers emit a CSV and hash-bound sidecar. `python -m publishing.cli publish`
+checks schedule and player/team coverage, schema, duplicates, timestamps, hashes,
+and model version before creating an immutable build and moving the page default.
+The manifest supplies the Published/Scheduled/Awaiting projections state. Failed
+validation leaves the prior pointer untouched.
+
+**`grade_releases.yml`** polls published 2026 weeks after NFL game windows and writes
+idempotent grading artifacts separately from the frozen release. Track Record moves
+to 2026 only after at least one final prediction has graded.
 
 **`test.yml`** runs on every push and PR to `main`, in three jobs: a `features` job runs the `features.py` contract tests (including an order-hash check that catches feature-list changes which would silently alter the trained models) plus the calibration tests; a `pytests` job runs the seasonal, dashboard and talent suites plus the betting execution layer; and a `deploy-parity` job re-runs everything on Python 3.12 against the exact package set Streamlit Cloud installs, so a resolver conflict fails here instead of on the live site. Catches regressions in seconds instead of on the next cron.
 
@@ -324,6 +337,8 @@ tests/                                 # Dashboard + board suites; conftest.py p
 nav_registry.py                        # Cross-link registry, populated before nav.run()
 dashboard_chrome.py / dashboard_data.py   # Shared chrome and data loaders
 dashboard_utils.py                     # Streamlit-free dashboard helpers (testable; metric_card, loaders, etc.)
+publishing/                             # Weekly validation, immutable publish, status, grading, rollback CLI
+data/releases/                         # Checked manifest plus immutable build/result artifacts
 draft_board_2026.py                    # Draft Board renderer (frozen Model Proj + daily Sleeper overlay +
                                        #   fantasy/talent scores)
 film_room.py                           # Film Room renderer (embedded TikToks + breakdown popups)
@@ -340,7 +355,7 @@ betting/
   sports_betting_agent.ipynb           # LLM agent (DISABLED 2026-08-03)
   ARCHIVED_SPREAD.md                   # Pointer: 2026 spread is cowork_OS/spread_v3_beta
   models/                              # Frozen 2025 demo + Help hashes. Do not overwrite.
-  predictions_tracker.csv              # Spread predictions and results (auto-committed)
+  predictions_tracker.csv              # Historical spread tracker; 2026 releases overlay from the manifest
   totals_tracker.csv                   # Totals predictions and results (auto-committed)
   nfl_allpro_1997_2025.csv             # All-Pro roster data (updated manually each January)
   nfl_weather_2014_2025.csv            # Kickoff-hour temp and wind (Meteostat)
@@ -352,7 +367,7 @@ fantasy/
   GUIDE.md                             # Weekly fantasy guide (v1 numbers; 2026 work is weekly_projections_v2)
   features.ipynb                       # Feature engineering, writes features_dataset.csv
   models/                              # Frozen weekly pkls (Help hashes). Do not overwrite for 2026.
-  fantasy_projections/                 # Weekly CSVs (2025 demo; 2026+ from weekly_projections_v2)
+  fantasy_projections/                 # Legacy 2025 demo CSVs; 2026 serves only validated releases
   dfs/
     optimizer.ipynb                    # ILP formulation and helper reference
     dfs_pipeline.ipynb                 # Weekly DFS workflow (papermill)
@@ -386,6 +401,7 @@ memory/                                # Repo-specific engineering notes, the da
                                        #   (completed-work-log.md), and dated session logs
 .github/workflows/
   weekly_predictions.yml               # Tue/Thu/Sun automation (spread, totals; agent paused)
+  grade_releases.yml                    # Poll final games and commit separate 2026 grading results
   test.yml                             # Push/PR CI: features + calibration; seasonal/dashboard/talent +
                                        #   betting execution layer; deploy-parity on py3.12
   board_refresh.yml                    # Daily Sleeper market refresh for the Draft Board

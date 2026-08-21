@@ -4,16 +4,17 @@ This page retires the licensed Phase-4 band as its spine. It lists the 180-playe
 preseason universe published by the independent V2 pipeline (24 QB / 60 RB / 72 WR / 24 TE)
 and shows, side by side, the snapshot's draft price and positional rank next to Sleeper's
 season-total projection when available and the published Model Proj, plus the
-positional-rank gap for each and two descriptive talent scores. A detail toggle (ON by
-default) can drop the four raw-estimate/talent columns for a compact 9-column comparison
-view. Public copy must not mention the 75/25 Sleeper mix (Joseph, 2026-08-18).
+positional-rank gap for each and two descriptive talent scores. Draft price is Sleeper ADP
+by default, with ESPN ADP as a second source for the same 180 players. A detail toggle
+(ON by default) can drop the four raw-estimate/talent columns for a compact 9-column
+comparison view. Public copy must not mention the 75/25 Sleeper mix (Joseph, 2026-08-18).
 
 The frozen artifacts (phase4_band_2026.csv, talent_index_2026.csv) stay on disk, read-only,
 for the closed H-campaign. This module reads neither, and neither does the daily Sleeper
 market refresh; its frozen source is the 180-player publication CSV.
 
 Compliance. DESCRIPTIVE ONLY.
-  • Sleeper ADP + Sleeper Proj are Sleeper's data (attributed).
+  • Sleeper ADP + Sleeper Proj are Sleeper's data (attributed). ESPN ADP is ESPN's.
   • Model Proj + Model Gap are the published board number (internally 75% independent
     v6 plus 25% Sleeper's published projection), BACKTESTED (2021-2025) and NOT
     live-validated. The displayed values are the immutable pipeline output; no analyst
@@ -28,6 +29,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+import page_common
 from dashboard_chrome import TABLE_HEIGHT, dataframe_phone_desktop
 
 _MONTHS = ("January", "February", "March", "April", "May", "June", "July",
@@ -40,6 +42,7 @@ DATASET = SEAS / "season_dataset_2014_2026.csv"
 # Daily, regenerable overlay for live Sleeper ADP and projection points. The frozen V2 source
 # remains the authority for the 180-player universe and model values/ranks.
 LIVE_OVERLAY = SEAS / "board_adp_live_2026.csv"
+LIVE_ESPN_OVERLAY = SEAS / "board_espn_adp_live_2026.csv"
 # Legacy per-position files supply only optional Sleeper projection and team metadata.
 # The independent model projection is read solely from INDEPENDENT_V2.
 PROJ_RESULTS = _HERE / "fantasy" / "projections" / "results"
@@ -278,6 +281,24 @@ def _load_board_2026_cached(source_fingerprint):
                     live_market_loaded = True
                 df = df.drop(columns="_name_position")
 
+    df["espn_adp"] = pd.NA
+    df["espn_pos_rank"] = pd.Series([pd.NA] * len(df), dtype="Int64")
+    if LIVE_ESPN_OVERLAY.exists():
+        espn = pd.read_csv(LIVE_ESPN_OVERLAY, dtype={"player_id": "string"})
+        required_espn = {"player_id", "espn_adp", "espn_pos_rank", "refreshed_at"}
+        if len(espn) == 180 and required_espn <= set(espn.columns):
+            espn["player_id"] = espn["player_id"].astype("string")
+            if not espn["player_id"].duplicated().any():
+                espn_idx = espn.set_index("player_id")
+                ids = df["player_id"].astype("string")
+                if ids.isin(espn_idx.index).all():
+                    df["espn_adp"] = pd.to_numeric(
+                        ids.map(espn_idx["espn_adp"]), errors="coerce"
+                    )
+                    df["espn_pos_rank"] = pd.to_numeric(
+                        ids.map(espn_idx["espn_pos_rank"]), errors="coerce"
+                    ).astype("Int64")
+
     legacy = _load_projections().reset_index() if any(
         (PROJ_RESULTS / f"{p}_projection_2026.csv").exists() for p in ("rb", "wr", "te", "qb")
     ) else pd.DataFrame(columns=["player_id", "player", "position", "team", "sleeper"])
@@ -390,6 +411,7 @@ def _board_source_fingerprint():
     paths = [
         INDEPENDENT_V2,
         LIVE_OVERLAY,
+        LIVE_ESPN_OVERLAY,
         *(PROJ_RESULTS / f"{position}_projection_2026.csv"
           for position in ("rb", "wr", "te", "qb")),
         ANALYST_PROJECTION_ADJUSTMENTS,
@@ -591,17 +613,47 @@ def _refresh_date():
         return None
 
 
-def _adp_caption():
+def _pretty_iso_date(iso) -> str:
+    try:
+        stamp = date.fromisoformat(str(iso)[:10])
+        return f"{_MONTHS[stamp.month - 1]} {stamp.day}, {stamp.year}"
+    except (ValueError, TypeError):
+        return str(iso)
+
+
+@st.cache_data
+def _espn_refresh_date():
+    """The valid ESPN overlay date, or None if absent/stale-schema."""
+    if not LIVE_ESPN_OVERLAY.exists():
+        return None
+    try:
+        overlay = pd.read_csv(LIVE_ESPN_OVERLAY, dtype={"player_id": "string"})
+        required = {"player_id", "espn_adp", "espn_pos_rank", "refreshed_at"}
+        if len(overlay) != 180 or not required <= set(overlay.columns):
+            return None
+        return str(overlay["refreshed_at"].iloc[0])
+    except (KeyError, ValueError, pd.errors.EmptyDataError):
+        return None
+
+
+def _adp_caption(market: str = "Sleeper ADP"):
+    if market == ESPN_ADP_MARKET:
+        iso = _espn_refresh_date()
+        if not iso:
+            return ("Model Proj is frozen. "
+                    "ESPN ADP will appear after the next successful ESPN market pull. "
+                    "Sleeper prices stay on the Sleeper view.")
+        pretty = _pretty_iso_date(iso)
+        return (f"Live ESPN ADP refresh: {pretty}. Draft-price ranks, Sleeper Gap, "
+                "and Model Gap update from this pull; Model Proj points and ranks remain "
+                "frozen until the early-September snapshot. ESPN publishes one ADP, "
+                "not a half-PPR-specific ranking.")
     iso = _refresh_date()
     if not iso:
         return ("Model Proj is frozen. "
                 "Live Sleeper ADP and Sleeper projection refreshes will appear after the next "
                 "successful daily market pull.")
-    try:
-        stamp = date.fromisoformat(str(iso)[:10])
-        pretty = f"{_MONTHS[stamp.month - 1]} {stamp.day}, {stamp.year}"
-    except (ValueError, TypeError):
-        pretty = str(iso)
+    pretty = _pretty_iso_date(iso)
     return (f"Live Sleeper ADP and Sleeper projection refresh: {pretty}. Draft-price ranks, "
             "Sleeper ranks, Sleeper Gap, and Model Gap update from this pull; Model Proj "
             "points and ranks remain frozen until the early-September snapshot.")
@@ -624,6 +676,37 @@ SORT_KEYS = {
     "College Talent Score": "college_talent",
 }
 
+ADP_MARKETS = ("Sleeper ADP", "ESPN ADP")
+DEFAULT_ADP_MARKET = "Sleeper ADP"
+ESPN_ADP_MARKET = "ESPN ADP"
+
+
+def sort_keys_for(market: str) -> dict:
+    """Sort labels for the selected draft-price source. ADP is first, so it is the default."""
+    if market not in ADP_MARKETS:
+        market = DEFAULT_ADP_MARKET
+    keys = {market: "adp_half_ppr"}
+    for label, column in SORT_KEYS.items():
+        if label != "Sleeper ADP":
+            keys[label] = column
+    return keys
+
+
+def apply_board_market(df: pd.DataFrame, market: str) -> pd.DataFrame:
+    """Reprice the 180 from the selected ADP source. Model Proj ranks stay frozen.
+
+    Sleeper remains the stored default. ESPN copies espn_adp / espn_pos_rank onto the
+    displayed price columns and recomputes both gaps. Unmatched ESPN rows stay blank.
+    """
+    out = df.copy()
+    if market != ESPN_ADP_MARKET:
+        return out
+    out["adp_half_ppr"] = pd.to_numeric(out["espn_adp"], errors="coerce")
+    out["pos_rank"] = pd.to_numeric(out["espn_pos_rank"], errors="coerce").astype("Int64")
+    out["sleeper_gap"] = (out["pos_rank"] - out["sleeper_proj_pos_rank"]).astype("Int64")
+    out["model_gap"] = (out["pos_rank"] - out["model_proj_pos_rank"]).astype("Int64")
+    return out
+
 # Columns whose direction defaults to DESCENDING when you select them. These four are MAGNITUDE
 # columns — more points, more talent — so the interesting end is the top, and ascending-first made
 # you flip the toggle every time. Everything else stays ascending-first because it is a RANK or a
@@ -632,10 +715,11 @@ SORT_KEYS = {
 DESCENDING_FIRST = {"Sleeper Proj", "Model Proj", "NFL Talent Score", "College Talent Score"}
 
 
-def _sort_board(view, sort_label, ascending):
+def _sort_board(view, sort_label, ascending, sort_keys=None):
     """Sort by the numeric field behind a display column. Sentinels (NaN sort keys) always
     sink to the bottom, in both directions (na_position='last'). Stable so ties keep order."""
-    key = SORT_KEYS.get(sort_label, "adp_half_ppr")
+    keys = sort_keys if sort_keys is not None else SORT_KEYS
+    key = keys.get(sort_label, "adp_half_ppr")
     return view.sort_values(key, ascending=ascending, na_position="last", kind="stable")
 
 
@@ -706,8 +790,8 @@ COLUMN_META = [
     ("position", _TXT, "Position", "His position.", {"width": "small"}),
     ("team", _TXT, "Team", "His 2026 team. Blank = not signed / unavailable.", {"width": "small"}),
     ("adp_half_ppr", _NUM, "Sleeper ADP",
-     "Average draft position from Sleeper (half-PPR) — where drafters are actually taking "
-     "him. Lower = earlier.", {"format": "%.1f"}),
+     "Average draft position from the selected source (Sleeper half-PPR, or ESPN). "
+     "ESPN publishes one ADP, not a half-PPR-specific ranking. Lower = earlier.", {"format": "%.1f"}),
     ("pos_rank", _NUM, "Position Rank",
      "His rank at his position by draft price (1 = first off the board at the position).",
      {"format": "%d", "width": "small"}),
@@ -755,6 +839,28 @@ COLUMN_META = [
 ]
 _DISPLAY_COLS = [m[0] for m in COLUMN_META]
 _EXPORT_NAMES = {m[0]: m[2] for m in COLUMN_META}       # colkey -> on-screen label
+
+
+def column_meta_for(market: str = DEFAULT_ADP_MARKET):
+    """Display metadata for the selected draft-price source."""
+    if market != ESPN_ADP_MARKET:
+        return COLUMN_META
+    rows = []
+    for item in COLUMN_META:
+        if item[0] != "adp_half_ppr":
+            rows.append(item)
+            continue
+        rows.append((
+            "adp_half_ppr", _NUM, "ESPN ADP",
+            "Average draft position from ESPN. ESPN publishes one ADP, not a "
+            "half-PPR-specific ranking. Lower = earlier.",
+            {"format": "%.1f"},
+        ))
+    return rows
+
+
+def export_names_for(market: str = DEFAULT_ADP_MARKET) -> dict:
+    return {m[0]: m[2] for m in column_meta_for(market)}
 
 # Optional compact view. The board's spine is the price-vs-projection COMPARISON (ranks and
 # gaps); these four are the raw point estimates and the two descriptive talent scores. They ship
@@ -817,11 +923,12 @@ def _blank_missing_talent(series: pd.Series, decimals: int) -> pd.Series:
     return series.map(_one)
 
 
-def _column_config(active_sort_key: str | None = None, ascending: bool = True):
+def _column_config(active_sort_key: str | None = None, ascending: bool = True,
+                   market: str = DEFAULT_ADP_MARKET):
     """Build the table config and visibly mark the active numeric sort key."""
     cfg = {_ROW_NO: st.column_config.NumberColumn("#", help=_ROW_NO_HELP, format="%d",
                                                   width=_ROW_NO_WIDTH, pinned=True)}
-    for key, kind, label, help_, extra in COLUMN_META:
+    for key, kind, label, help_, extra in column_meta_for(market):
         if key == active_sort_key:
             arrow = "↑" if ascending else "↓"
             label = f"{arrow} {label}"
@@ -838,9 +945,10 @@ def _column_config(active_sort_key: str | None = None, ascending: bool = True):
     return cfg
 
 
-def _phone_column_config(active_sort_key: str | None = None, ascending: bool = True):
+def _phone_column_config(active_sort_key: str | None = None, ascending: bool = True,
+                         market: str = DEFAULT_ADP_MARKET):
     """Phone grid: same help/format as desktop, shorter labels, pinned widths."""
-    meta = {m[0]: m for m in COLUMN_META}
+    meta = {m[0]: m for m in column_meta_for(market)}
     cfg = {_ROW_NO: st.column_config.NumberColumn("#", help=_ROW_NO_HELP, format="%d",
                                                   width=_ROW_NO_WIDTH, pinned=True)}
     for key in _PHONE_COLS:
@@ -1041,8 +1149,10 @@ def _render_outside_market(board_size: int):
                 sort_label = st.selectbox("Sort by", list(OUTSIDE_SORT_KEYS), index=0,
                                           key="db26_out_sortby")
             with fc4:
-                order = st.radio("Order", ["Descending", "Ascending"], index=0,
-                                 horizontal=True, key="db26_out_sortdir")
+                order = st.segmented_control(
+                    "Order", ["Descending", "Ascending"], default="Descending",
+                    required=True, key="db26_out_sortdir",
+                )
 
         view = outside[outside.position.isin(pos)]
         if name.strip():
@@ -1083,13 +1193,16 @@ def render():
     with st.expander("How to read this board", expanded=False):
         st.markdown(
             "This board lists the independent model's exact 180-player 2026 universe: "
-            "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the current Sleeper "
-            "draft price and **Model Proj**, plus Sleeper's projection when its record "
-            "matches. Sleeper ADP, Sleeper Proj, and both gap columns refresh daily; "
-            "Model Proj points and ranks stay frozen. For each available projection, the "
-            "gap between his draft-price rank and his projected rank at his position.\n\n"
-            "- **Sleeper ADP** is his average draft position; **Position Rank** turns that "
-            "into his rank at his position (1 = first off the board there).\n"
+            "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the current draft "
+            "price and **Model Proj**, plus Sleeper's projection when its record "
+            "matches. Use **Draft price** to switch Sleeper ADP (the default) and ESPN ADP "
+            "for the same 180 players. Sleeper ADP, ESPN ADP, Sleeper Proj, and both gap "
+            "columns refresh daily; Model Proj points and ranks stay frozen. For each "
+            "available projection, the gap between his draft-price rank and his projected "
+            "rank at his position.\n\n"
+            "- **Sleeper ADP / ESPN ADP** is his average draft position from the selected "
+            "source; **Position Rank** turns that into his rank at his position "
+            "(1 = first off the board there).\n"
             "- **Sleeper Proj** and **Model Proj** are two estimates of his "
             "season-total half-PPR points. Sleeper's is shown only when its record can be "
             "matched; **Model Proj** is the published season-total half-PPR number on "
@@ -1107,6 +1220,8 @@ def render():
         st.markdown("**What each column means:**")
         for _key, _kind, _label, _help, _extra in COLUMN_META:
             _detail = " *(hidden in the compact view)*" if _key in _DETAIL_ONLY else ""
+            if _key == "adp_half_ppr":
+                _label = "Sleeper ADP / ESPN ADP"
             st.markdown(f"- **{_label}**{_detail} — {_help}")
         st.caption("The board opens on the full view. Turn off **Show projection and talent "
                    "detail** for a compact comparison view that drops the raw Sleeper and model "
@@ -1124,21 +1239,57 @@ def render():
     # display strings lexicographically); this routes every sortable column through one
     # numeric path with sentinels pinned to the bottom. Default: Sleeper ADP, ascending.
     with st.container(border=True, key="jsa-filter-bar-draft"):
+        page_common.seed_widget_from_query(
+            "db26_adp_src", "db26_adp_src", ADP_MARKETS,
+        )
+        if "db26_adp_src" not in st.session_state:
+            st.session_state["db26_adp_src"] = DEFAULT_ADP_MARKET
+        market = st.segmented_control(
+            "Draft price", list(ADP_MARKETS), key="db26_adp_src", required=True,
+            help="Sleeper ADP is the default market this board was built against. "
+                 "ESPN ADP is ESPN's published average draft position for the same 180 players.",
+        )
+        if market not in ADP_MARKETS:
+            market = DEFAULT_ADP_MARKET
+        sort_keys = sort_keys_for(market)
+        if st.session_state.get("db26_sortby") not in sort_keys:
+            prev = st.session_state.get("db26_sortby")
+            if prev in ADP_MARKETS:
+                st.session_state["db26_sortby"] = market
         fc1, fc2, fc3, fc4 = st.columns([1.4, 1.3, 1.6, 1.15])
         with fc1:
-            pos = st.multiselect("Position", ["QB", "RB", "WR", "TE"],
-                                 default=["QB", "RB", "WR", "TE"], key="db26_pos")
+            if "db26_pos" not in st.session_state:
+                _query_pos = str(page_common.query_value("db26_pos") or "")
+                _valid_pos = [p for p in _query_pos.split(",") if p in {"QB", "RB", "WR", "TE"}]
+                st.session_state["db26_pos"] = _valid_pos or ["QB", "RB", "WR", "TE"]
+            pos = st.multiselect(
+                "Position", ["QB", "RB", "WR", "TE"], key="db26_pos",
+            )
         with fc2:
-            name = st.text_input("Player search", "", key="db26_search")
+            _query_search = page_common.query_value("db26_search")
+            if "db26_search" not in st.session_state:
+                st.session_state["db26_search"] = str(_query_search or "")
+            name = st.text_input("Player search", key="db26_search")
         with fc3:
-            sort_label = st.selectbox("Sort by", list(SORT_KEYS), index=0, key="db26_sortby")
+            _sort_seeded = page_common.seed_widget_from_query(
+                "db26_sortby", "db26_sortby", list(sort_keys),
+            )
+            sort_label = st.selectbox("Sort by", list(sort_keys), key="db26_sortby")
         with fc4:
             # Key is per sort column, so each column carries its own default AND remembers a
             # direction you set on it. A single shared key would let Streamlit's stored value
             # override the per-column default the moment you touched the toggle once.
-            order = st.radio("Order", ["Ascending", "Descending"],
-                             index=1 if sort_label in DESCENDING_FIRST else 0,
-                             horizontal=True, key=f"db26_sortdir_{SORT_KEYS[sort_label]}")
+            _order_key = f"db26_sortdir_{sort_keys[sort_label]}"
+            _order_options = ["Ascending", "Descending"]
+            _order_seeded = page_common.seed_widget_from_query(
+                _order_key, "db26_order", _order_options,
+            )
+            _order_kwargs = {"required": True, "key": _order_key}
+            if not _order_seeded and _order_key not in st.session_state:
+                _order_kwargs["default"] = (
+                    "Descending" if sort_label in DESCENDING_FIRST else "Ascending"
+                )
+            order = st.segmented_control("Order", _order_options, **_order_kwargs)
         detail = st.toggle(
             "Show projection and talent detail", value=True, key="db26_detail",
             help="On: the full board, including the raw Sleeper and model season-point estimates "
@@ -1147,12 +1298,19 @@ def render():
         st.caption("Note: clicking a column header also sorts, but a few columns won't sort "
                    "correctly that way — a Streamlit limitation. Use the controls above.")
 
+    page_common.sync_query_value("db26_adp_src", market)
+    page_common.sync_query_value("db26_pos", ",".join(pos))
+    page_common.sync_query_value("db26_search", name.strip())
+    page_common.sync_query_value("db26_sortby", sort_label)
+    page_common.sync_query_value("db26_order", order)
+
+    df = apply_board_market(df, market)
     view = df[df.position.isin(pos)]
     if name.strip():
         view = view[view.player.str.contains(name.strip(), case=False, na=False)]
     ascending = order == "Ascending"
-    view = _sort_board(view, sort_label, ascending=ascending)
-    active_sort_key = SORT_KEYS[sort_label]
+    view = _sort_board(view, sort_label, ascending=ascending, sort_keys=sort_keys)
+    active_sort_key = sort_keys[sort_label]
 
     visible_cols = _DISPLAY_COLS if detail else _COMPACT_COLS
     cols = [_ROW_NO] + visible_cols
@@ -1162,7 +1320,7 @@ def render():
     for _k in _TALENT_KEYS:
         if _k in display_view.columns:
             display_view[_k] = _blank_missing_talent(display_view[_k], decimals=0)
-    st.caption(_adp_caption())
+    st.caption(_adp_caption(market))
     direction = "low to high" if ascending else "high to low"
     sort_note = (f"Sorted by **{sort_label}** ({direction}). The arrow and soft green tint mark "
                  "the active sort column.")
@@ -1172,11 +1330,16 @@ def render():
                       "applied but its values are off-screen; turn the detail toggle back on to "
                       "see them.")
     st.caption(sort_note)
-    st.caption("Model Proj and Model Gap are the published season-total projection "
-               "for this board. ADP is not a "
-               "model input. Backtested on 2021-2025 and not live-validated. On that "
-               "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
-               "scenario overlay is applied.")
+    if market == DEFAULT_ADP_MARKET:
+        st.caption("Model Proj and Model Gap are the published season-total projection "
+                   "for this board. ADP is not a "
+                   "model input. Backtested on 2021-2025 and not live-validated. On that "
+                   "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
+                   "scenario overlay is applied.")
+    else:
+        st.caption("Model Proj and Model Gap in this view use ESPN draft prices. ADP is not a "
+                   "model input. The 5-of-6 ADP-ordering backtest is vs Sleeper ADP and does "
+                   "not apply to ESPN ADP. No analyst scenario overlay is applied.")
     st.caption("NFL Talent Score ranks NFL players against NFL players; College Talent Score "
                "ranks 2026 rookies against past drafted prospects — different instruments on "
                "different scales, and neither feeds any other column.")
@@ -1188,30 +1351,33 @@ def render():
     grid_kwargs = dict(
         width="stretch", height=TABLE_HEIGHT, hide_index=True,
         key=("db26_grid_"
-             f"{SORT_KEYS[sort_label]}_{order}_{'detail' if detail else 'compact'}_"
+             f"{market.replace(' ', '_')}_{sort_keys[sort_label]}_{order}_"
+             f"{'detail' if detail else 'compact'}_"
              f"{'-'.join(sorted(pos))}_{name.strip().lower()}_{len(view)}"),
-        column_config=_column_config(active_sort_key, ascending),
+        column_config=_column_config(active_sort_key, ascending, market),
     )
     dataframe_phone_desktop(
         display_view[cols].style.apply(style_fn, axis=None),
         display_view[phone_cols].style.apply(style_fn, axis=None),
         slug="draft-board",
-        phone_column_config=_phone_column_config(active_sort_key, ascending),
+        phone_column_config=_phone_column_config(active_sort_key, ascending, market),
         **grid_kwargs,
     )
 
     st.download_button(
         "Download board (CSV)",
-        data=view[_DISPLAY_COLS].rename(columns=_EXPORT_NAMES)
+        data=view[_DISPLAY_COLS].rename(columns=export_names_for(market))
                        .to_csv(index=False).encode("utf-8"),
-        file_name="draft_board_2026.csv", mime="text/csv",
+        file_name=("draft_board_2026.csv" if market == DEFAULT_ADP_MARKET
+                   else "draft_board_2026_espn.csv"), mime="text/csv",
         key="db26_dl")
     st.caption("The download carries every column, including any the compact view hides, for the "
                "rows currently filtered and in the current sort order.")
 
     st.markdown("---")
     st.caption(
-        "**About these numbers.** Sleeper ADP and Sleeper Proj are Sleeper's. Model Proj is "
+        "**About these numbers.** Sleeper ADP and Sleeper Proj are Sleeper's. ESPN ADP is "
+        "ESPN's. Model Proj is "
         "the published v6 projection, evaluated historically on 2021-2025 and not "
         "live-validated (the first live test is 2026). The gap columns are simple "
         "positional-rank differences shown for context. All of this is descriptive "

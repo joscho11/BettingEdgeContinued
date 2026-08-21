@@ -1,0 +1,91 @@
+"""Stable, season-aware landing page for JoScho Analytics."""
+
+from datetime import date
+
+import streamlit as st
+
+import nav_registry
+from seasonal_config import board_refresh_season_start
+
+
+def _page_link(slug: str, label: str, icon: str) -> None:
+    page = nav_registry.PAGES.get(slug)
+    if page is not None:
+        st.page_link(page, label=label, icon=icon, width="stretch")
+    else:
+        # Standalone AppTest harnesses do not populate the navigation registry.
+        st.markdown(f"**{label}**")
+
+
+def render() -> None:
+    st.title("JoScho Analytics")
+    st.caption(
+        "Independent NFL betting and fantasy models, published with their assumptions, "
+        "limits, results, and source code."
+    )
+
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.badge("2026 preseason", icon=":material/calendar_today:", color="orange")
+        st.badge("Public methodology", icon=":material/code:", color="green")
+        st.badge("No paid picks", icon=":material/verified:", color="blue")
+
+    st.subheader("Start here")
+    with st.container(horizontal=True, gap="medium"):
+        with st.container(border=True, height="stretch"):
+            st.markdown("### Build a draft plan")
+            st.caption(
+                "Compare the frozen independent projection with daily Sleeper or ESPN ADP "
+                "across the 180-player board."
+            )
+            _page_link("draft-board", "Open the Draft Board", ":material/list_alt:")
+
+        with st.container(border=True, height="stretch"):
+            st.markdown("### Check the NFL slate")
+            st.caption(
+                "Review every matchup and the Tuesday HIGH betting card. Week 1 "
+                "matchups are already published."
+            )
+            _page_link(
+                "weekly-predictions",
+                "Open Weekly Predictions",
+                ":material/query_stats:",
+            )
+
+        with st.container(border=True, height="stretch"):
+            st.markdown("### Audit the evidence")
+            st.caption(
+                "See the graded record, confidence definitions, break-even line, and "
+                "where live 2026 differs from the 2025 demo."
+            )
+            _page_link("track-record", "Open the Track Record", ":material/monitoring:")
+
+    season_start = board_refresh_season_start()
+    if date.today() < season_start:
+        st.info(
+            "The site is in preseason mode. The Draft Board and Week 1 matchups are live; "
+            "weekly fantasy rankings publish when that week's projection file lands. "
+            f"The next planned Draft Board model snapshot is before {season_start:%B %d}."
+        )
+    else:
+        st.info(
+            "The regular season is underway. Weekly products publish on their stated "
+            "cadence; use each page's freshness note before acting on a number."
+        )
+
+    st.subheader("Explore the rest")
+    with st.container(horizontal=True, gap="small"):
+        _page_link("rookie-board", "Rookie Board", ":material/biotech:")
+        _page_link("weekly-fantasy", "Weekly Fantasy", ":material/trophy:")
+        _page_link("season-totals", "Season Totals", ":material/bar_chart:")
+        _page_link("league-history", "League History", ":material/history:")
+        _page_link("film-room", "Film Room", ":material/movie:")
+
+    with st.container(border=True):
+        st.markdown("**How to read the site**")
+        st.caption(
+            "Green highlights identify a documented threshold, not certainty. Live 2026 "
+            "and historical demo outputs are labeled separately. When a market or result "
+            "source is unavailable, the site says so instead of filling the gap with an "
+            "estimate."
+        )
+        _page_link("help", "Read Help & Guide", ":material/help:")

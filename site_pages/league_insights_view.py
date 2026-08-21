@@ -286,7 +286,7 @@ def _render_draft_room(
 ) -> None:
     picks = li.draft_pick_frame(scoped["seasons"])
     if picks.empty:
-        st.info("No completed Sleeper draft boards are linked to this history window.")
+        st.info("No completed draft boards are linked to this history window.")
         return
 
     manager_seasons = li.manager_season_frame(picks)
@@ -464,7 +464,7 @@ def _render_draft_room(
 
 
 def _manager_player_data(scoped: dict, selected_user_id: str, player_directory_loader):
-    with st.spinner("Matching Sleeper player names…"):
+    with st.spinner("Matching player names…"):
         player_directory = player_directory_loader() or {}
     weeks = li.player_week_frame(scoped["seasons"], player_directory)
     weeks = weeks[weeks["user_id"].eq(str(selected_user_id))].copy()
@@ -960,7 +960,7 @@ def _render_values(
     if not selected_user_id:
         st.info("Choose a manager to load acquisition value.")
         return
-    with st.spinner("Matching Sleeper player names…"):
+    with st.spinner("Matching player names…"):
         player_directory = player_directory_loader() or {}
     weeks = li.player_week_frame(scoped["seasons"], player_directory)
     manager_weeks = weeks[weeks["user_id"].eq(str(selected_user_id))].copy()
@@ -1051,13 +1051,26 @@ def _render_view_switcher() -> str:
     return view
 
 
-def render(history: dict, season_filter: str, player_directory_loader, transaction_loader=None) -> None:
+def render(
+    history: dict,
+    season_filter: str,
+    player_directory_loader,
+    transaction_loader=None,
+    *,
+    provider_name: str = "Sleeper",
+) -> None:
     st.subheader("Draft & Roster Insights")
     view = _render_view_switcher()
     st.caption(
-        "League-specific tendencies and manager history from Sleeper's completed drafts and weekly roster snapshots. "
+        f"League-specific tendencies and manager history from {provider_name}'s completed drafts and weekly roster snapshots. "
         "Three drafts can reveal repeated habits, but every recommendation below keeps its sample visible."
     )
+    if provider_name == "ESPN" and view == "Best Values":
+        st.caption(
+            "ESPN imports do not yet include complete waiver-bid and trade history, so "
+            "in-season additions are identified from weekly roster changes without "
+            "FAAB or trade-grade detail."
+        )
     scoped, scope_label = _scope_history(history, season_filter)
     selected_user_id, manager_name = _manager_control(scoped)
     st.caption(f"Analysis window: {scope_label}")

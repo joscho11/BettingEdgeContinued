@@ -1,0 +1,43 @@
+name: Grade published releases
+
+on:
+  schedule:
+    # Poll after NFL game windows. The command is a no-op until at least one game is final.
+    - cron: '17 */6 * * 0,1,2,5,6'
+  workflow_dispatch:
+
+concurrency:
+  group: grade-published-releases
+  cancel-in-progress: false
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install grading dependencies
+        run: pip install -r requirements-ci.txt
+
+      - name: Grade published releases
+        run: python -m publishing.cli grade-published
+
+      - name: Commit new grading artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/releases
+          git diff --staged --quiet || git commit -m "Auto: grade published releases"
+          git pull --rebase
+          git push

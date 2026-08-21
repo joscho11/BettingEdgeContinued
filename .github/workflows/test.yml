@@ -99,6 +99,9 @@ jobs:
           tests/test_page_futures.py
           tests/test_page_rookie_board.py
           tests/test_weekly_fantasy_source.py
+          tests/test_espn_adp.py
+          tests/test_board_refresh.py
+          tests/test_board_refresh_coverage.py
 
       # Talent build suites REMOVED FROM CI 2026-08-08: the build code, specs and tests
       # were untracked from this public repo (PFF-derived talent scaffolding is local-only
@@ -252,3 +255,4 @@ jobs:
           tests/test_page_futures.py
           tests/test_page_rookie_board.py
           tests/test_weekly_fantasy_source.py
+          tests/test_espn_adp.py

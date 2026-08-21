@@ -19,14 +19,14 @@ ORIENTATION = ("I build machine-learning models for NFL betting and fantasy, run
                "live, and show my work — the numbers, the honest track record, and the "
                "code on my GitHub.")
 PURPOSE = ("My pre-season draft board: the independent model's exact 180-player 2026 "
-           "projection universe. Sleeper ADP, Sleeper projections, and both rank gaps "
-           "refresh daily; Model Proj points and ranks stay frozen until the planned "
-           "early-September snapshot.")
+           "projection universe. Sleeper ADP (default) or ESPN ADP, Sleeper projections, "
+           "and both rank gaps refresh daily; Model Proj points and ranks stay frozen until "
+           "the planned early-September snapshot.")
 
 
 def render():
     # Lead with the title, then the byline + purpose, then (pre-season) the notice.
-    st.title("📋 2026 Draft Board")
+    st.title("2026 draft board")
     st.caption(ORIENTATION)
     st.markdown(f"**{PURPOSE}**")
     _ss = board_refresh_season_start()

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 os.environ["APP_OFFLINE"] = "1"
 
@@ -20,6 +21,7 @@ sys.path.insert(0, str(_SITE_PAGES))
 
 import page_league_history
 import page_common
+import espn_league_history
 from fantasy import league_intelligence as league_intel
 
 
@@ -41,6 +43,9 @@ def test_weekly_fantasy_renders_and_owns_controls(tmp_path):
     at = _render_page(tmp_path, "page_weekly_fantasy")
     keys = _control_keys(at)
     assert {"wf_season", "wf_week"} <= keys, f"Weekly Fantasy must own Season+Week; got {keys}"
+    controls = {w.key: w.value for w in at.selectbox}
+    assert controls["wf_season"] == 2025
+    assert controls["wf_week"] == 10
     assert not any(str(k).startswith(("wp_", "tr_")) for k in keys), \
         "Weekly Fantasy must not carry another page's controls"
 
@@ -109,14 +114,310 @@ def test_league_history_renders_and_lands_empty(tmp_path):
     assert ti[0].value == "", "League History must land on an EMPTY league-ID box"
     assert any(b.label == "Load league history" for b in at.button), \
         "League History must require an explicit Load action"
+    depth = next(w for w in at.segmented_control if w.key == "lh_history_depth")
+    assert depth.value == "Recent 3 seasons"
     info = " ".join(str(i.value) for i in at.info)
     assert "Enter your Sleeper league ID" in info, "resting-state prompt must be shown"
+    assert "Recent 3 seasons" in info
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "Copy League ID" in markdown
+    assert "at the end of the page URL" in markdown
+    assert any(
+        expander.label == "Where to find your league details" for expander in at.expander
+    )
+
+
+def test_league_history_exposes_espn_provider_and_season(tmp_path):
+    at = _render_page(tmp_path, "page_league_history")
+    provider = next(w for w in at.segmented_control if w.key == "lh_provider")
+    provider.set_value("ESPN")
+    at = at.run()
+    assert not at.exception, at.exception
+    assert next(w for w in at.number_input if w.key == "lh_espn_season")
+    league_input = next(w for w in at.text_input if w.key == "lh_league_id")
+    assert league_input.label == "ESPN League ID"
+    info = " ".join(str(item.value) for item in at.info)
+    assert "public ESPN league ID" in info
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "League Info" in markdown
+    assert "viewable to public" in markdown
+    assert "ESPN keeps membership invite-only" in markdown
+    access = next(w for w in at.segmented_control if w.key == "lh_espn_access")
+    assert access.value == "Public"
+    access.set_value("Private")
+    at = at.run()
+    private_inputs = {
+        widget.key: widget
+        for widget in at.text_input
+        if widget.key in {"lh_espn_swid", "lh_espn_s2"}
+    }
+    assert set(private_inputs) == {"lh_espn_swid", "lh_espn_s2"}
+    assert all(widget.value == "" for widget in private_inputs.values())
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "Do not paste them into chat" in captions
+    assert "never logs or shared-caches them" in captions
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "normal iPhone and Android browser menus do not expose" in markdown
+    assert "Application → Storage → Cookies" in markdown
+    assert "Developer Tools → Storage → Cookies" in markdown
+    assert "clears both fields after a successful load" in markdown
+
+
+def test_private_espn_history_stays_in_session_and_clears_cookie_fields(tmp_path):
+    fixture = {
+        "league_name": "Private Test League",
+        "provider": "ESPN",
+        "player_directory": {},
+        "seasons": {"2025": {
+            "league_id": "1460131",
+            "draft_id": "",
+            "status": "complete",
+            "champion": {"username": "Alice", "team_name": "A Team"},
+            "runner_up": {"username": "Bob", "team_name": "B Team"},
+            "toilet_champion": {"username": "Bob", "team_name": "B Team"},
+            "toilet_champions": [{"username": "Bob", "team_name": "B Team"}],
+            "toilet_finalists": ["Alice", "Bob"],
+            "toilet_bracket": ["Alice", "Bob"],
+            "standings": [
+                {
+                    "roster_id": 1, "owner_id": "owner-a", "username": "Alice",
+                    "team_name": "A Team", "wins": 1, "losses": 0,
+                    "fpts": 110.0, "fpts_against": 90.0, "playoff_finish": 1,
+                },
+                {
+                    "roster_id": 2, "owner_id": "owner-b", "username": "Bob",
+                    "team_name": "B Team", "wins": 0, "losses": 1,
+                    "fpts": 90.0, "fpts_against": 110.0, "playoff_finish": 2,
+                },
+            ],
+            "matchups": [{
+                "season": "2025", "week": 1, "is_playoff": False,
+                "rid_a": "1", "score_a": 110.0,
+                "rid_b": "2", "score_b": 90.0,
+            }],
+            "draft_picks": [],
+            "roster_entries": [],
+            "league_settings": {
+                "total_rosters": 2, "roster_positions": [],
+                "scoring_settings": {}, "waiver_type": 0, "waiver_budget": None,
+            },
+        }},
+    }
+    harness = tmp_path / "private_espn_loaded.py"
+    harness.write_text(
+        f"import sys\nsys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "import page_league_history as p\n"
+        "p._OFFLINE = False\n"
+        f"_fixture = {fixture!r}\n"
+        "def _load(league_id, season, max_seasons=None, private_credentials=None):\n"
+        "    assert league_id == '1460131'\n"
+        "    assert private_credentials == ('synthetic-s2', '{synthetic-swid}')\n"
+        "    return _fixture, None\n"
+        "p._load_espn_history_with_status = _load\n"
+        "p.render()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness), default_timeout=180).run()
+    next(w for w in at.segmented_control if w.key == "lh_provider").set_value("ESPN")
+    at = at.run()
+    next(w for w in at.segmented_control if w.key == "lh_espn_access").set_value("Private")
+    at = at.run()
+    next(w for w in at.text_input if w.key == "lh_league_id").set_value("1460131")
+    next(w for w in at.number_input if w.key == "lh_espn_season").set_value(2025)
+    next(w for w in at.text_input if w.key == "lh_espn_s2").set_value("synthetic-s2")
+    next(w for w in at.text_input if w.key == "lh_espn_swid").set_value("{synthetic-swid}")
+    next(b for b in at.button if b.label == "Load league history").click()
+    at = at.run()
+
+    assert not at.exception, at.exception
+    assert any(header.value == "Private Test League" for header in at.header)
+    assert next(w for w in at.text_input if w.key == "lh_espn_s2").value == ""
+    assert next(w for w in at.text_input if w.key == "lh_espn_swid").value == ""
+    assert any(
+        "Stored only in this browser session" in str(caption.value)
+        for caption in at.caption
+    )
 
 
 def test_league_history_rejects_implausible_ids_before_fetch():
     assert page_league_history._league_id_error("1255197436951932928") is None
     assert "digits only" in page_league_history._league_id_error("abc123")
     assert "does not look like" in page_league_history._league_id_error("123")
+
+
+def test_league_history_validates_espn_id_and_season():
+    assert page_league_history._league_request_error("ESPN", "48153503", 2025) is None
+    assert "digits only" in page_league_history._league_request_error("ESPN", "abc", 2025)
+    assert "currently supports" in page_league_history._league_request_error(
+        "ESPN", "48153503", 2017,
+    )
+    assert "both the SWID and espn_s2" in page_league_history._league_request_error(
+        "ESPN", "48153503", 2025, "Private", "", "",
+    )
+    assert page_league_history._league_request_error(
+        "ESPN", "48153503", 2025, "Private", "s2-value", "{swid-value}",
+    ) is None
+
+
+def test_private_espn_requests_are_credentialed_and_never_shared_cached(monkeypatch):
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"seasonId": 2025, "settings": {"name": "Private Test"}}
+
+    def fake_get(*args, **kwargs):
+        calls.append(kwargs)
+        return Response()
+
+    monkeypatch.setattr(espn_league_history.requests, "get", fake_get)
+    for _ in range(2):
+        payload = espn_league_history._espn_get_private(
+            "1460131",
+            2025,
+            ("mSettings",),
+            "espn_s2=session-cookie-value",
+            "SWID={synthetic-swid}",
+        )
+        assert payload["settings"]["name"] == "Private Test"
+
+    assert len(calls) == 2, "credentialed requests must bypass shared st.cache_data"
+    assert calls[0]["cookies"] == {
+        "espn_s2": "session-cookie-value",
+        "SWID": "{synthetic-swid}",
+    }
+    assert not hasattr(espn_league_history._espn_get_private, "clear")
+
+
+def test_private_espn_401_does_not_echo_cookie_values(monkeypatch):
+    class Response:
+        status_code = 401
+
+    monkeypatch.setattr(
+        espn_league_history.requests,
+        "get",
+        lambda *args, **kwargs: Response(),
+    )
+    with pytest.raises(espn_league_history.EspnLeagueError) as caught:
+        espn_league_history._espn_get_private(
+            "1460131", 2025, ("mSettings",), "sensitive-s2-value", "{sensitive-swid}",
+        )
+    message = str(caught.value)
+    assert "Recopy the SWID and espn_s2" in message
+    assert "sensitive-s2-value" not in message
+    assert "sensitive-swid" not in message
+
+
+def test_espn_season_normalizes_to_existing_history_schema():
+    data = {
+        "members": [
+            {"id": "owner-a", "displayName": "Alice"},
+            {"id": "owner-b", "displayName": "Bob"},
+        ],
+        "status": {
+            "firstScoringPeriod": 1,
+            "finalScoringPeriod": 2,
+            "latestScoringPeriod": 2,
+        },
+        "settings": {
+            "scheduleSettings": {"matchupPeriodCount": 1},
+            "rosterSettings": {"lineupSlotCounts": {"0": 1, "2": 1, "20": 3}},
+            "scoringSettings": {"scoringItems": [
+                {"statId": 4, "points": 4},
+                {"statId": 53, "points": 0.5},
+            ]},
+            "acquisitionSettings": {
+                "isUsingAcquisitionBudget": True,
+                "acquisitionBudget": 100,
+            },
+        },
+        "teams": [
+            {
+                "id": 1, "name": "A Team", "primaryOwner": "owner-a",
+                "rankCalculatedFinal": 1,
+                "record": {"overall": {
+                    "wins": 1, "losses": 0, "pointsFor": 110,
+                    "pointsAgainst": 90,
+                }},
+            },
+            {
+                "id": 2, "name": "B Team", "primaryOwner": "owner-b",
+                "rankCalculatedFinal": 2,
+                "record": {"overall": {
+                    "wins": 0, "losses": 1, "pointsFor": 90,
+                    "pointsAgainst": 110,
+                }},
+            },
+        ],
+        "schedule": [{
+            "id": 10, "matchupPeriodId": 1,
+            "home": {"teamId": 1, "pointsByScoringPeriod": {"1": 110}},
+            "away": {"teamId": 2, "pointsByScoringPeriod": {"1": 90}},
+        }],
+        "draftDetail": {"picks": [
+            {
+                "teamId": 1, "playerId": 101, "overallPickNumber": 1,
+                "roundId": 1, "roundPickNumber": 1,
+            },
+            {
+                "teamId": 2, "playerId": 202, "overallPickNumber": 2,
+                "roundId": 1, "roundPickNumber": 2,
+            },
+            {
+                "teamId": 1, "playerId": 303, "overallPickNumber": 3,
+                "roundId": 2, "roundPickNumber": 1,
+            },
+        ]},
+    }
+    weekly = {1: {"teams": [
+        {"id": 1, "roster": {"entries": [{
+            "playerId": 101, "lineupSlotId": 2,
+            "playerPoolEntry": {"player": {
+                "id": 101, "fullName": "Runner One", "firstName": "Runner",
+                "lastName": "One", "eligibleSlots": [2, 20],
+                "stats": [{
+                    "scoringPeriodId": 1, "statSourceId": 0, "appliedTotal": 22.5,
+                }],
+            }},
+        }]}},
+        {"id": 2, "roster": {"entries": [{
+            "playerId": 202, "lineupSlotId": 0,
+            "playerPoolEntry": {"player": {
+                "id": 202, "fullName": "Passer Two", "firstName": "Passer",
+                "lastName": "Two", "eligibleSlots": [0, 7, 20],
+                "stats": [{
+                    "scoringPeriodId": 1, "statSourceId": 0, "appliedTotal": 18,
+                }],
+            }},
+        }]}},
+    ]}}
+
+    payload, players = espn_league_history.normalize_season(
+        "48153503", 2025, data, weekly,
+        [{
+            "id": 303, "fullName": "Cut Before Week One", "firstName": "Cut",
+            "lastName": "Before Week One", "eligibleSlots": [4, 20],
+        }],
+    )
+
+    assert payload["champion"]["username"] == "Alice"
+    assert payload["runner_up"]["username"] == "Bob"
+    assert payload["matchups"] == [{
+        "season": "2025", "week": 1, "is_playoff": False,
+        "rid_a": "1", "score_a": 110.0,
+        "rid_b": "2", "score_b": 90.0,
+    }]
+    assert payload["roster_entries"][0]["players_points"]["101"] == 22.5
+    assert payload["draft_picks"][0]["metadata"]["position"] == "RB"
+    assert payload["draft_picks"][2]["metadata"]["full_name"] == "Cut Before Week One"
+    assert payload["league_settings"]["scoring_settings"] == {
+        "rec": 0.5, "pass_td": 4.0,
+    }
+    assert payload["league_settings"]["waiver_type"] == 2
+    assert players["202"]["position"] == "QB"
 
 
 def test_rivalry_score_swatch_bands_and_card_html():
@@ -187,6 +488,26 @@ def test_league_history_estimate_counts_linked_seasons(monkeypatch):
         assert page_league_history._history_load_estimate(99) == (20, 40)
     finally:
         page_league_history._league_history_chain.clear()
+
+
+def test_league_history_recent_mode_limits_heavy_season_fetches(monkeypatch):
+    chain = [
+        {"league_id": f"league-{year}", "season": str(year), "name": "Test"}
+        for year in range(2026, 2021, -1)
+    ]
+    fetched = []
+
+    monkeypatch.setattr(page_league_history, "_league_history_chain", lambda _lid: chain)
+
+    def _fetch(league_id):
+        fetched.append(league_id)
+        year = league_id.rsplit("-", 1)[-1]
+        return year, {"standings": [], "matchups": []}
+
+    monkeypatch.setattr(page_league_history, "_fetch_one_season", _fetch)
+    history = page_league_history._fetch_sleeper_history("current", max_seasons=3)
+    assert list(history["seasons"]) == ["2026", "2025", "2024"]
+    assert fetched == ["league-2026", "league-2025", "league-2024"]
 
 
 def test_rookie_board_excludes_direct_pff_fields_and_explains_availability(tmp_path):
@@ -1260,7 +1581,7 @@ def test_loaded_league_history_renders_insights_first_and_chart_first_leaderboar
         f"import sys\nsys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
         "import page_league_history as p\n"
         "p._OFFLINE = False\n"
-        f"p._fetch_sleeper_history = lambda _league_id: {fixture!r}\n"
+        f"p._fetch_sleeper_history = lambda _league_id, max_seasons=None: {fixture!r}\n"
         "p._league_history_chain = lambda _league_id: ["
         "{'league_id': '1255197436951932928', 'season': '2025', 'name': 'Test League'}"
         "]\n"

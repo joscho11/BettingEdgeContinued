@@ -25,13 +25,36 @@ sys.path.insert(0, str(_HERE / "betting"))
 from dashboard_utils import load_tracker, load_totals_tracker  # pure, Streamlit-free
 from calibration import build_calibration
 from live_2026 import attach_slate
+from publishing.manifest import load_manifest, published_builds, resolve_build_artifact
+from publishing.validators import read_table
 
 
 @st.cache_data(ttl=300)
 def load_predictions():
-    """Spread predictions tracker plus 2026 matchups that are not yet stamped."""
+    """Historical tracker plus every hash-verified release and unstamped slate."""
     df = load_tracker(str(_HERE))
+    df = overlay_published_predictions(df, _HERE)
     return attach_slate(df, _HERE)
+
+
+def overlay_published_predictions(df: pd.DataFrame, root: str | Path) -> pd.DataFrame:
+    """Overlay the newest valid build for every released week onto tracker history."""
+    manifest = load_manifest(root)
+    builds_by_week = {}
+    for build in published_builds("predictions", manifest=manifest, root=root):
+        key = (int(build["season"]), int(build["week"]))
+        builds_by_week[key] = build
+    out = df.copy()
+    for build in builds_by_week.values():
+        artifact = resolve_build_artifact(build, root=root, prefer_graded=True)
+        if artifact is None:
+            continue
+        released = read_table(artifact)
+        if not released.empty and "game_id" in released:
+            released_ids = set(released["game_id"].astype(str))
+            out = out.loc[~out["game_id"].astype(str).isin(released_ids)]
+            out = pd.concat([out, released], ignore_index=True, sort=False)
+    return out
 
 
 @st.cache_data(ttl=300)

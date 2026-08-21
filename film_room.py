@@ -11,6 +11,7 @@ from datetime import date as _date
 
 import streamlit as st
 
+import page_common
 import nav_registry
 from video_content import INTRO_VIDEO, VIDEOS
 
@@ -187,12 +188,13 @@ def _render_player(item: dict | None, open_breakdown) -> None:
     if item.get("archived") and item.get("archive_note"):
         _render_archive_popout(item)
     _tiktok_embed(item["video_id"], item["tiktok_url"])
-    st.markdown(
-        f"<div style='text-align:center;margin-top:-6px'>"
-        f"<a href='{item['tiktok_url']}' target='_blank' rel='noopener' "
-        f"style='font-size:13px;color:#3D95CE;text-decoration:none'>▶ Watch on TikTok</a></div>",
-        unsafe_allow_html=True,
-    )
+    with st.container(horizontal=True, horizontal_alignment="center"):
+        st.link_button(
+            "Watch on TikTok",
+            item["tiktok_url"],
+            icon=":material/play_arrow:",
+            type="tertiary",
+        )
     if item.get("breakdown_file"):
         label, content = "📖 Full breakdown", _load_breakdown(item["breakdown_file"])
     elif item.get("about"):
@@ -213,23 +215,26 @@ def _render_player(item: dict | None, open_breakdown) -> None:
             st.markdown(content)
 
 
-def render_film_room() -> None:
-    st.header("📺 Film Room")
-    st.caption("Model-backed breakdowns. Watch the short, then open the full analysis.")
+def render_film_room(*, show_header: bool = True) -> None:
+    if show_header:
+        st.header("Film room")
+        st.caption("Model-backed breakdowns. Watch the short, then open the full analysis.")
     st.markdown(_PICKER_CSS, unsafe_allow_html=True)
 
     intro = _intro_item()
     episodes = _episodes()
     default = episodes[0]["slug"] if episodes else (_INTRO_KEY if intro else "")
-    if _SEL_KEY not in st.session_state:
-        st.session_state[_SEL_KEY] = default
-    selected = st.session_state[_SEL_KEY]
     valid = {item["slug"] for item in episodes}
     if intro is not None:
         valid.add(_INTRO_KEY)
+    if _SEL_KEY not in st.session_state:
+        shared = str(page_common.query_value("video") or "")
+        st.session_state[_SEL_KEY] = shared if shared in valid else default
+    selected = st.session_state[_SEL_KEY]
     if selected not in valid:
         selected = default
         st.session_state[_SEL_KEY] = selected
+    page_common.sync_query_value("video", selected)
     open_breakdown = _make_dialog()
 
     # Player first so phones (Streamlit stacks columns below 640px) see the video

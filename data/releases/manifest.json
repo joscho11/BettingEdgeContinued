@@ -1,0 +1,433 @@
+{
+  "grading": {
+    "products": {}
+  },
+  "products": {
+    "fantasy": {
+      "active_build": "fantasy-2025w10-33a7de4ef33f",
+      "builds": {
+        "fantasy-2025w10-33a7de4ef33f": {
+          "artifact": "data/releases/builds/fantasy/2025/week10/fantasy-2025w10-33a7de4ef33f/artifact.csv",
+          "build_id": "fantasy-2025w10-33a7de4ef33f",
+          "metadata": "data/releases/builds/fantasy/2025/week10/fantasy-2025w10-33a7de4ef33f/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T21:21:41Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 568,
+          "season": 2025,
+          "sha256": "33a7de4ef33fb1740441c0cd57e5bc0ec6cd419ad77a5cbb8d157ebeebe2056e",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "33a7de4ef33fb1740441c0cd57e5bc0ec6cd419ad77a5cbb8d157ebeebe2056e",
+              "produced_at_utc": "2026-05-13T21:21:41Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 568,
+            "warnings": []
+          },
+          "week": 10
+        },
+        "fantasy-2025w11-3e725a4e345e": {
+          "artifact": "data/releases/builds/fantasy/2025/week11/fantasy-2025w11-3e725a4e345e/artifact.csv",
+          "build_id": "fantasy-2025w11-3e725a4e345e",
+          "metadata": "data/releases/builds/fantasy/2025/week11/fantasy-2025w11-3e725a4e345e/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T22:08:11Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 596,
+          "season": 2025,
+          "sha256": "3e725a4e345ecdb3a645216d4094a0aea2fbddc91363e0874e9d5a89ab85c884",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "3e725a4e345ecdb3a645216d4094a0aea2fbddc91363e0874e9d5a89ab85c884",
+              "produced_at_utc": "2026-05-13T22:08:11Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 596,
+            "warnings": []
+          },
+          "week": 11
+        },
+        "fantasy-2025w12-fb88991a257f": {
+          "artifact": "data/releases/builds/fantasy/2025/week12/fantasy-2025w12-fb88991a257f/artifact.csv",
+          "build_id": "fantasy-2025w12-fb88991a257f",
+          "metadata": "data/releases/builds/fantasy/2025/week12/fantasy-2025w12-fb88991a257f/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T22:08:15Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 562,
+          "season": 2025,
+          "sha256": "fb88991a257fb798ab390b5c8c8ca376c9dc81f659bbf97a77c82fe767377057",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "fb88991a257fb798ab390b5c8c8ca376c9dc81f659bbf97a77c82fe767377057",
+              "produced_at_utc": "2026-05-13T22:08:15Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 562,
+            "warnings": []
+          },
+          "week": 12
+        },
+        "fantasy-2025w13-cb3e8c3be4c6": {
+          "artifact": "data/releases/builds/fantasy/2025/week13/fantasy-2025w13-cb3e8c3be4c6/artifact.csv",
+          "build_id": "fantasy-2025w13-cb3e8c3be4c6",
+          "metadata": "data/releases/builds/fantasy/2025/week13/fantasy-2025w13-cb3e8c3be4c6/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T22:08:19Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 648,
+          "season": 2025,
+          "sha256": "cb3e8c3be4c6d9a27672a660325dcf52f0efa279869c520328513dae15e51a44",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "cb3e8c3be4c6d9a27672a660325dcf52f0efa279869c520328513dae15e51a44",
+              "produced_at_utc": "2026-05-13T22:08:19Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 648,
+            "warnings": []
+          },
+          "week": 13
+        },
+        "fantasy-2025w14-26714c00362e": {
+          "artifact": "data/releases/builds/fantasy/2025/week14/fantasy-2025w14-26714c00362e/artifact.csv",
+          "build_id": "fantasy-2025w14-26714c00362e",
+          "metadata": "data/releases/builds/fantasy/2025/week14/fantasy-2025w14-26714c00362e/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-06-15T17:05:16Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 562,
+          "season": 2025,
+          "sha256": "26714c00362ec17bc91c1e98c5435e1eb679829a6201bd5f555eb8c58b604826",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "26714c00362ec17bc91c1e98c5435e1eb679829a6201bd5f555eb8c58b604826",
+              "produced_at_utc": "2026-06-15T17:05:16Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 562,
+            "warnings": []
+          },
+          "week": 14
+        },
+        "fantasy-2025w15-23b6aa9b4d1f": {
+          "artifact": "data/releases/builds/fantasy/2025/week15/fantasy-2025w15-23b6aa9b4d1f/artifact.csv",
+          "build_id": "fantasy-2025w15-23b6aa9b4d1f",
+          "metadata": "data/releases/builds/fantasy/2025/week15/fantasy-2025w15-23b6aa9b4d1f/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T22:08:27Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 648,
+          "season": 2025,
+          "sha256": "23b6aa9b4d1fc061c3d0dd6e807b345c79c77e707d8b44d6188f4e14b5813fea",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "23b6aa9b4d1fc061c3d0dd6e807b345c79c77e707d8b44d6188f4e14b5813fea",
+              "produced_at_utc": "2026-05-13T22:08:27Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 648,
+            "warnings": []
+          },
+          "week": 15
+        },
+        "fantasy-2025w16-7b5f0b5f3adf": {
+          "artifact": "data/releases/builds/fantasy/2025/week16/fantasy-2025w16-7b5f0b5f3adf/artifact.csv",
+          "build_id": "fantasy-2025w16-7b5f0b5f3adf",
+          "metadata": "data/releases/builds/fantasy/2025/week16/fantasy-2025w16-7b5f0b5f3adf/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T22:08:31Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 647,
+          "season": 2025,
+          "sha256": "7b5f0b5f3adf8d5963e4688ea859f7ffaacfce7a63040fc21fa6dd2b269a6d66",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "7b5f0b5f3adf8d5963e4688ea859f7ffaacfce7a63040fc21fa6dd2b269a6d66",
+              "produced_at_utc": "2026-05-13T22:08:31Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 647,
+            "warnings": []
+          },
+          "week": 16
+        },
+        "fantasy-2025w17-7d66bf84318a": {
+          "artifact": "data/releases/builds/fantasy/2025/week17/fantasy-2025w17-7d66bf84318a/artifact.csv",
+          "build_id": "fantasy-2025w17-7d66bf84318a",
+          "metadata": "data/releases/builds/fantasy/2025/week17/fantasy-2025w17-7d66bf84318a/metadata.json",
+          "model_version": "legacy-2025-weekly-fantasy",
+          "produced_at": "2026-05-13T22:08:36Z",
+          "product": "fantasy",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 645,
+          "season": 2025,
+          "sha256": "7d66bf84318a70f92a626edeaebbac93c10a9d189e016a191f447968cc6e068a",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "7d66bf84318a70f92a626edeaebbac93c10a9d189e016a191f447968cc6e068a",
+              "produced_at_utc": "2026-05-13T22:08:36Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "fantasy",
+            "row_count": 645,
+            "warnings": []
+          },
+          "week": 17
+        }
+      },
+      "next_release": {
+        "scheduled_for": null,
+        "season": 2026,
+        "status": "Awaiting projections",
+        "week": 1
+      },
+      "previous_build": null
+    },
+    "predictions": {
+      "active_build": "predictions-2025w10-8f1701d7a6db",
+      "builds": {
+        "predictions-2025w10-8f1701d7a6db": {
+          "artifact": "data/releases/builds/predictions/2025/week10/predictions-2025w10-8f1701d7a6db/artifact.csv",
+          "build_id": "predictions-2025w10-8f1701d7a6db",
+          "metadata": "data/releases/builds/predictions/2025/week10/predictions-2025w10-8f1701d7a6db/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 14,
+          "season": 2025,
+          "sha256": "8f1701d7a6db680192876ea1165bb7aa7dfaca9e3be900ad51df6bff5fcdd430",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "8f1701d7a6db680192876ea1165bb7aa7dfaca9e3be900ad51df6bff5fcdd430",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 14,
+            "warnings": []
+          },
+          "week": 10
+        },
+        "predictions-2025w11-399b40f14b91": {
+          "artifact": "data/releases/builds/predictions/2025/week11/predictions-2025w11-399b40f14b91/artifact.csv",
+          "build_id": "predictions-2025w11-399b40f14b91",
+          "metadata": "data/releases/builds/predictions/2025/week11/predictions-2025w11-399b40f14b91/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 15,
+          "season": 2025,
+          "sha256": "399b40f14b9149e805aa96e768f5b81d6c29fd961fcd6185cc31d84ca85d6422",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "399b40f14b9149e805aa96e768f5b81d6c29fd961fcd6185cc31d84ca85d6422",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 15,
+            "warnings": []
+          },
+          "week": 11
+        },
+        "predictions-2025w12-dbd9c0e47ad7": {
+          "artifact": "data/releases/builds/predictions/2025/week12/predictions-2025w12-dbd9c0e47ad7/artifact.csv",
+          "build_id": "predictions-2025w12-dbd9c0e47ad7",
+          "metadata": "data/releases/builds/predictions/2025/week12/predictions-2025w12-dbd9c0e47ad7/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 14,
+          "season": 2025,
+          "sha256": "dbd9c0e47ad70f415be461be3893730461401db9d178da0ffaeaf5c35ddd392d",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "dbd9c0e47ad70f415be461be3893730461401db9d178da0ffaeaf5c35ddd392d",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 14,
+            "warnings": []
+          },
+          "week": 12
+        },
+        "predictions-2025w13-e8bfe48206e3": {
+          "artifact": "data/releases/builds/predictions/2025/week13/predictions-2025w13-e8bfe48206e3/artifact.csv",
+          "build_id": "predictions-2025w13-e8bfe48206e3",
+          "metadata": "data/releases/builds/predictions/2025/week13/predictions-2025w13-e8bfe48206e3/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 16,
+          "season": 2025,
+          "sha256": "e8bfe48206e30bc5573c122767fda5bfcb37f2e720433b9a85004cc81d1fadc8",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "e8bfe48206e30bc5573c122767fda5bfcb37f2e720433b9a85004cc81d1fadc8",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 16,
+            "warnings": []
+          },
+          "week": 13
+        },
+        "predictions-2025w14-cc663a3e9bd6": {
+          "artifact": "data/releases/builds/predictions/2025/week14/predictions-2025w14-cc663a3e9bd6/artifact.csv",
+          "build_id": "predictions-2025w14-cc663a3e9bd6",
+          "metadata": "data/releases/builds/predictions/2025/week14/predictions-2025w14-cc663a3e9bd6/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 14,
+          "season": 2025,
+          "sha256": "cc663a3e9bd66454ffd0a8a9a99e2c5ef1e2338bd47f765df8da8192bde586de",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "cc663a3e9bd66454ffd0a8a9a99e2c5ef1e2338bd47f765df8da8192bde586de",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 14,
+            "warnings": []
+          },
+          "week": 14
+        },
+        "predictions-2025w15-f0f0e3e365e8": {
+          "artifact": "data/releases/builds/predictions/2025/week15/predictions-2025w15-f0f0e3e365e8/artifact.csv",
+          "build_id": "predictions-2025w15-f0f0e3e365e8",
+          "metadata": "data/releases/builds/predictions/2025/week15/predictions-2025w15-f0f0e3e365e8/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 16,
+          "season": 2025,
+          "sha256": "f0f0e3e365e8f4252c2a70b9d4ab78bfd0601a4c42af95e275c9bd4bd05c006a",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "f0f0e3e365e8f4252c2a70b9d4ab78bfd0601a4c42af95e275c9bd4bd05c006a",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 16,
+            "warnings": []
+          },
+          "week": 15
+        },
+        "predictions-2025w16-288b22b46218": {
+          "artifact": "data/releases/builds/predictions/2025/week16/predictions-2025w16-288b22b46218/artifact.csv",
+          "build_id": "predictions-2025w16-288b22b46218",
+          "metadata": "data/releases/builds/predictions/2025/week16/predictions-2025w16-288b22b46218/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 16,
+          "season": 2025,
+          "sha256": "288b22b46218db8db5032029f1a5c0d425f50370050e6a0d06d2dea66ecc583a",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "288b22b46218db8db5032029f1a5c0d425f50370050e6a0d06d2dea66ecc583a",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 16,
+            "warnings": []
+          },
+          "week": 16
+        },
+        "predictions-2025w17-88f8bc9a2a30": {
+          "artifact": "data/releases/builds/predictions/2025/week17/predictions-2025w17-88f8bc9a2a30/artifact.csv",
+          "build_id": "predictions-2025w17-88f8bc9a2a30",
+          "metadata": "data/releases/builds/predictions/2025/week17/predictions-2025w17-88f8bc9a2a30/metadata.json",
+          "model_version": "legacy-2025-three-model-consensus",
+          "produced_at": "2026-05-20T21:47:00Z",
+          "product": "predictions",
+          "published_at": "2026-08-21T02:24:58Z",
+          "row_count": 16,
+          "season": 2025,
+          "sha256": "88f8bc9a2a3067f68d9810f0a705cc9898fe98bac6432bc49cec7ef3e50a4c2e",
+          "status": "Published",
+          "validation": {
+            "checks": {
+              "artifact_sha256": "88f8bc9a2a3067f68d9810f0a705cc9898fe98bac6432bc49cec7ef3e50a4c2e",
+              "produced_at_utc": "2026-05-20T21:47:00Z"
+            },
+            "errors": [],
+            "ok": true,
+            "product": "predictions",
+            "row_count": 16,
+            "warnings": []
+          },
+          "week": 17
+        }
+      },
+      "next_release": {
+        "scheduled_for": "2026-09-08T13:00:00Z",
+        "season": 2026,
+        "status": "Scheduled",
+        "week": 1
+      },
+      "previous_build": null
+    }
+  },
+  "schema_version": 1,
+  "updated_at": "2026-08-21T02:39:17Z"
+}

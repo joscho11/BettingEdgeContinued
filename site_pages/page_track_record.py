@@ -15,7 +15,7 @@ import streamlit as st
 
 import dashboard_data
 import page_common
-from dashboard_utils import metric_card, get_confidence, _md_to_html
+from dashboard_utils import get_confidence, _md_to_html
 from live_2026 import is_live_season, row_display_high
 from page_common import load_agent_analysis, _MODE_BADGE_COLORS
 
@@ -23,6 +23,8 @@ _HERE = Path(__file__).resolve().parents[1]
 
 
 def render():
+    st.title("Track record")
+    st.caption("Graded ATS results, confidence tiers, model comparisons, and betting simulations.")
     # Plotly is only needed for this page's charts. Keeping it here avoids paying its
     # import cost when a visitor opens a different top-level navigation page.
     import plotly.graph_objects as go
@@ -40,13 +42,20 @@ def render():
         st.stop()
     totals_df = dashboard_data.load_totals()
     def _season_week_controls(cols_container, key_prefix, with_week=True, with_edge=False):
-        return page_common._season_week_controls(df, cols_container, key_prefix, with_week, with_edge)
+        return page_common._season_week_controls(
+            df,
+            cols_container,
+            key_prefix,
+            with_week,
+            with_edge,
+            default_season=page_common.track_record_default_season(),
+        )
     st.markdown(page_common.ATS_BLURB, unsafe_allow_html=True)
     season, _, _ = _season_week_controls(
         [st.columns([1, 2])[0]], "tr", with_week=False, with_edge=False)
     live = is_live_season(season)
 
-    st.title(f"📈 {season} Track Record")
+    st.subheader(f"{season} season")
     if live:
         st.success(
             "**Live 2026.** Track Record fills in after games grade. "
@@ -105,30 +114,26 @@ def render():
             le_total      = int(low_edge_df[_s_correct].notna().sum())
             le_pct        = round(le_correct / le_total * 100, 1) if le_total > 0 else 0
 
-        with st.container(key="jsa-metric-even-tr-ats"):
+        def _record_metric(label, correct, total, pct):
+            st.metric(
+                label,
+                f"{correct}/{total}",
+                f"{pct}%" if total > 0 else "No graded picks",
+                delta_color=("green" if pct >= 52.4 else "red") if total > 0 else "gray",
+                delta_arrow="off",
+                border=True,
+            )
+
+        with st.container(horizontal=True, key="jsa-metric-even-tr-ats"):
             if live:
-                c1, c2, c3 = st.columns(3)
-                c1.markdown(metric_card("Season ATS", f"{total_correct}/{total_games}", f"{total_pct}%",
-                                        color="green" if total_pct >= 52.4 else "red"), unsafe_allow_html=True)
-                c2.markdown(metric_card("HIGH (Tue 3+ pts)", f"{he_correct}/{he_total}",
-                                        f"{he_pct}%" if he_total > 0 else "—",
-                                        color="green" if he_pct >= 52.4 else "red"), unsafe_allow_html=True)
-                c3.markdown(metric_card("Other picks", f"{re_correct}/{re_total}",
-                                        f"{re_pct}%" if re_total > 0 else "—",
-                                        color="green" if re_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                _record_metric("Season ATS", total_correct, total_games, total_pct)
+                _record_metric("HIGH (Tuesday 3+ points)", he_correct, he_total, he_pct)
+                _record_metric("Other picks", re_correct, re_total, re_pct)
             else:
-                c1, c2, c3, c4 = st.columns(4)
-                c1.markdown(metric_card("Season ATS", f"{total_correct}/{total_games}", f"{total_pct}%",
-                                        color="green" if total_pct >= 52.4 else "red"), unsafe_allow_html=True)
-                c2.markdown(metric_card("High Edge (3+ pts)", f"{he_correct}/{he_total}",
-                                        f"{he_pct}%" if he_total > 0 else "—",
-                                        color="green" if he_pct >= 52.4 else "red"), unsafe_allow_html=True)
-                c3.markdown(metric_card("Med Edge (1-3 pts)", f"{me_correct}/{me_total}",
-                                        f"{me_pct}%" if me_total > 0 else "—",
-                                        color="green" if me_pct >= 52.4 else "red"), unsafe_allow_html=True)
-                c4.markdown(metric_card("Low Edge (<1 pt)", f"{le_correct}/{le_total}",
-                                        f"{le_pct}%" if le_total > 0 else "—",
-                                        color="green" if le_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                _record_metric("Season ATS", total_correct, total_games, total_pct)
+                _record_metric("High edge (3+ points)", he_correct, he_total, he_pct)
+                _record_metric("Medium edge (1–3 points)", me_correct, me_total, me_pct)
+                _record_metric("Low edge (<1 point)", le_correct, le_total, le_pct)
 
         _has_ens   = 'ens_model_correct'   in season_df.columns and season_df['ens_model_correct'].notna().any()
         _has_ridge = 'ridge_model_correct' in season_df.columns and season_df['ridge_model_correct'].notna().any()
@@ -138,38 +143,32 @@ def render():
         _has_xgb  = 'model_correct' in season_df.columns and season_df['model_correct'].notna().any()
 
         if _has_ens or _has_ridge or _has_lgbm or _has_xgb:
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
             st.caption("Individual model ATS (direction voters)")
-            with st.container(key="jsa-metric-even-tr-models"):
-                mc1, mc2, mc3, mc4 = st.columns(4)
+            with st.container(horizontal=True, key="jsa-metric-even-tr-models"):
                 if _has_xgb:
                     _xgb_sub = season_df[season_df['model_correct'].notna()]
                     _xgb_c   = int(_xgb_sub['model_correct'].sum())
                     _xgb_t   = len(_xgb_sub)
                     _xgb_pct = round(_xgb_c / _xgb_t * 100, 1) if _xgb_t > 0 else 0
-                    mc1.markdown(metric_card("XGBoost ATS", f"{_xgb_c}/{_xgb_t}", f"{_xgb_pct}%",
-                                             color="green" if _xgb_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                    _record_metric("XGBoost ATS", _xgb_c, _xgb_t, _xgb_pct)
                 if _has_ridge:
                     _ridge_sub = season_df[season_df['ridge_model_correct'].notna()]
                     _ridge_c   = int(_ridge_sub['ridge_model_correct'].sum())
                     _ridge_t   = len(_ridge_sub)
                     _ridge_pct = round(_ridge_c / _ridge_t * 100, 1) if _ridge_t > 0 else 0
-                    mc2.markdown(metric_card("Ridge ATS", f"{_ridge_c}/{_ridge_t}", f"{_ridge_pct}%",
-                                             color="green" if _ridge_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                    _record_metric("Ridge ATS", _ridge_c, _ridge_t, _ridge_pct)
                 if _has_lgbm:
                     _lgbm_sub = season_df[season_df['lgbm_model_correct'].notna()]
                     _lgbm_c   = int(_lgbm_sub['lgbm_model_correct'].sum())
                     _lgbm_t   = len(_lgbm_sub)
                     _lgbm_pct = round(_lgbm_c / _lgbm_t * 100, 1) if _lgbm_t > 0 else 0
-                    mc3.markdown(metric_card("LightGBM ATS", f"{_lgbm_c}/{_lgbm_t}", f"{_lgbm_pct}%",
-                                             color="green" if _lgbm_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                    _record_metric("LightGBM ATS", _lgbm_c, _lgbm_t, _lgbm_pct)
                 if _has_ens:
                     _ens_sub = season_df[season_df['ens_model_correct'].notna()]
                     _ens_c   = int(_ens_sub['ens_model_correct'].sum())
                     _ens_t   = len(_ens_sub)
                     _ens_pct = round(_ens_c / _ens_t * 100, 1) if _ens_t > 0 else 0
-                    mc4.markdown(metric_card("Ensemble ATS", f"{_ens_c}/{_ens_t}", f"{_ens_pct}%",
-                                             color="green" if _ens_pct >= 52.4 else "red"), unsafe_allow_html=True)
+                    _record_metric("Ensemble ATS", _ens_c, _ens_t, _ens_pct)
 
         st.divider()
 
@@ -399,33 +398,26 @@ def render():
         _profit_hm,   _hm_w, _hm_l = _units_profit(_med_or_high_sub)
         _profit_all,  _a_w, _a_l = _units_profit(season_df)
 
-        with st.container(key="jsa-metric-even-profit"):
-            if live:
-                p1, p2 = st.columns(2)
-                p1.markdown(metric_card("Profit (HIGH only)",
-                                        f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
-                                        color="green" if _profit_high > 0 else "red"),
-                            unsafe_allow_html=True)
-                p2.markdown(metric_card("Profit (all picks)",
-                                        f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
-                                        color="green" if _profit_all > 0 else "red"),
-                            unsafe_allow_html=True)
-            else:
-                p1, p2, p3 = st.columns(3)
-                p1.markdown(metric_card("Profit (HIGH only)",
-                                        f"{_h_w}-{_h_l}", f"{_profit_high:+,} units",
-                                        color="green" if _profit_high > 0 else "red"),
-                            unsafe_allow_html=True)
-                p2.markdown(metric_card("Profit (HIGH + MED)",
-                                        f"{_hm_w}-{_hm_l}", f"{_profit_hm:+,} units",
-                                        color="green" if _profit_hm > 0 else "red"),
-                            unsafe_allow_html=True)
-                p3.markdown(metric_card("Profit (all picks)",
-                                        f"{_a_w}-{_a_l}", f"{_profit_all:+,} units",
-                                        color="green" if _profit_all > 0 else "red"),
-                            unsafe_allow_html=True)
+        def _profit_metric(label, wins, losses, profit):
+            st.metric(
+                label,
+                f"{wins}-{losses}",
+                f"{profit:+,} units",
+                delta_color="green" if profit > 0 else "red",
+                delta_arrow="off",
+                border=True,
+            )
 
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        with st.container(horizontal=True, key="jsa-metric-even-profit"):
+            if live:
+                _profit_metric("Profit (HIGH only)", _h_w, _h_l, _profit_high)
+                _profit_metric("Profit (all picks)", _a_w, _a_l, _profit_all)
+            else:
+                _profit_metric("Profit (HIGH only)", _h_w, _h_l, _profit_high)
+                _profit_metric("Profit (HIGH + MED)", _hm_w, _hm_l, _profit_hm)
+                _profit_metric("Profit (all picks)", _a_w, _a_l, _profit_all)
+
+        st.space("small")
 
         # Day-of-week performance
         if 'gameday' in season_df.columns:
@@ -509,18 +501,27 @@ def render():
             t_total   = len(t_high)
             t_pct     = round(t_correct / t_total * 100, 1) if t_total > 0 else 0
 
-            with st.container(key="jsa-metric-even-tr-totals"):
-                tc1, tc2, tc3 = st.columns(3)
-                tc1.markdown(metric_card("UNDER Picks", f"{t_correct}/{t_total}",
-                                         f"{t_pct}%" if t_total > 0 else "—",
-                                         color="green" if t_pct >= 52.4 else "red"), unsafe_allow_html=True)
+            with st.container(horizontal=True, key="jsa-metric-even-tr-totals"):
+                _record_metric("UNDER picks", t_correct, t_total, t_pct)
 
                 _t_over_rate = totals_season['went_over'].mean() if 'went_over' in totals_season.columns and totals_season['went_over'].notna().any() else None
                 if _t_over_rate is not None:
-                    tc2.markdown(metric_card("Actual OVER rate", "—",
-                                             f"{round(_t_over_rate * 100, 1)}% of tracked games",
-                                             color="blue"), unsafe_allow_html=True)
-                tc3.markdown(metric_card("Break-even", "52.4%", "at -110 odds", color="blue"), unsafe_allow_html=True)
+                    st.metric(
+                        "Actual OVER rate",
+                        None,
+                        f"{round(_t_over_rate * 100, 1)}% of tracked games",
+                        delta_color="gray",
+                        delta_arrow="off",
+                        border=True,
+                    )
+                st.metric(
+                    "Break-even",
+                    "52.4%",
+                    "At -110 odds",
+                    delta_color="gray",
+                    delta_arrow="off",
+                    border=True,
+                )
 
             # Week by week totals
             if t_total > 0:

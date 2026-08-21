@@ -10,11 +10,14 @@ import streamlit as st
 
 import dashboard_data
 import help_models
+import nav_registry
 from dashboard_utils import breakeven_verdict
 from live_2026 import LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS
 
 
 def render():
+    st.title("Help & guide")
+    st.caption("New to the site, or to betting the spread? Start here.")
     try:
         df = dashboard_data.load_predictions()
     except FileNotFoundError:
@@ -34,10 +37,19 @@ def render():
     _hc_correct      = _stats["hc_correct"]
     _hc_total        = _stats["hc_total"]
     _hc_pct          = _stats["hc_pct"]
-    st.title("❓ Help & Guide")
-    st.caption("New to the site, or to betting the spread? Start here.")
+    st.subheader("Start here")
+    with st.container(horizontal=True, gap="small"):
+        for slug, label, icon in (
+            ("draft-board", "Build a draft plan", ":material/list_alt:"),
+            ("weekly-predictions", "Read this week's slate", ":material/query_stats:"),
+            ("track-record", "Audit the results", ":material/monitoring:"),
+        ):
+            page = nav_registry.PAGES.get(slug)
+            if page is not None:
+                st.page_link(page, label=label, icon=icon, width="stretch")
+            else:
+                st.markdown(f"**{label}**")
 
-    st.divider()
     st.subheader("🏈 Betting Basics")
 
     with st.expander("What is ATS (Against The Spread)?"):
@@ -110,7 +122,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
         st.markdown("""
 **Live 2026 (the current season)**
 
-- **Draft Board:** 180-player Model Proj, frozen until the early-September snapshot. Sleeper ADP and Sleeper Proj refresh daily.
+- **Draft Board:** 180-player Model Proj, frozen until the early-September snapshot. Sleeper ADP (default) and ESPN ADP, plus Sleeper Proj, refresh daily.
 - **Rookie Board:** hit % and RB/WR/TE season-total projections for the 2024-2026 classes.
 - **Season Totals (Beta):** 32-team win projections. HIGH is the only certified pick.
 - **Weekly Predictions:** 2026 matchups are up. Picks lock Tuesday 9:00 ET. HIGH is the green 3-point Tuesday ticket.
@@ -124,18 +136,19 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 
 **Not a prediction model**
 
-Talent Scores are descriptive context. League History is your Sleeper league, not a forecast. Film Room is video. DFS is not in the nav yet.
+Talent Scores are descriptive context. League History is your Sleeper or ESPN league, not a forecast. Film Room is video. DFS is not in the nav yet.
         """)
 
     with st.expander("How is the site organized?"):
         st.markdown("""
 Everything lives in the top navigation bar, grouped into three menus:
 
-- **Fantasy**: Draft Board (the page you land on), Rookie Board, and Weekly Fantasy.
+- **Home**: a stable overview of what is live and where to start.
+- **Fantasy**: Draft Board, Rookie Board, and Weekly Fantasy.
 - **Betting**: Weekly Predictions, Track Record, and Season Totals (Beta).
 - **More**: Film Room, League History, and this Help & Guide.
 
-The site opens on the **2026 Draft Board** every time. There is no sidebar. Each page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) right at the top.
+The site opens on **Home** every time. There is no sidebar. Each product page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) near the top. Season and Week selections on Weekly Predictions and Weekly Fantasy are reflected in the URL, so a filtered view can be shared.
         """)
 
     with st.expander("How do I read the game cards?"):
@@ -171,7 +184,7 @@ On the **2025 demo** weeks, **Min Edge (pts)** at the top of Weekly Predictions 
 **2025 demo test** used the older Monday / Thursday / Sunday refresh. Those weeks are frozen as a walkthrough.
 
 During the offseason, 2026 matchups stay on Weekly Predictions with no picks until the Tuesday freeze. The pre-season **Draft Board** refreshes
-Sleeper ADP and Sleeper projections daily for its fixed 180-player universe; draft-price
+Sleeper ADP, ESPN ADP, and Sleeper projections daily for its fixed 180-player universe; draft-price
 ranks, Sleeper ranks, and both gap columns move with those updates. Model Proj points and
 ranks remain frozen until the dated early-September public-information snapshot.
         """)
@@ -211,17 +224,17 @@ How those files are built sits in **How weekly fantasy projections are built** b
 
     with st.expander("What is the Draft Board page?"):
         st.markdown("""
-A **pre-season comparison table** for 2026, separate from Weekly Fantasy. The universe is fixed: 24 QBs, 60 RBs, 72 WRs, 24 TEs. Each row puts Sleeper draft price and positional rank next to **Model Proj**. Sleeper's current season projection is shown when the player record matches. Each projection also has a gap versus draft-price rank at that position.
+A **pre-season comparison table** for 2026, separate from Weekly Fantasy. The universe is fixed: 24 QBs, 60 RBs, 72 WRs, 24 TEs. Each row puts draft price and positional rank next to **Model Proj**. Use **Draft price** to switch Sleeper ADP (the default) and ESPN ADP for the same 180 players. Sleeper's current season projection is shown when the player record matches. Each projection also has a gap versus draft-price rank at that position.
 
 **What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is arithmetic between two ranks on the same row, never a recommendation.
 
-**How good is the number?** On 2021-2025 Model Proj scored .7101 pairwise versus ADP's .6965, MAE 49.31 versus 51.75, and beat ADP ordering in 5 of 6 seasons (it lost 2020). It is **not live-validated**. The first live test is the 2026 season.
+**How good is the number?** On 2021-2025 Model Proj scored .7101 pairwise versus ADP's .6965, MAE 49.31 versus 51.75, and beat ADP ordering in 5 of 6 seasons (it lost 2020). That comparison is vs Sleeper ADP. It is **not live-validated**. The first live test is the 2026 season.
 
-Model Proj values are frozen until the planned dated early-September public-information snapshot. **Sleeper ADP and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.**
+Model Proj values are frozen until the planned dated early-September public-information snapshot. **Sleeper ADP, ESPN ADP, and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.**
 
 The two talent columns are described further down this page. They are descriptive context and feed no other column.
 
-Use **Position**, **Player search**, **Sort by**, and **Order**. No-data rows always sort to the bottom. **Show projection and talent detail** is on by default. On a phone the board shows player, position, ADP, rank, both gaps, and NFL Talent Score. The CSV download always contains all thirteen columns.
+Use **Draft price**, **Position**, **Player search**, **Sort by**, and **Order**. No-data rows always sort to the bottom. **Show projection and talent detail** is on by default. On a phone the board shows player, position, ADP, rank, both gaps, and NFL Talent Score. The CSV download always contains all thirteen columns.
         """)
 
     with st.expander("What is the Rookie Board page?"):
@@ -251,9 +264,13 @@ When it is live, you upload a DraftKings NFL Classic salary CSV and get the high
 
     with st.expander("What is the League History page?"):
         st.markdown("""
-Paste your Sleeper league ID (from `sleeper.com/leagues/{ID}/league`) and hit Load. The page pulls standings, drafts, weekly scores, and a few chart-first views: Draft & Roster Insights, All-Time Leaderboard, Hall of Fame, Rivalries, Report Cards, and Consistency & Luck.
+Choose Sleeper or ESPN, paste the league ID, and hit Load. Sleeper IDs come from `sleeper.com/leagues/{ID}/league`; ESPN also needs the most recent season shown in the league URL. Private ESPN leagues need the SWID and espn_s2 cookie values from a signed-in browser session. The page pulls standings, drafts, weekly scores, and a few chart-first views: Draft & Roster Insights, All-Time Leaderboard, Hall of Fame, Rivalries, Report Cards, and Consistency & Luck.
 
-First load is usually a few seconds per season. The same ID is instant for an hour after that. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
+**Finding the ID:** In the Sleeper phone app, open league settings, choose **General**, and use **Copy League ID** at the bottom; on a computer, copy the number at the end of the league URL. In the ESPN Fantasy phone app, open **League → League Info**; on a computer, copy the digits after `leagueId=` in the league URL. Your League Manager must enable ESPN's **viewable to public** setting for public imports. ESPN keeps membership invite-only.
+
+**Private ESPN:** Get the League ID on either device, but retrieve `SWID` and `espn_s2` from a signed-in desktop browser. Chrome and Edge show them under **Developer Tools → Application → Storage → Cookies**; Firefox uses **Developer Tools → Storage → Cookies**. Normal iPhone and Android browser menus do not expose these values. Treat both like passwords and never paste them into chat.
+
+First load is usually a few seconds per Sleeper season and 10-25 seconds per ESPN season. Public results are cached for an hour. Private ESPN results and normalized league data stay only in the current browser session; credential fields clear after a successful load and the cookie values are never logged or shared-cached. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
         """)
 
     with st.expander("What is the LLM agent and what does it do?"):
@@ -404,7 +421,7 @@ Play-by-play and schedule data come from nflreadpy, going back far enough to bui
 
 Injury reports feed availability: Out and Doubtful players reduce a team's talent and lineup features. The All-Pro CSV (1997-2025) is a custom roster-talent file, updated manually each January.
 
-Posted win totals on Season Totals are a sportsbook snapshot with an as-of date on that page. Sleeper ADP and Sleeper projections on the Draft Board refresh daily. The LLM agent is paused (August 2026).
+Posted win totals on Season Totals are a sportsbook snapshot with an as-of date on that page. Sleeper ADP, ESPN ADP, and Sleeper projections on the Draft Board refresh daily. The LLM agent is paused (August 2026).
         """)
 
     with st.expander("Is this financial advice?"):
@@ -414,19 +431,15 @@ No. This is a personal data science project. I built it to see whether a machine
 Nothing on this site should be taken as betting or financial advice. Sports betting involves real financial risk. Always bet responsibly.
         """)
 
-    st.markdown("""
-        <div style='text-align:center;padding:28px 0 12px 0;border-top:1px solid #2d3748;margin-top:12px'>
-            <div style='font-size:11px;color:#444;margin-bottom:10px;letter-spacing:0.3px'>
-                Not financial advice. Sports betting involves real risk. Bet responsibly.
-            </div>
-            <div style='font-size:13px;color:#666'>
-                Built by <b style='color:#999'>Joseph Schoenbaum</b>
-                &nbsp;·&nbsp;
-                <a href='https://github.com/joscho11/JoSchoAnalytics'
-                   style='color:#3D95CE;text-decoration:none'>GitHub</a>
-                &nbsp;·&nbsp;
-                <a href='https://venmo.com/u/JoScho'
-                   style='color:#3D95CE;text-decoration:none'>💙 Venmo @JoScho</a>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    with st.container(border=True, horizontal_alignment="center"):
+        st.caption(
+            "Not financial advice. Sports betting involves real risk. Bet responsibly.",
+            text_alignment="center",
+        )
+        st.markdown("Built by **Joseph Schoenbaum**", text_alignment="center")
+        st.link_button(
+            "View methodology and code",
+            "https://github.com/joscho11/JoSchoAnalytics",
+            icon=":material/code:",
+            type="tertiary",
+        )

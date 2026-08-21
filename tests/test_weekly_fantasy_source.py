@@ -52,13 +52,14 @@ def test_available_files_ignore_sibling_2025(tmp_path, monkeypatch):
     (sib / "projections_2026_week01.csv").write_text("player_id\n2\n", encoding="utf-8")
     monkeypatch.setattr(weekly, "_JSA_PROJ_DIR", jsa)
     monkeypatch.setattr(weekly, "_SIBLING_PROJ_DIR", sib)
+    monkeypatch.setattr(weekly, "published_builds", lambda *args, **kwargs: [])
     got = weekly.available_projection_files()
     assert got[(2025, 10)] == jsa / "projections_2025_week10.csv"
-    assert got[(2026, 1)] == sib / "projections_2026_week01.csv"
+    assert (2026, 1) not in got
     assert (sib / "projections_2025_week10.csv").read_text(encoding="utf-8") == "SHOULD_NOT_WIN\n"
 
 
-def test_jsa_2026_wins_over_sibling(tmp_path, monkeypatch):
+def test_unvalidated_2026_files_are_not_public(tmp_path, monkeypatch):
     jsa = tmp_path / "jsa"
     sib = tmp_path / "sib"
     jsa.mkdir()
@@ -67,8 +68,9 @@ def test_jsa_2026_wins_over_sibling(tmp_path, monkeypatch):
     (sib / "projections_2026_week01.csv").write_text("lab\n", encoding="utf-8")
     monkeypatch.setattr(weekly, "_JSA_PROJ_DIR", jsa)
     monkeypatch.setattr(weekly, "_SIBLING_PROJ_DIR", sib)
+    monkeypatch.setattr(weekly, "published_builds", lambda *args, **kwargs: [])
     got = weekly.available_projection_files()
-    assert got[(2026, 1)].read_text(encoding="utf-8") == "site\n"
+    assert (2026, 1) not in got
 
 
 def _render_weekly(tmp_path):
@@ -92,16 +94,19 @@ def test_weekly_fantasy_names_2025_demo(tmp_path):
     ).lower()
     assert "demo" in blob
     assert "2025" in blob
-    assert "soon" in blob
+    assert "week 10" in blob
 
 
-def test_weekly_fantasy_defaults_to_2026_week1(tmp_path):
+def test_weekly_fantasy_defaults_to_2025_week10(tmp_path):
     at = _render_weekly(tmp_path)
     by_key = {getattr(w, "key", None): w.value for w in at.selectbox}
-    assert int(by_key["wf_season"]) == 2026
-    assert int(by_key["wf_week"]) == 1
+    assert int(by_key["wf_season"]) == 2025
+    assert int(by_key["wf_week"]) == 10
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "green-badge" in markdown and "Published" in markdown
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "Next: 2026 Week 1 · Awaiting projections" in captions
     infos = " ".join(str(w.value) for w in at.info).lower()
-    assert "soon" in infos
     assert "2025" in infos
     assert "demo" in infos
 

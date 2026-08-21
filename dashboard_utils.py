@@ -76,7 +76,7 @@ def metric_card(label, value, sub=None, color="blue"):
     return (
         f"<div class='jsa-mcard' style='background:#1e2a3a;border-left:4px solid {border};"
         f"border-radius:6px;padding:14px 16px;margin-bottom:4px;'>"
-        f"<div class='jsa-mcard-label' style='font-size:11px;color:#666;text-transform:uppercase;"
+        f"<div class='jsa-mcard-label' style='font-size:11px;color:#93A0B1;text-transform:uppercase;"
         f"letter-spacing:1px;margin-bottom:6px'>{label}</div>"
         f"<div class='jsa-mcard-value' style='font-size:22px;font-weight:700;color:white;"
         f"line-height:1.1'>{value}</div>"

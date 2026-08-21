@@ -1,4 +1,4 @@
-"""League History page backed by Sleeper's public league-history endpoints."""
+"""League History page backed by Sleeper and ESPN league endpoints."""
 import concurrent.futures as _cf
 import glob
 import html as _html
@@ -14,8 +14,8 @@ import streamlit as st
 
 import dashboard_data
 import page_common
-from dashboard_utils import metric_card, get_confidence, _md_to_html
-from dashboard_chrome import _OFFLINE, TABLE_HEIGHT, dataframe_phone_desktop
+from dashboard_utils import get_confidence, _md_to_html
+from dashboard_chrome import _OFFLINE, TABLE_HEIGHT, dataframe_phone_desktop, send_ga_event
 
 _HERE = Path(__file__).resolve().parents[1]
 
@@ -28,6 +28,7 @@ _HISTORY_CACHE_ENTRIES = 8
 _MATCHUP_FETCH_WORKERS = 6
 _MAX_HISTORY_SEASONS = 10
 _SEASON_CACHE_ENTRIES = _HISTORY_CACHE_ENTRIES * _MAX_HISTORY_SEASONS
+_LEAGUE_PROVIDERS = ("Sleeper", "ESPN")
 _LEAGUE_HISTORY_TABS = (
     "🧠 Draft & Roster Insights",
     "🏆 All-Time Leaderboard",
@@ -411,6 +412,106 @@ def _league_id_error(raw_league_id: str) -> str | None:
     return None
 
 
+def _league_request_error(
+    provider: str,
+    raw_league_id: str,
+    espn_season: int | None = None,
+    espn_access: str = "Public",
+    espn_s2: str = "",
+    swid: str = "",
+) -> str | None:
+    if provider == "ESPN":
+        import espn_league_history as _espn
+
+        id_error = _espn.league_id_error(raw_league_id)
+        if id_error:
+            return id_error
+        year_error = _espn.season_error(espn_season, dt.now().year)
+        if year_error:
+            return year_error
+        if espn_access == "Private":
+            return _espn.private_credentials_error(espn_s2, swid)
+        return None
+    return _league_id_error(raw_league_id)
+
+
+def _league_import_help_markdown(
+    provider: str = "Sleeper",
+    espn_access: str = "Public",
+) -> str:
+    """Return device-specific instructions for the active import method."""
+    if provider == "Sleeper":
+        return """
+### On a phone
+
+1. Open the league in the Sleeper app.
+2. Tap the settings icon, then open **General**.
+3. Scroll to the bottom of General League Settings and tap **Copy League ID**.
+4. Paste that number into **Sleeper League ID** below.
+
+### On a computer
+
+1. Sign in at [sleeper.app](https://sleeper.app/) and open the league.
+2. Copy the numeric league ID at the end of the page URL. It is usually the number after `/leagues/`.
+3. Paste only that number below.
+
+[Sleeper's League ID guide](https://support.sleeper.com/en/articles/4121798-how-do-i-find-my-league-id)
+"""
+
+    if espn_access == "Private":
+        return """
+### League ID and season
+
+**On a phone:** In the ESPN Fantasy app, open the league, select the **League** tab, then **League Info**. Copy the League ID shown there. Use the latest season the league played; for an inactive league, use its final active season.
+
+**On a computer:** Open the league at `fantasy.espn.com`. Copy the digits after `leagueId=` in the address bar, then choose the latest season the league played.
+
+### SWID and espn_s2
+
+**On a phone:** The normal iPhone and Android browser menus do not expose these cookie values. Get the League ID on the phone, but use a signed-in desktop browser for the two cookies. Remote phone inspection still requires a computer, and iPhone inspection requires a Mac.
+
+**On a computer (Chrome or Edge):**
+
+1. Sign in at `fantasy.espn.com` and open the private league.
+2. Open Developer Tools (`F12`, or right-click and select **Inspect**).
+3. Select **Application → Storage → Cookies**, then the `fantasy.espn.com` origin.
+4. Filter for `SWID`; copy its **Value** into **ESPN SWID cookie**.
+5. Filter for `espn_s2`; copy its **Value** into **ESPN espn_s2 cookie**.
+
+In Firefox, use **Developer Tools → Storage → Cookies**. In Safari on Mac, enable developer features, then use **Develop → Show Web Inspector → Storage → Cookies**.
+
+Treat both values like passwords. Never paste them into chat or send them to another person. This importer sends them only to ESPN, never logs or shared-caches them, and clears both fields after a successful load. Use private import only on a deployment you trust.
+
+[ESPN's League ID guide](https://support.espn.com/hc/en-us/articles/4669614193556-League-ID) · [Chrome cookie instructions](https://developer.chrome.com/docs/devtools/application/cookies/)
+"""
+
+    return """
+### On a phone
+
+1. Open the league in the ESPN Fantasy app.
+2. Select the **League** tab, then **League Info**.
+3. Copy the League ID shown there and paste it below.
+4. Set **Most recent season** to the latest season the league played. For an inactive league, use its final active season.
+
+### On a computer
+
+1. Open the league at `fantasy.espn.com`.
+2. Copy the digits after `leagueId=` in the address bar. An ESPN invite or league email link contains the same value.
+3. Paste that number below and choose the latest season the league played.
+
+### If ESPN denies public access
+
+Here, **Public** uses ESPN's **viewable to public** setting. Your League Manager exposes league pages with this setting; ESPN keeps membership invite-only. The League Manager can enable it on a computer under **League → Settings → Basic Settings → Edit Basic Settings**. Otherwise, switch this importer to **Private** and use the signed-in browser instructions.
+
+[ESPN's League ID guide](https://support.espn.com/hc/en-us/articles/4669614193556-League-ID) · [ESPN's public-view setting guide](https://support.espn.com/hc/en-us/articles/360000088231-Making-a-Private-League-Viewable-to-the-Public)
+"""
+
+
+def _render_league_import_help(provider: str, espn_access: str) -> None:
+    with st.expander("Where to find your league details"):
+        st.markdown(_league_import_help_markdown(provider, espn_access))
+
+
 @st.cache_data(ttl=3600, max_entries=_SLEEPER_GET_CACHE_ENTRIES)
 def _sleeper_get(url: str):
     if _OFFLINE:
@@ -704,9 +805,11 @@ def _fetch_season_transactions(league_id: str) -> list:
     return rows
 
 
-def _fetch_sleeper_history(start_league_id: str) -> dict:
+def _fetch_sleeper_history(start_league_id: str, max_seasons: int | None = None) -> dict:
     """Compose the cached chain plus per-season payloads. Used by tests."""
     chain = _league_history_chain(start_league_id)
+    if max_seasons is not None:
+        chain = chain[:max(1, int(max_seasons))]
     seasons = {}
     league_name = chain[0]["name"] if chain else "League"
     for item in chain:
@@ -720,24 +823,71 @@ def _fetch_sleeper_history(start_league_id: str) -> dict:
     return {"league_name": league_name or "League", "seasons": seasons}
 
 
-def _render_load_form():
+def _render_load_form(provider: str = "Sleeper", espn_access: str = "Public"):
     with st.form("lh_load_form", border=False):
+        is_espn = provider == "ESPN"
         league_id_input = st.text_input(
-            "Sleeper League ID",
+            f"{provider} League ID",
             value="",
-            placeholder="e.g. 1255197436951932928",
-            help="Find it in your Sleeper league URL: sleeper.com/leagues/{ID}/league",
+            placeholder=("e.g. 48153503" if is_espn else "e.g. 1255197436951932928"),
+            help=(
+                "Copy the leagueId value from your ESPN fantasy league URL."
+                if is_espn else
+                "Find it in your Sleeper league URL: sleeper.com/leagues/{ID}/league"
+            ),
             key="lh_league_id",
         )
+        espn_season = None
+        espn_s2 = ""
+        swid = ""
+        if is_espn:
+            espn_season = st.number_input(
+                "Most recent season",
+                min_value=2018,
+                max_value=dt.now().year,
+                value=dt.now().year,
+                step=1,
+                key="lh_espn_season",
+                help="ESPN league IDs need a season. Use the season shown in the league URL.",
+            )
+            if espn_access == "Private":
+                swid = st.text_input(
+                    "ESPN SWID cookie",
+                    type="password",
+                    placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}",
+                    key="lh_espn_swid",
+                    help="Copy the SWID value from fantasy.espn.com in your browser's cookie storage.",
+                )
+                espn_s2 = st.text_input(
+                    "ESPN espn_s2 cookie",
+                    type="password",
+                    key="lh_espn_s2",
+                    help="Copy the espn_s2 value from the same signed-in ESPN browser session.",
+                )
+        history_depth = st.segmented_control(
+            "History depth",
+            ["Recent 3 seasons", "All linked seasons"],
+            default="Recent 3 seasons",
+            required=True,
+            key="lh_history_depth",
+            help=(
+                "Recent 3 is the faster first view. Private results stay only in this browser session."
+                if is_espn and espn_access == "Private" else
+                "Recent 3 is the faster first view. Per-season results stay cached for an hour."
+            ),
+        )
         load_requested = st.form_submit_button("Load league history", type="primary")
-    return league_id_input, load_requested
+    return league_id_input, espn_season, espn_s2, swid, history_depth, load_requested
 
 
-def _load_history_with_status(league_id: str) -> tuple[dict, str | None]:
+def _load_history_with_status(
+    league_id: str,
+    max_seasons: int | None = None,
+) -> tuple[dict, str | None]:
     """Fetch with a visible per-season status panel. Returns (history, error)."""
     with st.status("Finding linked Sleeper seasons…", expanded=True) as status:
-        chain = _league_history_chain(league_id)
-        if not chain:
+        full_chain = _league_history_chain(league_id)
+        if not full_chain:
             status.update(
                 label="Sleeper did not return a league for that ID.",
                 state="error",
@@ -747,11 +897,20 @@ def _load_history_with_status(league_id: str) -> tuple[dict, str | None]:
                 "Sleeper did not return a league for that ID. "
                 "Check the number in your league URL."
             )
+        chain = (
+            full_chain[:max(1, int(max_seasons))]
+            if max_seasons is not None else full_chain
+        )
         n = len(chain)
         low, high = _history_load_estimate(n)
         years = ", ".join(item["season"] for item in chain)
         season_word = "season" if n == 1 else "seasons"
-        st.write(f"Found {n} {season_word}: {years}.")
+        if len(chain) < len(full_chain):
+            st.write(
+                f"Found {len(full_chain)} linked seasons. Loading the newest {n}: {years}."
+            )
+        else:
+            st.write(f"Found {n} {season_word}: {years}.")
         st.write(f"First load usually takes {low} to {high} seconds. Reloads of this ID are instant for an hour.")
         seasons = {}
         league_name = chain[0]["name"]
@@ -773,65 +932,347 @@ def _load_history_with_status(league_id: str) -> tuple[dict, str | None]:
                 "This league exists, but no season history came back. "
                 "It may be too new or still empty."
             )
+        loaded_word = "season" if len(seasons) == 1 else "seasons"
         status.update(
-            label=f"Loaded {len(seasons)} {season_word}.",
+            label=f"Loaded {len(seasons)} {loaded_word}.",
             state="complete",
             expanded=False,
         )
         return {"league_name": league_name or "League", "seasons": seasons}, None
 
 
+def _fetch_espn_history(
+    league_id: str,
+    season: int,
+    max_seasons: int | None = None,
+) -> dict:
+    import espn_league_history as _espn
+
+    return _espn.fetch_history(league_id, season, max_seasons=max_seasons)
+
+
+def _load_espn_history_with_status(
+    league_id: str,
+    season: int,
+    max_seasons: int | None = None,
+    private_credentials: tuple[str, str] | None = None,
+) -> tuple[dict, str | None]:
+    """Fetch ESPN seasons; credentialed responses remain outside shared caches."""
+    import espn_league_history as _espn
+
+    empty = {
+        "league_name": "League",
+        "seasons": {},
+        "player_directory": {},
+        "provider": "ESPN",
+    }
+    is_private = private_credentials is not None
+    with st.status("Finding linked ESPN seasons…", expanded=True) as status:
+        try:
+            if is_private:
+                espn_s2, swid = private_credentials
+                full_chain = _espn.history_chain_private(
+                    league_id, int(season), espn_s2, swid,
+                )
+            else:
+                full_chain = _espn.history_chain(league_id, int(season))
+        except _espn.EspnLeagueError as exc:
+            status.update(label=str(exc), state="error", expanded=True)
+            return empty, str(exc)
+        if not full_chain:
+            message = "ESPN did not return a league for that ID and season."
+            status.update(label=message, state="error", expanded=True)
+            return empty, message
+        chain = (
+            full_chain[:max(1, int(max_seasons))]
+            if max_seasons is not None else full_chain
+        )
+        years = ", ".join(item["season"] for item in chain)
+        if len(chain) < len(full_chain):
+            st.write(
+                f"Found {len(full_chain)} linked seasons. Loading the newest "
+                f"{len(chain)}: {years}."
+            )
+        else:
+            st.write(
+                f"Found {len(chain)} {'season' if len(chain) == 1 else 'seasons'}: {years}."
+            )
+        low = max(10, len(chain) * 8)
+        high = max(25, len(chain) * 20)
+        st.write(
+            f"ESPN weekly rosters are a larger pull. First load usually takes {low} to "
+            f"{high} seconds; "
+            + (
+                "private results stay only in this browser session."
+                if is_private else
+                "reloads are instant for an hour."
+            )
+        )
+        seasons = {}
+        player_directory = {}
+        errors = []
+        for index, item in enumerate(chain, 1):
+            year = int(item["season"])
+            status.update(label=f"Loading {year} (season {index} of {len(chain)})")
+            st.write(f"{year}: standings, draft board, weekly scores and rosters")
+            try:
+                if is_private:
+                    fetched_year, payload, players = _espn.fetch_one_season_private(
+                        item["league_id"], year, espn_s2, swid,
+                    )
+                else:
+                    fetched_year, payload, players = _espn.fetch_one_season(
+                        item["league_id"], year,
+                    )
+            except _espn.EspnLeagueError as exc:
+                errors.append(f"{year}: {exc}")
+                st.write(f"{year} could not be loaded: {exc}")
+                continue
+            seasons[fetched_year] = payload
+            player_directory.update(players)
+        if not seasons:
+            message = errors[0].split(": ", 1)[-1] if errors else (
+                "This ESPN league exists, but no season history came back."
+            )
+            status.update(label=message, state="error", expanded=True)
+            return empty, message
+        if errors:
+            status.update(
+                label=f"Loaded {len(seasons)} seasons; {len(errors)} could not be loaded.",
+                state="complete",
+                expanded=False,
+            )
+        else:
+            status.update(
+                label=f"Loaded {len(seasons)} {'season' if len(seasons) == 1 else 'seasons'}.",
+                state="complete",
+                expanded=False,
+            )
+        return {
+            "league_name": chain[0]["name"] or "League",
+            "seasons": seasons,
+            "player_directory": player_directory,
+            "provider": "ESPN",
+        }, None
+
+
 def render():
-    st.title("🏅 Fantasy League History")
+    if st.session_state.pop("lh_clear_espn_credentials", False):
+        st.session_state.pop("lh_espn_s2", None)
+        st.session_state.pop("lh_espn_swid", None)
+
+    st.title("Fantasy league history")
+    st.caption("Turn a Sleeper or ESPN league into a multi-season manager and roster review.")
+
+    _provider_input = st.segmented_control(
+        "League platform",
+        _LEAGUE_PROVIDERS,
+        default="Sleeper",
+        required=True,
+        key="lh_provider",
+        help="ESPN private leagues require session-cookie values from your signed-in browser.",
+    )
+    _espn_access_input = "Public"
+    if _provider_input == "ESPN":
+        _espn_access_input = st.segmented_control(
+            "ESPN league access",
+            ("Public", "Private"),
+            default="Public",
+            required=True,
+            key="lh_espn_access",
+        )
+        if _espn_access_input == "Private":
+            st.caption(
+                "Private import needs the SWID and espn_s2 values from a signed-in desktop "
+                "browser. Treat them like passwords. Do not paste them into chat, and use this "
+                "only on a deployment you trust. The importer never logs or shared-caches them "
+                "and clears both fields after a successful load."
+            )
+
+    _render_league_import_help(_provider_input, _espn_access_input)
 
     # A form batches text entry. Without it, every numeric keystroke could start a
     # multi-season public API crawl on the next Streamlit rerun.
-    _league_id_input, _load_requested = _render_load_form()
+    (
+        _league_id_input,
+        _espn_season_input,
+        _espn_s2_input,
+        _espn_swid_input,
+        _history_depth,
+        _load_requested,
+    ) = _render_load_form(_provider_input, _espn_access_input)
 
     _form_error = None
+    _private_credentials = None
     if _load_requested:
         _submitted_lid = _league_id_input.strip()
-        _form_error = _league_id_error(_submitted_lid)
+        _form_error = _league_request_error(
+            _provider_input,
+            _submitted_lid,
+            _espn_season_input,
+            _espn_access_input,
+            _espn_s2_input,
+            _espn_swid_input,
+        )
         if _form_error is None:
+            _submitted_limit = 3 if _history_depth == "Recent 3 seasons" else None
             st.session_state["lh_loaded_league_id"] = _submitted_lid
+            st.session_state["lh_loaded_provider"] = _provider_input
+            st.session_state["lh_loaded_espn_season"] = (
+                int(_espn_season_input) if _provider_input == "ESPN" else None
+            )
+            st.session_state["lh_loaded_espn_access"] = (
+                _espn_access_input if _provider_input == "ESPN" else "Public"
+            )
+            st.session_state["lh_loaded_history_limit"] = _submitted_limit
             st.session_state.pop("lh_acq_league_id", None)
             st.session_state.pop("lh_history_ready_for", None)
+            st.session_state.pop("lh_private_history_ready_for", None)
+            st.session_state.pop("lh_private_history", None)
+            if _provider_input == "ESPN" and _espn_access_input == "Private":
+                _private_credentials = (_espn_s2_input, _espn_swid_input)
 
     # Keep a successfully loaded result visible while users change page controls or
     # prepare a different ID. Only an explicit, valid Load submits a new public request.
     _lid = st.session_state.get("lh_loaded_league_id", "")
+    _provider = st.session_state.get("lh_loaded_provider", "Sleeper")
+    _espn_season = st.session_state.get("lh_loaded_espn_season")
+    _espn_access = st.session_state.get("lh_loaded_espn_access", "Public")
+    _history_limit = st.session_state.get("lh_loaded_history_limit", 3)
+    _ready_key = "|".join((
+        _provider,
+        _lid,
+        str(_espn_season or ""),
+        _espn_access,
+        str(_history_limit if _history_limit is not None else "all"),
+    ))
     if _form_error:
         st.warning(_form_error)
 
     if not _lid:
         if not _form_error:
-            st.info(
-                "Enter your Sleeper league ID, then select Load league history.  \n\n"
-                "First load walks every linked season (standings, drafts, weekly scores). "
-                "A 3-year league is usually about 10-20 seconds. A 10-year league can take "
-                "about 40. The same ID is instant for an hour after that.  \n\n"
-                "Find the ID in your league URL: sleeper.com/leagues/{ID}/league"
-            )
+            if _provider_input == "ESPN":
+                if _espn_access_input == "Private":
+                    st.info(
+                        "Enter your ESPN league ID, most recent season, SWID, and espn_s2 "
+                        "values, then select Load league history.  \n\n"
+                        "Recent 3 seasons is the faster default. Private results stay only "
+                        "in your current browser session; the credential fields are cleared "
+                        "after the import. Find the ID in your ESPN URL as the leagueId value."
+                    )
+                else:
+                    st.info(
+                        "Enter your public ESPN league ID and its most recent season, then select "
+                        "Load league history.  \n\n"
+                        "Recent 3 seasons is the faster default. ESPN weekly rosters are a larger "
+                        "pull than Sleeper, so the first import can take 10-25 seconds per season; "
+                        "the same seasons are instant for an hour.  \n\n"
+                        "Find the ID in your ESPN URL as the leagueId value."
+                    )
+            else:
+                st.info(
+                    "Enter your Sleeper league ID, then select Load league history.  \n\n"
+                    "Recent 3 seasons is the faster default; choose All linked seasons when you "
+                    "need the complete archive. A 3-year league is usually about 6-12 seconds. "
+                    "A 10-year league can take about 40. The same seasons are instant for an "
+                    "hour after that.  \n\n"
+                    "Find the ID in your league URL: sleeper.com/leagues/{ID}/league"
+                )
     elif _OFFLINE:
-        st.info("League history needs a live connection to Sleeper and is "
-                "unavailable offline.")
+        st.info(
+            f"League history needs a live connection to {_provider} and is unavailable offline."
+        )
     else:
-        if st.session_state.get("lh_history_ready_for") == _lid:
-            _lh = _fetch_sleeper_history(_lid)
+        _is_private_espn = _provider == "ESPN" and _espn_access == "Private"
+        _just_loaded = False
+        if (
+            _is_private_espn
+            and st.session_state.get("lh_private_history_ready_for") == _ready_key
+        ):
+            _lh = st.session_state.get("lh_private_history") or {
+                "league_name": "League", "seasons": {}, "provider": "ESPN",
+            }
+            _load_error = None if _lh.get("seasons") else (
+                "Private ESPN history is no longer in this browser session. "
+                "Select Load league history again."
+            )
+        elif _is_private_espn:
+            if _private_credentials is None:
+                _lh = {"league_name": "League", "seasons": {}, "provider": "ESPN"}
+                _load_error = (
+                    "Re-enter the ESPN cookie values and select Load league history."
+                )
+            else:
+                _lh, _load_error = _load_espn_history_with_status(
+                    _lid,
+                    int(_espn_season),
+                    max_seasons=_history_limit,
+                    private_credentials=_private_credentials,
+                )
+                _just_loaded = True
+        elif st.session_state.get("lh_history_ready_for") == _ready_key:
+            if _provider == "ESPN":
+                _lh = _fetch_espn_history(
+                    _lid,
+                    int(_espn_season),
+                    max_seasons=_history_limit,
+                )
+            else:
+                _lh = _fetch_sleeper_history(_lid, max_seasons=_history_limit)
+                _lh["provider"] = "Sleeper"
             _load_error = None if _lh["seasons"] else (
-                "This league exists, but no season history came back. "
+                f"This {_provider} league exists, but no season history came back. "
                 "It may be too new or still empty."
             )
         else:
-            _lh, _load_error = _load_history_with_status(_lid)
-            if _load_error is None and _lh["seasons"]:
-                st.session_state["lh_history_ready_for"] = _lid
+            if _provider == "ESPN":
+                _lh, _load_error = _load_espn_history_with_status(
+                    _lid,
+                    int(_espn_season),
+                    max_seasons=_history_limit,
+                )
+            else:
+                _lh, _load_error = _load_history_with_status(
+                    _lid,
+                    max_seasons=_history_limit,
+                )
+                _lh["provider"] = "Sleeper"
+            _just_loaded = True
+
+        if _just_loaded and _load_error is None and _lh["seasons"]:
+            if _is_private_espn:
+                st.session_state["lh_private_history"] = _lh
+                st.session_state["lh_private_history_ready_for"] = _ready_key
+            else:
+                st.session_state["lh_history_ready_for"] = _ready_key
+            send_ga_event(
+                "league_history_loaded",
+                {
+                    "provider": _provider.lower(),
+                    "access": _espn_access.lower() if _provider == "ESPN" else "public",
+                    "season_count": len(_lh["seasons"]),
+                    "history_depth": "recent_3" if _history_limit else "all",
+                },
+            )
+            if _is_private_espn:
+                st.session_state["lh_clear_espn_credentials"] = True
+                st.rerun()
+
+        if _is_private_espn and _load_error and _private_credentials is not None:
+            for _state_key in (
+                "lh_loaded_league_id",
+                "lh_loaded_provider",
+                "lh_loaded_espn_season",
+                "lh_loaded_espn_access",
+                "lh_loaded_history_limit",
+            ):
+                st.session_state.pop(_state_key, None)
 
         if _load_error:
             st.error(_load_error)
         elif not _lh["seasons"]:
             st.error(
-                "This league exists, but no season history came back. "
+                f"This {_provider} league exists, but no season history came back. "
                 "It may be too new or still empty."
             )
         else:
@@ -839,7 +1280,11 @@ def render():
             st.caption(
                 f"Loaded {len(_lh['seasons'])} "
                 f"{'season' if len(_lh['seasons']) == 1 else 'seasons'}. "
-                "Cached for an hour."
+                + (
+                    "Stored only in this browser session."
+                    if _is_private_espn else
+                    "Cached for an hour."
+                )
             )
 
             # Season filter
@@ -1656,7 +2101,7 @@ def render():
 
                     if len(_active_rivalry_managers) < 2:
                         st.info(
-                            "At least two current managers with stable Sleeper owner IDs are "
+                            f"At least two current managers with stable {_provider} owner IDs are "
                             "needed to build a rivalry slate."
                         )
                     elif _rivalry_slate.empty:
@@ -2188,7 +2633,7 @@ def render():
                 st.subheader("Manager Report Cards")
                 st.caption(
                     f"Peer-ranked regular-season performance for {_rc_scope}. Head-to-head "
-                    "records exclude Sleeper median-game bonuses; postseason results are shown separately."
+                    "records exclude platform median-game bonuses; postseason results are shown separately."
                 )
 
                 _manager_performance = _league_intel.manager_performance_frame(_filt_records)
@@ -2922,9 +3367,18 @@ def render():
                 # navigable and the analytics stay independently testable.
                 import league_insights_view as _insights_mod
                 _insights_mod = page_common.reload_if_stale(_insights_mod)
+                if _provider == "ESPN":
+                    _player_directory_loader = lambda: _lh.get("player_directory", {})
+                    _transaction_loader = None
+                else:
+                    _player_directory_loader = _fetch_player_directory
+                    _transaction_loader = _fetch_season_transactions
                 _insights_mod.render(
-                    _lh, _season_filter, _fetch_player_directory,
-                    _fetch_season_transactions,
+                    _lh,
+                    _season_filter,
+                    _player_directory_loader,
+                    _transaction_loader,
+                    provider_name=_provider,
                 )
 
 

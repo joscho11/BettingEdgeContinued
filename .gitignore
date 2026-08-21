@@ -28,8 +28,8 @@ betting/experiments/walkforward_oos_preds*.csv
 # content-sourcing sheets (video raw material, not product)
 fantasy/seasonal_projections/content/
 # PRIVATE daily-ADP research log (dated snapshots + ledger) — fenced research
-# artifact, never committed to the public tip. The live overlay
-# (board_adp_live_2026.csv) IS committed; only the log dir is ignored.
+# artifact, never committed to the public tip. The live overlays
+# (board_adp_live_2026.csv and board_espn_adp_live_2026.csv) ARE committed; only the log dir is ignored.
 fantasy/seasonal_projections/adp_logs/
 
 # PRIVATE point-in-time market archive (dated raw Sleeper responses + normalized

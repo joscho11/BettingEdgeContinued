@@ -6,12 +6,13 @@ Every defect this guards against was invisible to the existing AppTest suite, be
 AppTest proves a page *renders*; none of these were render failures. They were layout
 failures that only exist in a browser at a given viewport width:
 
-  * The fixed brand/tip-jar overlay (`#jsa-topbar`) sat at z-index 999992, above BOTH
+  * The fixed brand/tip-jar overlay (`#jsa-topbar`) once sat at z-index 999992, above BOTH
     Streamlit's header (999990) and its nav drawer (999991). With the drawer open the
     overlay swallowed taps aimed at the drawer's close control — `elementFromPoint` at
     that control's centre returned the Venmo anchor.
-  * The header's right inset (13rem) was narrower than the tip-jar pill (~194px), so
-    Streamlit's `⋮` main menu sat *underneath* the pill at every width from 641px up.
+  * Local Streamlit and Streamlit Cloud place their toolbar actions in different lanes.
+    The full-width tip jar covered Deploy/Fork on phones and navigation or the main menu
+    at intermediate widths even while the local-only main-menu check remained green.
 
 Both are geometry, so the test is geometry: it asks the browser where things actually
 are and what is actually on top, in BOTH drawer states.
@@ -76,8 +77,10 @@ _REPO = Path(__file__).resolve().parents[1]
 #   320  smallest phone still in use              640  Streamlit's column-stack breakpoint
 #   390  iPhone 14/15                             641  first width above it
 #   700  large phone landscape / small tablet     767  last width served by the drawer
-#   768  first width with the nav inline          1440 desktop
-WIDTHS = [320, 390, 640, 641, 700, 767, 768, 1440]
+#   768  first width with the nav inline          400/401 phone-tip boundary
+#   919/920 compact/full-tip boundary
+#   1440 desktop
+WIDTHS = [320, 390, 400, 401, 640, 641, 700, 767, 768, 800, 801, 919, 920, 1440]
 
 # Streamlit's own breakpoints, read off the shipped bundle. Kept as named constants so a
 # future upgrade that moves them shows up here rather than as a mystery failure.
@@ -168,12 +171,19 @@ _PROBE = """() => {
   const bar = q('#jsa-topbar');
   const barHidden = bar && getComputedStyle(bar).visibility === 'hidden';
   const vw = document.documentElement.clientWidth;
+  const navActions = [...document.querySelectorAll('[data-testid="stTopNavSection"]')];
+  const navAction = navActions.reduce((rightmost, el) =>
+    !rightmost || el.getBoundingClientRect().right > rightmost.getBoundingClientRect().right
+      ? el : rightmost, null);
   // Selected structurally, NOT by the classes this work happened to add: a selector
-  // that can silently match nothing is not evidence, and `tip` missing would make the
+  // that can silently match nothing is not evidence, and a missing header control would make the
   // whole overlap check quietly vacuous. test_probe_finds_every_control asserts these
   // are all present, so a markup change fails loudly instead of passing by absence.
   const ctrls = {
     navBtn:   q('[data-testid="stExpandSidebarButton"]'),
+    navAction,
+    toolbarAction: q('[data-testid="stToolbarActions"] button, '
+                     + '[data-testid="stAppDeployButton"] button'),
     mainMenu: q('[data-testid="stMainMenuButton"]'),
     tip:      q('#jsa-topbar a[href]'),
     brand:    q('#jsa-topbar span'),
@@ -214,7 +224,8 @@ _PROBE = """() => {
   return out;
 }"""
 
-_OVERLAP_PAIRS = [("brand", "navBtn"), ("tip", "navBtn"), ("tip", "mainMenu"),
+_OVERLAP_PAIRS = [("brand", "navBtn"), ("tip", "navBtn"), ("tip", "navAction"),
+                  ("tip", "toolbarAction"), ("tip", "mainMenu"),
                   ("brand", "tip"), ("tip", "close"), ("brand", "close")]
 
 
@@ -228,7 +239,7 @@ def _x_overlap(a, b):
 
 # Interactive controls that must be the topmost thing at their own centre whenever the
 # drawer is CLOSED — no exemptions, whatever the blocker turns out to be.
-_MUST_BE_REACHABLE_CLOSED = ("navBtn", "mainMenu", "tip")
+_MUST_BE_REACHABLE_CLOSED = ("navBtn", "toolbarAction", "mainMenu", "tip")
 
 
 def _check(state, width, label, drawer_open, must_exist=()):
@@ -373,8 +384,24 @@ def test_header_controls_are_reachable(browser, app_url, width):
         # width. Asserting presence makes each width self-proving instead of trusting a
         # single sanity test at one width.
         required = ("tip", "brand", "mainMenu") + (("navBtn",) if touch else ())
-        problems = _check(page.evaluate(_PROBE), width, "closed",
+        closed = page.evaluate(_PROBE)
+        problems = _check(closed, width, "closed",
                           drawer_open=False, must_exist=required)
+
+        # Streamlit Cloud adds Fork/GitHub controls that local Streamlit cannot render.
+        # Its toolbar and local Streamlit's Deploy/menu leave different safe lanes. Pin
+        # the compact contract so a locally-green test cannot restore the full pill over
+        # either Cloud chrome or the narrow desktop navigation.
+        if width <= 919:
+            tip = closed["ctrl"].get("tip")
+            if tip and not tip.get("skip"):
+                tip_width = tip["box"]["r"] - tip["box"]["l"]
+                expected = 30 if width <= 400 else 36
+                if not expected - 2 <= tip_width <= expected + 2:
+                    problems.append(
+                        f"[{width}px closed] tip jar is {tip_width}px wide; expected the "
+                        f"{expected}px compact Cloud-safe control"
+                    )
 
         if touch:
             # The nav lives behind the drawer here, so the drawer is load-bearing.

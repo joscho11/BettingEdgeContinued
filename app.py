@@ -1,12 +1,4 @@
-"""Live entrypoint — the multipage site (st.navigation, top nav).
-
-The 8-tab monolith was migrated to page modules across site-revamp Batch 3 and swapped
-in here (3e). This thin entrypoint wires the nav groups/labels/icons/url_paths, the
-default landing page (2026 Draft Board), Fantasy-then-Betting-then-More top nav, the
-cross-link registry, and the shared footer; there is no sidebar. Page modules are
-imported only when selected so a request does not initialize every page's dependencies.
-Shared data/chrome come from dashboard_data / dashboard_chrome / page_common.
-"""
+"""Live entrypoint for the multipage JoScho Analytics site."""
 import importlib
 import sys
 from pathlib import Path
@@ -68,48 +60,49 @@ def _lazy_render(module_name: str):
     render.__name__ = f"render_{module_name}"
     return render
 
-st.set_page_config(page_title="JoScho Analytics | NFL Predictions",
+st.set_page_config(page_title="JoScho Analytics | NFL predictions",
                    page_icon="🏈", layout="wide")
 chrome.inject_css()
 theme_redesign.inject()  # redesign preview skin (revertible) — remove this line to restore the stock look
-chrome.site_pageview_once()
 
-# ── Pages — all real now (stubs retired in Batch 3d); url_paths per design 4b ──
-board_pg = st.Page(_lazy_render("page_draft_board"), title="Draft Board", icon="📋",
-                   url_path="draft-board", default=True)
-wp_pg = st.Page(_lazy_render("page_weekly_predictions"), title="Weekly Predictions", icon="🏈",
+# ── Pages — stable Home route plus product pages loaded only when selected ──
+home_pg = st.Page(_lazy_render("page_home"), title="Home", icon=":material/home:",
+                  url_path="", default=True)
+board_pg = st.Page(_lazy_render("page_draft_board"), title="Draft Board", icon=":material/list_alt:",
+                   url_path="draft-board")
+wp_pg = st.Page(_lazy_render("page_weekly_predictions"), title="Weekly Predictions", icon=":material/query_stats:",
                 url_path="weekly-predictions")
-wf_pg = st.Page(_lazy_render("page_weekly_fantasy"), title="Weekly Fantasy", icon="🏆",
+wf_pg = st.Page(_lazy_render("page_weekly_fantasy"), title="Weekly Fantasy", icon=":material/trophy:",
                 url_path="weekly-fantasy")
-dfs_pg = st.Page(_lazy_render("page_dfs"), title="DFS Optimizer", icon="🎯",
+dfs_pg = st.Page(_lazy_render("page_dfs"), title="DFS Optimizer", icon=":material/target:",
                  url_path="dfs-optimizer")
 # Off the top nav until the optimizer is live. Restore by adding dfs_pg to
 # the Fantasy list below. page_dfs.py and fantasy/dfs/ stay.
-tr_pg = st.Page(_lazy_render("page_track_record"), title="Track Record", icon="📈",
+tr_pg = st.Page(_lazy_render("page_track_record"), title="Track Record", icon=":material/monitoring:",
                 url_path="track-record")
-film_pg = st.Page(_lazy_render("page_film_room"), title="Film Room", icon="📺",
+film_pg = st.Page(_lazy_render("page_film_room"), title="Film Room", icon=":material/movie:",
                   url_path="film-room")
-lh_pg = st.Page(_lazy_render("page_league_history"), title="League History", icon="🏅",
+lh_pg = st.Page(_lazy_render("page_league_history"), title="League History", icon=":material/history:",
                 url_path="league-history")
-help_pg = st.Page(_lazy_render("page_help"), title="Help & Guide", icon="❓",
+help_pg = st.Page(_lazy_render("page_help"), title="Help & Guide", icon=":material/help:",
                   url_path="help")
-rb_pg = st.Page(_lazy_render("page_rookie_board"), title="Rookie Board", icon="🧬",
+rb_pg = st.Page(_lazy_render("page_rookie_board"), title="Rookie Board", icon=":material/biotech:",
                 url_path="rookie-board")
 # "(Beta)" rides in the nav label because st.Page titles are plain text (no HTML in the top nav),
 # and the url_path stays "season-totals" so the flag can come off without breaking a shared link.
-fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals (Beta)", icon="📊",
+fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals (Beta)", icon=":material/bar_chart:",
                  url_path="season-totals")
 
 # cross-link registry (design 4g) — populated before nav.run() so pages can link
 nav_registry.PAGES = {
-    "draft-board": board_pg, "weekly-predictions": wp_pg, "weekly-fantasy": wf_pg,
+    "home": home_pg, "draft-board": board_pg, "weekly-predictions": wp_pg, "weekly-fantasy": wf_pg,
     "dfs-optimizer": dfs_pg, "track-record": tr_pg, "film-room": film_pg,
     "league-history": lh_pg, "help": help_pg, "rookie-board": rb_pg,
     "season-totals": fut_pg,
 }
 
-# Persistent branded header ABOVE the top nav — rendered before st.navigation so the
-# brand + tip jar strip sits on top of the page links, on every page.
+# Persistent brand label above the top nav. It is intentionally non-interactive;
+# repository and support actions live in the normal-flow footer.
 chrome.render_header()
 
 # The phone/tablet layer goes HERE, immediately after render_header, and this order is
@@ -120,13 +113,16 @@ chrome.render_header()
 mobile.inject()
 
 nav = st.navigation(
-    {"Fantasy": [board_pg, rb_pg, wf_pg],
+    {"": [home_pg],
+     "Fantasy": [board_pg, rb_pg, wf_pg],
      "Betting": [wp_pg, tr_pg, fut_pg],
      "More": [film_pg, lh_pg, help_pg]},
     position="top",
 )
 nav.run()
 chrome.render_footer()
+chrome.site_pageview(getattr(nav, "title", "JoScho Analytics"),
+                     getattr(nav, "url_path", ""))
 # Selected page title only (a public label, no visitor data). Title rather than url_path:
 # the default page's url_path is "", which would log inconsistently against the others.
 runtime_telemetry.end(getattr(nav, "title", None))

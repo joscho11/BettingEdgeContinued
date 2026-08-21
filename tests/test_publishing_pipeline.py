@@ -1,0 +1,277 @@
+"""Release safety: validation, immutable activation, rollback, status, and grading."""
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+from publishing.candidate import build_candidate_metadata
+from publishing.contract import PublicationError
+from publishing.grader import grade_fantasy, grade_predictions
+from publishing.manifest import (
+    default_selection,
+    load_manifest,
+    release_status,
+    track_record_default_season,
+)
+from publishing.publisher import publish_candidate, rollback_release, schedule_release
+from publishing.validators import validate_candidate
+from dashboard_data import overlay_published_predictions
+from publishing.cli import _grade_published
+
+
+def _prediction_candidate(tmp_path: Path, *, shift: float = 0.0, week: int = 1):
+    artifact = tmp_path / f"predictions-w{week}-{shift}.csv"
+    first_day, second_day = (9, 10) if week == 1 else (16, 17)
+    rows = pd.DataFrame([
+        {
+            "game_id": f"2026_{week:02d}_NE_SEA", "home_team": "SEA", "away_team": "NE",
+            "season": 2026, "week": week, "gameday": f"2026-09-{first_day:02d}", "gametime": "20:20",
+            "predicted_margin": 4.0 + shift, "model_edge": 1.0 + shift,
+            "recommendation": "HOME (SEA)", "logged_at": "2026-09-08T13:00:00Z",
+            "tuesday_spread_line": 3.0,
+        },
+        {
+            "game_id": f"2026_{week:02d}_SF_LA", "home_team": "LA", "away_team": "SF",
+            "season": 2026, "week": week, "gameday": f"2026-09-{second_day:02d}", "gametime": "20:35",
+            "predicted_margin": -1.0 + shift, "model_edge": -3.0 + shift,
+            "recommendation": "AWAY (SF)", "logged_at": "2026-09-08T13:00:00Z",
+            "tuesday_spread_line": 2.0,
+        },
+    ])
+    rows.to_csv(artifact, index=False)
+    metadata = build_candidate_metadata(
+        "predictions", artifact, season=2026, week=week,
+        model_version=f"spread-v3-test-{shift}", produced_at="2026-09-08T13:00:00Z",
+    )
+    schedule = pd.DataFrame([
+        {"game_id": f"2026_{week:02d}_NE_SEA", "home_team": "SEA", "away_team": "NE",
+         "season": 2026, "week": week, "game_type": "REG", "gameday": f"2026-09-{first_day:02d}", "gametime": "20:20"},
+        {"game_id": f"2026_{week:02d}_SF_LA", "home_team": "LA", "away_team": "SF",
+         "season": 2026, "week": week, "game_type": "REG", "gameday": f"2026-09-{second_day:02d}", "gametime": "20:35"},
+    ])
+    return artifact, metadata, schedule
+
+
+def _fantasy_candidate(tmp_path: Path):
+    artifact = tmp_path / "fantasy.csv"
+    counts = {"QB": 24, "RB": 60, "WR": 72, "TE": 24}
+    rows = []
+    teams = [("SEA", "NE"), ("NE", "SEA")]
+    for position, count in counts.items():
+        for index in range(count):
+            team, opponent = teams[index % 2]
+            rows.append({
+                "player_id": f"{position}-{index}",
+                "player_display_name": f"{position} Player {index}",
+                "position": position,
+                "team": team,
+                "opponent_team": opponent,
+                "season": 2026,
+                "week": 1,
+                "projected_pts": float(index) / 10,
+            })
+    pd.DataFrame(rows).to_csv(artifact, index=False)
+    metadata = build_candidate_metadata(
+        "fantasy", artifact, season=2026, week=1,
+        model_version="weekly-fantasy-test", produced_at="2026-09-08T13:00:00Z",
+    )
+    schedule = pd.DataFrame([{
+        "game_id": "2026_01_NE_SEA", "home_team": "SEA", "away_team": "NE",
+        "season": 2026, "week": 1, "game_type": "REG",
+        "gameday": "2026-09-09", "gametime": "20:20",
+    }])
+    return artifact, metadata, schedule
+
+
+def test_prediction_contract_detects_duplicates_and_schedule_gaps(tmp_path):
+    artifact, metadata, schedule = _prediction_candidate(tmp_path)
+    assert validate_candidate(artifact, metadata, schedule=schedule).ok
+    bad = pd.read_csv(artifact)
+    bad.loc[1, "game_id"] = bad.loc[0, "game_id"]
+    bad.to_csv(artifact, index=False)
+    metadata["artifact_sha256"] = build_candidate_metadata(
+        "predictions", artifact, season=2026, week=1,
+        model_version="spread-v3-test", produced_at="2026-09-08T13:00:00Z",
+    )["artifact_sha256"]
+    report = validate_candidate(artifact, metadata, schedule=schedule)
+    assert not report.ok
+    assert any("duplicate game_id" in error for error in report.errors)
+    assert any("schedule coverage mismatch" in error for error in report.errors)
+
+
+def test_live_prediction_timestamp_must_be_timezone_aware(tmp_path):
+    artifact, _, schedule = _prediction_candidate(tmp_path)
+    rows = pd.read_csv(artifact)
+    rows["logged_at"] = "2026-09-08 13:00:00"
+    rows.to_csv(artifact, index=False)
+    metadata = build_candidate_metadata(
+        "predictions", artifact, season=2026, week=1,
+        model_version="spread-v3-test", produced_at="2026-09-08T13:00:01Z",
+    )
+    report = validate_candidate(artifact, metadata, schedule=schedule)
+    assert not report.ok
+    assert any("logged_at must be timezone-aware" in error for error in report.errors)
+
+
+def test_fantasy_contract_checks_identity_position_and_schedule_coverage(tmp_path):
+    artifact, metadata, schedule = _fantasy_candidate(tmp_path)
+    report = validate_candidate(artifact, metadata, schedule=schedule)
+    assert report.ok, report.errors
+    assert report.row_count == 180
+    assert report.checks["scheduled_teams"] == 2
+    rows = pd.read_csv(artifact)
+    rows.loc[(rows["position"] == "QB") & (rows["team"] == "NE"), ["team", "opponent_team"]] = [
+        "SEA", "NE"
+    ]
+    rows.to_csv(artifact, index=False)
+    missing_players_meta = build_candidate_metadata(
+        "fantasy", artifact, season=2026, week=1,
+        model_version="weekly-fantasy-test", produced_at="2026-09-08T13:00:00Z",
+    )
+    missing = validate_candidate(artifact, missing_players_meta, schedule=schedule)
+    assert not missing.ok
+    assert any("lack projected skill-position players" in error for error in missing.errors)
+
+
+def test_publish_is_immutable_and_failed_candidate_does_not_move_pointer(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    artifact, metadata, schedule = _prediction_candidate(tmp_path)
+    first = publish_candidate(artifact, metadata, schedule=schedule, root=site)
+    assert default_selection("predictions", (2025, 10), root=site) == (2026, 1)
+    stored = site / first["artifact"]
+    original = stored.read_bytes()
+
+    invalid = pd.read_csv(artifact).iloc[:1]
+    invalid.to_csv(artifact, index=False)
+    bad_meta = build_candidate_metadata(
+        "predictions", artifact, season=2026, week=1,
+        model_version="bad", produced_at="2026-09-08T13:00:00Z",
+    )
+    with pytest.raises(PublicationError):
+        publish_candidate(artifact, bad_meta, schedule=schedule, root=site)
+    manifest = load_manifest(site)
+    assert manifest["products"]["predictions"]["active_build"] == first["build_id"]
+    assert stored.read_bytes() == original
+
+
+def test_same_artifact_cannot_change_immutable_release_metadata(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    artifact, metadata, schedule = _prediction_candidate(tmp_path)
+    publish_candidate(artifact, metadata, schedule=schedule, root=site)
+    changed = dict(metadata)
+    changed["model_version"] = "different-model-version"
+    with pytest.raises(PublicationError, match="immutable metadata collision"):
+        publish_candidate(artifact, changed, schedule=schedule, root=site)
+
+
+def test_pointer_only_rollback_and_release_status(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    first_artifact, first_meta, schedule = _prediction_candidate(tmp_path, shift=0.0)
+    first = publish_candidate(first_artifact, first_meta, schedule=schedule, root=site)
+    assert first["status"] == "Published"
+    second_artifact, second_meta, schedule = _prediction_candidate(tmp_path, shift=0.5)
+    second = publish_candidate(second_artifact, second_meta, schedule=schedule, root=site)
+    assert first["build_id"] != second["build_id"]
+    rolled = rollback_release("predictions", root=site)
+    assert rolled["build_id"] == first["build_id"]
+    status = release_status("predictions", 2026, 1, root=site)
+    assert status["status"] == "Published"
+
+    schedule_release(
+        "fantasy", 2026, 1, scheduled_for="2026-09-08T13:00:00Z", root=site
+    )
+    manifest = load_manifest(site)
+    assert manifest["products"]["fantasy"]["next_release"]["status"] == "Scheduled"
+    scheduled = release_status(
+        "fantasy", 2026, 1, root=site,
+        now=datetime(2026, 8, 20, tzinfo=timezone.utc),
+    )
+    assert scheduled["status"] == "Scheduled"
+    awaiting = release_status(
+        "fantasy", 2026, 1, root=site,
+        now=datetime(2026, 9, 9, tzinfo=timezone.utc),
+    )
+    assert awaiting["status"] == "Awaiting projections"
+
+
+def test_prediction_grader_is_separate_idempotent_and_enables_2026_record(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    artifact, metadata, schedule = _prediction_candidate(tmp_path)
+    build = publish_candidate(artifact, metadata, schedule=schedule, root=site)
+    frozen = (site / build["artifact"]).read_bytes()
+    finals = schedule.copy()
+    finals["home_score"] = [27, 24]
+    finals["away_score"] = [20, 22]
+    first = grade_predictions(2026, 1, finals, root=site)
+    second = grade_predictions(2026, 1, finals, root=site)
+    assert first["artifact_sha256"] == second["artifact_sha256"]
+    assert first["graded_at"] == second["graded_at"]
+    assert first["final_games"] == 2
+    assert first["graded_rows"] == 1
+    assert first["pushes"] == 1
+    assert (site / build["artifact"]).read_bytes() == frozen
+    assert track_record_default_season(root=site) == 2026
+
+
+def test_fantasy_grading_is_separate_and_zero_fills_only_complete_feed(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    artifact, metadata, schedule = _fantasy_candidate(tmp_path)
+    build = publish_candidate(artifact, metadata, schedule=schedule, root=site)
+    frozen = (site / build["artifact"]).read_bytes()
+    finals = schedule.assign(home_score=27, away_score=20)
+    actuals = pd.DataFrame([
+        {"player_id": "QB-0", "team": "SEA", "actual_half_ppr": 18.5},
+        {"player_id": "QB-1", "team": "NE", "actual_half_ppr": 14.0},
+    ])
+    first = grade_fantasy(2026, 1, actuals, schedule=finals, root=site)
+    second = grade_fantasy(2026, 1, actuals, schedule=finals, root=site)
+    assert first["complete"] is True
+    assert first["graded_rows"] == 180
+    assert first["zero_filled_after_complete_feed"] is True
+    assert first["artifact_sha256"] == second["artifact_sha256"]
+    assert first["graded_at"] == second["graded_at"]
+    assert (site / build["artifact"]).read_bytes() == frozen
+
+
+def test_dashboard_overlay_retains_prior_week_after_next_week_activates(tmp_path):
+    site = tmp_path / "site"
+    site.mkdir()
+    week1_artifact, week1_meta, week1_schedule = _prediction_candidate(tmp_path, week=1)
+    publish_candidate(week1_artifact, week1_meta, schedule=week1_schedule, root=site)
+    week2_artifact, week2_meta, week2_schedule = _prediction_candidate(tmp_path, week=2)
+    publish_candidate(week2_artifact, week2_meta, schedule=week2_schedule, root=site)
+    tracker = pd.DataFrame([{
+        "game_id": "2025_17_HIST", "season": 2025, "week": 17,
+        "home_team": "H", "away_team": "A",
+    }])
+    overlaid = overlay_published_predictions(tracker, site)
+    assert len(overlaid) == 5
+    assert set(overlaid.loc[overlaid["season"].eq(2026), "week"].astype(int)) == {1, 2}
+    assert "2025_17_HIST" in set(overlaid["game_id"].astype(str))
+
+
+def test_scheduled_grader_catches_incomplete_prior_published_weeks(tmp_path, monkeypatch):
+    site = tmp_path / "site"
+    site.mkdir()
+    schedules = []
+    for week in (1, 2):
+        artifact, metadata, schedule = _prediction_candidate(tmp_path, week=week)
+        publish_candidate(artifact, metadata, schedule=schedule, root=site)
+        schedules.append(schedule.assign(home_score=[27, 24], away_score=[20, 22]))
+    full_schedule = pd.concat(schedules, ignore_index=True)
+    monkeypatch.setattr(
+        "publishing.cli.fetch_nfl_schedule", lambda season: full_schedule.copy()
+    )
+    result = _grade_published(site, "predictions")
+    assert set(result["predictions"]) == {"2026w01", "2026w02"}
+    assert result["predictions"]["2026w01"]["final_games"] == 2
+    assert result["predictions"]["2026w02"]["final_games"] == 2

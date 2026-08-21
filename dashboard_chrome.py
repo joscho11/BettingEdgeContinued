@@ -129,12 +129,31 @@ def send_ga_event(name, extra_params=None):
         _post()   # thread creation refused: fall back to the old inline behavior
 
 
+def site_pageview(page_title: str, url_path: str = "") -> None:
+    """Send one page view per route per browser session.
+
+    The route is public app state. Query parameters are deliberately excluded so a
+    shared filter URL—or a Sleeper league ID—never reaches analytics.
+    """
+    path = str(url_path or "").strip("/")
+    route = f"/{path}" if path else "/"
+    tracked = st.session_state.setdefault("ga_tracked_pages", [])
+    if route in tracked:
+        return
+    tracked.append(route)
+    send_ga_event(
+        "page_view",
+        {
+            "page_title": f"{page_title} | JoScho Analytics",
+            "page_location": f"{CANONICAL_URL}{route if route != '/' else ''}",
+            "page_path": route,
+        },
+    )
+
+
 def site_pageview_once():
-    """A single per-session pageview (mirrors the current app.py behavior). Per-PAGE
-    pageviews are a later batch (design 4f / Batch D)."""
-    if 'ga_tracked' not in st.session_state:
-        st.session_state.ga_tracked = True
-        send_ga_event("page_view")
+    """Backward-compatible wrapper for older harnesses."""
+    site_pageview("JoScho Analytics", "")
 
 
 def inject_css():
@@ -209,34 +228,17 @@ def render_preseason_banner(board_page=None, season_year=2026):
 
 
 def render_header():
-    """Brand + tip jar laid onto Streamlit's OWN top-nav strip — the Fantasy / Betting /
-    More menu lives inside [data-testid=stHeader], so all three share one bar.
-
-    That nav is framework chrome we cannot add DOM children to, so we overlay a
-    full-width, click-THROUGH fixed bar over the same band: brand pinned far-left, tip
-    jar far-right, and the nav links show through the transparent middle and stay
-    clickable (pointer-events:none on the bar, auto on our two items). We also pad the
-    header's left/right so the nav links don't tuck under the brand / tip jar. Fixed =>
-    it rides the header on scroll and reserves no flow space, so nothing is hidden.
-    Byte-identical brand / tip-jar strings; the 'buy me a coffee' line is the tip jar's
-    hover title. The --jsa-h height and the header side-paddings are the knobs to nudge
-    on-device if the theme shifts the nav band (see the revamp report for honesty on how
-    close to the framework nav this actually sits)."""
+    """Place the brand and Venmo support link in Streamlit's top navigation band."""
     st.markdown(
         f'''<style>
 :root{{--jsa-h:3.25rem;}}
-/* Right inset reserves the tip jar's own width (~194px) plus a gap, so neither the nav
-   links nor Streamlit's `⋮` main menu — both laid out inside this padding box — can end
-   up underneath it. It was 13rem, which is NARROWER than the pill, and the `⋮` sat 24px
-   under the pill at every width from 641px up (hit-tested: elementFromPoint at the menu
-   centre returned the Venmo anchor). Keep this >= the .jsa-tip width + 1rem. */
-[data-testid="stHeader"]{{padding-left:11rem;padding-right:14rem;}}
-@media (min-width:641px){{
-  /* Cloud toolbar (Fork, GitHub, menu) sits in the top-right. Inset the tip jar
-     so it no longer covers those controls. Extra header padding keeps nav links
-     out from under the moved pill. Phone rules below 640px stay as they are. */
-  [data-testid="stHeader"]{{padding-right:24rem;}}
-  .jsa-tip{{margin-right:10.5rem;}}
+/* Keep Streamlit's own controls in their native header positions. The support pill is
+   independently inset below, so padding the header cannot pull the menu underneath it. */
+[data-testid="stHeader"]{{padding-left:11rem;padding-right:3.5rem;}}
+@media (min-width:920px){{
+  /* Streamlit Cloud's toolbar occupies the top-right. Move the pill left of that area
+     without moving the toolbar or main menu themselves. */
+ .jsa-tip{{margin-right:10.5rem;}}
 }}
 /* z-index MUST be 999990 — the same layer as stHeader, NOT above it.
      stHeader/stToolbar 999990  <  stSidebar 999991
@@ -248,13 +250,23 @@ def render_header():
 display:flex;align-items:center;justify-content:space-between;
 padding:0 1rem 0 1.1rem;pointer-events:none;z-index:999990;}}
 #jsa-topbar>*{{pointer-events:auto;}}
-/* Presentation lives in classes, not style="" attributes, so the narrow-width blocks
-   below can override it with ordinary specificity instead of !important. Markup and
-   copy unchanged. */
 .jsa-brand{{font-size:19px;font-weight:800;letter-spacing:.3px;
 color:#fafafa;text-shadow:0 1px 3px #0e1117;}}
 .jsa-tip{{background:#3D95CE;color:#fff;font-weight:600;font-size:13px;
-padding:6px 13px;border-radius:8px;text-decoration:none;white-space:nowrap;}}
+padding:6px 13px;border-radius:8px;text-decoration:none;white-space:nowrap;
+display:flex;align-items:center;justify-content:center;gap:.35rem;}}
+/* Below 920px a full 197px pill cannot avoid both toolbar variants: local Streamlit
+   keeps Deploy/menu at the right edge while Streamlit Cloud moves Fork/GitHub/menu much
+   farther left. Keep the same accessible Venmo link as a compact heart in the safe lane
+   between them; the title and aria-label retain the full purpose for hover/screen readers. */
+@media (max-width:919px){{
+ .jsa-tip{{width:2.25rem;height:2.25rem;min-width:2.25rem;padding:0;
+  flex:0 0 2.25rem;}}
+ .jsa-tip-label{{display:none;}}
+}}
+@media (min-width:641px) and (max-width:919px){{
+ .jsa-tip{{margin-right:9.5rem;}}
+}}
 /* Belt and braces with the z-index fix: while the drawer is open the branded overlay is
    both irrelevant and in the way, so it stands down entirely. A browser without :has()
    still gets the correct hit-testing from the z-index above. */
@@ -292,15 +304,13 @@ visibility:hidden;pointer-events:none;}}
    This block is the whole phone header contract, not a partial one: mobile.py is the
    page-CONTENT layer and deliberately carries no header rules, so deleting it leaves
    this correct rather than half-applied. Verified standalone down to 320px.
-   Below 640px Streamlit collapses the top nav into a drawer whose `»` trigger renders
-   at the header's left inset (x=22..58) and its `⋮` in the rightmost ~50px, so the bar
-   reserves both and brand + tip jar share only the middle. */
+   Below 640px Streamlit collapses the top nav into a drawer. The overlay reserves the
+   drawer trigger on the left and Streamlit's main menu on the right. */
 @media (max-width:640px){{
  [data-testid="stHeader"]{{padding-left:.25rem;padding-right:.25rem;}}
  #jsa-topbar{{padding-left:3.9rem;padding-right:3.4rem;gap:.4rem;}}
  .jsa-brand{{font-size:13px;letter-spacing:.2px;white-space:nowrap;flex:0 0 auto;}}
- .jsa-tip{{font-size:10.5px;font-weight:700;padding:5px 8px;flex:0 1 auto;min-width:0;
-  min-height:2rem;display:flex;align-items:center;justify-content:center;}}
+ .jsa-tip{{margin-right:5.375rem;}}
  /* The drawer trigger is the only way to change page here — give it a real tap target
     and a surface so the three-bar menu reads as a control. */
  [data-testid="stExpandSidebarButton"]{{min-width:2.25rem;min-height:2.25rem;
@@ -308,33 +318,40 @@ visibility:hidden;pointer-events:none;}}
   background:var(--jsa-surface, #121821);}}
  [data-testid="stSidebarNavLink"]{{min-height:2.6rem;align-items:center;}}
  [data-testid="stSidebarNav"] a span{{font-size:15px;}}}}
-/* Narrow phones. Fixed overhead is ~117px (62px reserving the `»`, 55px reserving the
-   `⋮`), leaving ~200px at 320px — too little for brand AND a one-line pill at legible
-   sizes. The pill's label wraps inside itself instead of shrinking to unreadable; every
-   word is still there and it still fits the 52px bar. Without this the brand wrapped to
-   two lines and the pill sat 28px under the `⋮` at 320px. */
 @media (max-width:400px){{
  .jsa-brand{{font-size:12px;}}
- .jsa-tip{{white-space:normal;line-height:1.2;text-align:center;padding:4px 7px;}}}}
+ .jsa-tip{{width:1.875rem;height:2rem;min-width:1.875rem;margin-right:5.125rem;
+  flex-basis:1.875rem;}}}}
 </style>
 <div id="jsa-topbar">
 <span class="jsa-brand">JoScho Analytics</span>
 <a class="jsa-tip" href="{_VENMO}" target="_blank" rel="noopener noreferrer"
-title="If you find this useful, buy me a coffee ☕">💙 Tip Jar — Venmo @JoScho</a>
+aria-label="Support JoScho Analytics via Venmo"
+title="If you find this useful, buy me a coffee"><span class="jsa-tip-icon"
+aria-hidden="true">💙</span><span class="jsa-tip-label">Tip Jar — Venmo @JoScho</span></a>
 </div>''',
         unsafe_allow_html=True)
 
 
 def render_footer():
-    """Rendered on every page AFTER nav.run(), in the page flow (mobile-visible) —
-    replaces the retired sidebar. A single CENTERED public-repo line; the tip jar moved
-    UP into the persistent header (render_header) and the brand logo was retired."""
+    """Render public-code and Venmo support actions in normal page flow."""
     st.divider()
-    # Centered repo line (Q3, repo ROOT). Copy byte-identical to the 4e footer wording.
-    st.markdown(
-        "<div style='text-align:center;font-size:.875rem;color:#808495;'>"
-        "The models and code behind this are public → "
-        f"<a href='{_REPO}' target='_blank' rel='noopener noreferrer' "
-        "style='color:#6ea8d8;text-decoration:none;'>"
-        "github.com/joscho11/JoSchoAnalytics</a></div>",
-        unsafe_allow_html=True)
+    st.caption("The models and code behind this site are public.", text_alignment="center")
+    with st.container(horizontal=True, horizontal_alignment="center"):
+        st.link_button(
+            "View public code",
+            _REPO,
+            icon=":material/code:",
+            type="tertiary",
+            on_click=send_ga_event,
+            args=("outbound_github",),
+        )
+        st.link_button(
+            "Support via Venmo",
+            _VENMO,
+            icon=":material/favorite:",
+            type="tertiary",
+            on_click=send_ga_event,
+            args=("outbound_venmo",),
+            help="If you find the site useful, buy me a coffee.",
+        )

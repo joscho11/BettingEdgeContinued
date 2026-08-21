@@ -12,5 +12,6 @@ HEADER = "Short model-backed breakdowns, each with the full written analysis beh
 
 
 def render():
+    st.title("Film room")
     st.caption(HEADER)
-    film_room.render_film_room()
+    film_room.render_film_room(show_header=False)

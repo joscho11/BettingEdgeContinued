@@ -12,7 +12,10 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+import page_common
 from dashboard_chrome import TABLE_HEIGHT, dataframe_phone_desktop, _OFFLINE
+from publishing.manifest import published_builds
+from publishing.paths import resolve_site_path
 
 _HERE = Path(__file__).resolve().parents[1]
 DEMO_SEASON = 2025
@@ -46,20 +49,22 @@ def _parse_proj_name(name: str) -> tuple[int, int] | None:
 
 
 def available_projection_files() -> dict[tuple[int, int], Path]:
-    """2025 demo files stay in-repo. 2026+ may also sit in weekly_projections_v2 outputs."""
+    """Return public artifacts only: 2025 legacy files plus validated releases."""
     available: dict[tuple[int, int], Path] = {}
     if _JSA_PROJ_DIR.is_dir():
         for path in sorted(_JSA_PROJ_DIR.glob("projections_*.csv")):
             parsed = _parse_proj_name(path.name)
-            if parsed is not None:
+            if parsed is not None and parsed[0] < LIVE_FROM_SEASON:
                 available[parsed] = path
-    if _SIBLING_PROJ_DIR.is_dir():
-        for path in sorted(_SIBLING_PROJ_DIR.glob("projections_*.csv")):
-            parsed = _parse_proj_name(path.name)
-            if parsed is None or parsed[0] < LIVE_FROM_SEASON:
-                continue
-            if parsed not in available:
-                available[parsed] = path
+    manifest = page_common.load_release_manifest()
+    for build in published_builds("fantasy", manifest=manifest, root=_HERE):
+        try:
+            key = (int(build["season"]), int(build["week"]))
+            path = resolve_site_path(build["artifact"], _HERE)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if path.is_file():
+            available[key] = path
     return available
 
 
@@ -80,22 +85,36 @@ def _weeks_by_season(available: dict[tuple[int, int], Path]) -> dict[int, list[i
     return weeks
 
 
-def _fantasy_season_week_controls(available: dict[tuple[int, int], Path]) -> tuple[int, int]:
-    """Own Season/Week widgets. Default is 2026 Week 1, even with no file yet."""
+def _fantasy_season_week_controls(
+    available: dict[tuple[int, int], Path],
+    default: tuple[int, int] = (DEMO_SEASON, 10),
+) -> tuple[int, int]:
+    """Own Season/Week widgets, seeded by the active validated release."""
     weeks_by = _weeks_by_season(available)
     seasons = sorted(weeks_by, reverse=True)
     cols = st.columns(2)
-    season = int(cols[0].selectbox("Season", seasons, index=0, key="wf_season"))
+    season_seeded = page_common.seed_widget_from_query("wf_season", "wf_season", seasons)
+    season_kwargs = {
+        "key": "wf_season",
+        "on_change": page_common.reset_widget_and_query,
+        "args": ("wf_week", "wf_week"),
+    }
+    if not season_seeded and "wf_season" not in st.session_state and default[0] in seasons:
+        season_kwargs["index"] = seasons.index(default[0])
+    season = int(cols[0].selectbox("Season", seasons, **season_kwargs))
+    page_common.sync_query_value("wf_season", season)
     weeks = weeks_by[season]
-    want = LIVE_WEEK if season >= LIVE_FROM_SEASON else weeks[0]
+    want = default[1] if season == default[0] else (
+        10 if season == DEMO_SEASON else (LIVE_WEEK if season >= LIVE_FROM_SEASON else weeks[0])
+    )
     if "wf_week" in st.session_state and st.session_state["wf_week"] not in weeks:
         del st.session_state["wf_week"]
-    week = int(cols[1].selectbox(
-        "Week",
-        weeks,
-        index=weeks.index(want) if want in weeks else 0,
-        key="wf_week",
-    ))
+    seeded = page_common.seed_widget_from_query("wf_week", "wf_week", weeks)
+    week_kwargs = {"key": "wf_week"}
+    if not seeded and "wf_week" not in st.session_state:
+        week_kwargs["index"] = weeks.index(want) if want in weeks else 0
+    week = int(cols[1].selectbox("Week", weeks, **week_kwargs))
+    page_common.sync_query_value("wf_week", week)
     return season, week
 
 
@@ -183,20 +202,14 @@ def load_actual_stats(season: int, week: int) -> dict:
 
 
 def render():
+    st.title("Weekly fantasy projections")
+    st.caption("Half-PPR player rankings with matchup context and postgame actuals.")
     available = available_projection_files()
-    season, week = _fantasy_season_week_controls(available)
+    default = page_common.release_default_selection("fantasy", (DEMO_SEASON, 10))
+    season, week = _fantasy_season_week_controls(available, default)
+    page_common.render_release_status("fantasy", season, week)
 
-    st.title(f"🏆 Week {week} Fantasy Projections, Half-PPR")
-    if (LIVE_FROM_SEASON, LIVE_WEEK) in available:
-        st.caption(
-            "This page opens on 2026 Week 1. "
-            "2025 weeks are a demo from the previous weekly model."
-        )
-    else:
-        st.caption(
-            "This page opens on 2026 Week 1. Those rankings will be here soon. "
-            "2025 weeks are a demo from the previous weekly model."
-        )
+    st.subheader(f"Week {week} · {season} season")
 
     if (season, week) not in available:
         if int(season) >= LIVE_FROM_SEASON:
@@ -212,7 +225,7 @@ def render():
             )
     else:
         if int(season) == DEMO_SEASON:
-            st.info("This is a 2025 demo week from the previous weekly model.")
+            st.info(f"This is the 2025 Week {week} demo from the previous weekly model.")
         proj_df = _load_proj_csv(str(available[(season, week)]))
 
         # Actual results (available after week is played)
@@ -251,7 +264,11 @@ def render():
             key="fantasy_search"
         )
 
-        ptab_qb, ptab_rb, ptab_wr, ptab_te = st.tabs(["QB", "RB", "WR", "TE"])
+        ptab_qb, ptab_rb, ptab_wr, ptab_te = st.tabs(
+            ["QB", "RB", "WR", "TE"],
+            key="wf_position_tabs",
+            on_change="rerun",
+        )
 
         def injury_icon(score):
             if score >= 0.9:   return "✅"
@@ -304,6 +321,8 @@ def render():
             st.stop()
 
         for ptab, pos in zip([ptab_qb, ptab_rb, ptab_wr, ptab_te], ["QB", "RB", "WR", "TE"]):
+            if not ptab.open:
+                continue
             with ptab:
                 pos_subset = proj_df[proj_df["position"] == pos]
                 if pos == "QB" and "depth_chart_position" in pos_subset.columns:

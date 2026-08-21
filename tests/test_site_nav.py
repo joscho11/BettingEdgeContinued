@@ -1,11 +1,12 @@
-"""Batch-1 proof for the multipage nav skeleton (app.py).
+"""Proof for the multipage navigation and shared chrome (app.py).
 
-Asserts: the default landing page is the 2026 Draft Board, Fantasy sits left of
+Asserts: the default landing page is Home, Fantasy sits left of
 Betting in the top nav, the sidebar renders EMPTY (nav is top, footer is in page
 flow), the shared footer is present, and the shared modules are import-safe.
 Hermetic: APP_OFFLINE=1 so no network. Run: pytest test_site_nav.py
 """
 import ast
+import json
 import os
 import sys
 from pathlib import Path
@@ -19,6 +20,7 @@ _SITE_PAGES = _HERE / "site_pages"
 sys.path.insert(0, str(_HERE))
 ENTRY = str(_HERE / "app.py")   # the multipage entrypoint (post-3e swap)
 PAGE_MODULES = (
+    "page_home",
     "page_weekly_predictions",
     "page_track_record",
     "page_draft_board",
@@ -43,20 +45,22 @@ def _titles(at):
     return " ".join(str(t.value) for t in at.title)
 
 
-def test_default_is_draft_board():
+def test_default_is_home():
     at = _run()
     titles = _titles(at)
-    assert "Draft Board" in titles, \
-        f"default landing page should be the 2026 Draft Board; titles={titles!r}"
-    assert "Predictions" not in titles, \
-        f"Weekly Predictions must no longer be the default; titles={titles!r}"
+    assert "JoScho Analytics" in titles, \
+        f"default landing page should be Home; titles={titles!r}"
+    assert "Weekly predictions" not in titles, \
+        f"Weekly Predictions must not be the default; titles={titles!r}"
 
 
 def test_nav_groups_fantasy_then_betting():
     src = Path(ENTRY).read_text(encoding="utf-8")
     assert src.index('"Fantasy"') < src.index('"Betting"'), \
         "Fantasy must sit left of Betting in the top nav"
-    assert "url_path=\"draft-board\", default=True" in src
+    assert 'title="Home"' in src
+    assert 'url_path="", default=True' in src
+    assert "url_path=\"draft-board\", default=True" not in src
     assert "url_path=\"weekly-predictions\", default=True" not in src
 
 
@@ -64,28 +68,21 @@ def test_sidebar_is_empty_and_footer_present():
     at = _run()
     # nav is position="top"; nothing writes to the sidebar -> empty
     assert len(list(at.sidebar.markdown)) == 0, "sidebar must carry no markdown"
-    # the tip jar moved UP into the header, so it is no longer a button anywhere
-    assert not any(getattr(b, "key", None) == "tip_jar_btn" for b in at.button), \
-        "the footer tip-jar button must be gone (tip jar moved to the header)"
     caps = " ".join(str(c.value) for c in at.caption)
-    assert "buy me a coffee" not in caps, "the coffee caption must not remain in the footer"
-    # footer now carries only the centered public-repo line (an st.markdown, not a caption)
-    md = " ".join(str(m.value) for m in at.markdown)
-    assert "github.com/joscho11/JoSchoAnalytics" in md, "footer repo link missing"
+    assert "models and code behind this site are public" in caps, "footer disclosure missing"
+    src = (_HERE / "dashboard_chrome.py").read_text(encoding="utf-8")
+    assert '"View public code"' in src and '"Support via Venmo"' in src
 
 
-def test_header_has_brand_and_tip_jar():
+def test_header_has_brand_and_venmo_link():
     at = _run()
-    # the persistent header strip carries the brand (left) and the tip jar (right),
-    # moved byte-identical from the old footer — both live in one markdown div.
+    # The user's preferred Venmo support link stays in the persistent header.
     hdr = [str(m.value) for m in at.markdown
-           if "JoScho Analytics" in str(m.value) and "Tip Jar — Venmo @JoScho" in str(m.value)]
-    assert hdr, "header strip (brand + tip jar) must render on the page"
-    assert "https://venmo.com/u/JoScho" in hdr[0], "tip jar must keep the byte-identical Venmo URL"
-    assert "buy me a coffee ☕" in hdr[0], "the coffee line travels byte-identical as the tip-jar title"
-    # and it must NOT be duplicated as a footer button
-    assert not any(getattr(b, "key", None) == "tip_jar_btn" for b in at.button), \
-        "tip jar must not remain in the footer"
+           if "jsa-brand" in str(m.value) and "JoScho Analytics" in str(m.value)]
+    assert hdr, "header brand must render on the page"
+    assert "https://venmo.com/u/JoScho" in hdr[0], "header Venmo link missing"
+    assert "Tip Jar — Venmo @JoScho" in hdr[0], "header Venmo label changed"
+    assert 'aria-label="Support JoScho Analytics via Venmo"' in hdr[0]
 
 
 def test_phone_nav_button_is_three_bars():
@@ -95,14 +92,45 @@ def test_phone_nav_button_is_three_bars():
     assert "box-shadow:0 -.35rem 0 #fafafa, 0 .35rem 0 #fafafa" in src
 
 
+def test_links_keep_a_non_color_affordance():
+    config = (_HERE / ".streamlit" / "config.toml").read_text(encoding="utf-8")
+    skin = (_HERE / "theme_redesign.py").read_text(encoding="utf-8")
+    assert "linkUnderline = true" in config
+    assert "text-decoration:underline" in skin
+
+
 def test_shared_modules_import_safe():
     # importing the shared modules must not fire network/data work at import time
     import dashboard_data
     import dashboard_chrome
     for fn in ("load_predictions", "load_totals", "load_calibration"):
         assert hasattr(dashboard_data, fn)
-    for fn in ("send_ga_event", "inject_css", "render_header", "render_footer", "site_pageview_once"):
+    for fn in ("send_ga_event", "inject_css", "render_header", "render_footer",
+               "site_pageview", "site_pageview_once"):
         assert hasattr(dashboard_chrome, fn)
+
+
+def test_page_analytics_are_route_specific_and_deduplicated(tmp_path):
+    harness = tmp_path / "analytics_routes.py"
+    harness.write_text(
+        f"import sys; sys.path.insert(0, r'{_HERE}')\n"
+        "import streamlit as st\n"
+        "import dashboard_chrome as c\n"
+        "events = []\n"
+        "c.send_ga_event = lambda name, extra_params=None: events.append([name, extra_params])\n"
+        "st.query_params['private_filter'] = 'never-log-this'\n"
+        "c.site_pageview('Home', '')\n"
+        "c.site_pageview('Home', '')\n"
+        "c.site_pageview('Draft Board', 'draft-board')\n"
+        "st.json(events)\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness)).run()
+    assert not at.exception, at.exception
+    events = json.loads(at.json[0].value)
+    assert [event[0] for event in events] == ["page_view", "page_view"]
+    assert [event[1]["page_path"] for event in events] == ["/", "/draft-board"]
+    assert "private_filter" not in json.dumps(events)
 
 
 def test_dfs_stays_built_but_off_the_nav():
@@ -140,11 +168,11 @@ def test_every_page_renders_offline_clean(tmp_path):
 
 
 if __name__ == "__main__":
-    test_default_is_draft_board()
+    test_default_is_home()
     test_nav_groups_fantasy_then_betting()
     test_sidebar_is_empty_and_footer_present()
-    test_header_has_brand_and_tip_jar()
+    test_header_has_brand_and_venmo_link()
     test_phone_nav_button_is_three_bars()
     test_shared_modules_import_safe()
     test_nonselected_pages_are_lazy_imported()
-    print("OK  nav skeleton: Draft Board default, Fantasy then Betting, empty sidebar, header brand+tip jar, footer repo link")
+    print("OK  nav: Home default, Fantasy then Betting, empty sidebar, Venmo header, footer actions")

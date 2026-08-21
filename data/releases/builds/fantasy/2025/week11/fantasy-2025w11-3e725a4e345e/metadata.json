@@ -1,0 +1,62 @@
+{
+  "artifact_name": "fantasy_2025_week11.csv",
+  "artifact_sha256": "3e725a4e345ecdb3a645216d4094a0aea2fbddc91363e0874e9d5a89ab85c884",
+  "expected_player_ids_sha256": "61a5b4ddee8a553a582c2fb1d47e87e550516821fa6c580bb1efc06cab96564a",
+  "expected_rows": 596,
+  "expected_teams": [
+    "ARI",
+    "ATL",
+    "BAL",
+    "BUF",
+    "CAR",
+    "CHI",
+    "CIN",
+    "CLE",
+    "DAL",
+    "DEN",
+    "DET",
+    "GB",
+    "HOU",
+    "JAX",
+    "KC",
+    "LA",
+    "LAC",
+    "LV",
+    "MIA",
+    "MIN",
+    "NE",
+    "NYG",
+    "NYJ",
+    "PHI",
+    "PIT",
+    "SEA",
+    "SF",
+    "TB",
+    "TEN",
+    "WAS"
+  ],
+  "legacy_bootstrap": true,
+  "model_version": "legacy-2025-weekly-fantasy",
+  "position_counts": {
+    "QB": 76,
+    "RB": 149,
+    "TE": 128,
+    "WR": 243
+  },
+  "produced_at": "2026-05-13T22:08:11Z",
+  "product": "fantasy",
+  "schema_version": 1,
+  "season": 2025,
+  "validation": {
+    "checks": {
+      "artifact_sha256": "3e725a4e345ecdb3a645216d4094a0aea2fbddc91363e0874e9d5a89ab85c884",
+      "produced_at_utc": "2026-05-13T22:08:11Z"
+    },
+    "errors": [],
+    "ok": true,
+    "product": "fantasy",
+    "row_count": 596,
+    "warnings": []
+  },
+  "week": 11
+}

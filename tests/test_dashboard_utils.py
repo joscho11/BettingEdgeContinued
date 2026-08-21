@@ -57,6 +57,22 @@ def test_metric_card_colors_and_sub():
     with_sub = metric_card("Label", "42", sub="detail")
     assert "Label" in with_sub and "42" in with_sub and "detail" in with_sub
     assert "margin-top:3px" not in metric_card("L", "V")        # no sub div when sub is None
+    card = metric_card("Accessible label", "42")
+    assert "color:#93A0B1" in card
+    assert "color:#666" not in card
+
+
+def test_metric_card_label_meets_wcag_aa_contrast():
+    def luminance(hex_color):
+        channels = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+                  for c in channels]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    card = metric_card("Accessible label", "42")
+    assert "background:#1e2a3a" in card and "color:#93A0B1" in card
+    light, dark = sorted([luminance("#93A0B1"), luminance("#1E2A3A")], reverse=True)
+    assert (light + 0.05) / (dark + 0.05) >= 4.5
 
 
 # ── load_tracker / load_totals_tracker ───────────────────────────────────────

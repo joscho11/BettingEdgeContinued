@@ -343,7 +343,7 @@ def _render_college_watch(cls: int, position: str, loader, label: str) -> None:
 
 
 def render():
-    st.title("🧬 Rookie Board")
+    st.title("Rookie board")
     st.caption("A per-position hit-probability score for drafted rookies — plus season-total "
                "projections for RB/WR/TE, a college talent score covering all four positions, "
                "and college/athletic percentiles.")

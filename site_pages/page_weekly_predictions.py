@@ -15,7 +15,7 @@ import streamlit as st
 
 import dashboard_data
 import page_common
-from dashboard_utils import metric_card, get_confidence, _md_to_html
+from dashboard_utils import get_confidence, _md_to_html
 from live_2026 import (
     LIVE_HIGH_N,
     LIVE_HIGH_WILSON_LOWER,
@@ -25,7 +25,7 @@ from live_2026 import (
     row_display_high,
     row_high_dropped,
 )
-from page_common import load_agent_analysis, _MODE_BADGE_COLORS
+from page_common import load_agent_analysis
 
 
 def _demo_2025_notice():
@@ -51,6 +51,8 @@ def _live_notice():
 
 
 def render():
+    st.title("Weekly predictions")
+    st.caption("NFL spread projections, Tuesday HIGH picks, and graded results.")
     try:
         df = dashboard_data.load_predictions()
     except FileNotFoundError:
@@ -64,12 +66,23 @@ def render():
         st.stop()
     _calib = dashboard_data.load_calibration(df)
     totals_df = dashboard_data.load_totals()
+    default_season, default_week = page_common.release_default_selection(
+        "predictions", (2025, 10)
+    )
     def _season_week_controls(cols_container, key_prefix, with_week=True, with_edge=False):
         return page_common._season_week_controls(
-            df, cols_container, key_prefix, with_week, with_edge, default_week=1)
+            df,
+            cols_container,
+            key_prefix,
+            with_week,
+            with_edge,
+            default_week={2025: 10, 2026: 1, default_season: default_week},
+            default_season=default_season,
+        )
     st.markdown(page_common.ATS_BLURB, unsafe_allow_html=True)
     season, week, edge_threshold = _season_week_controls(
         st.columns(2), "wp", with_week=True, with_edge=False)
+    page_common.render_release_status("predictions", int(season), int(week))
     live = is_live_season(season)
     if not live:
         edge_threshold = st.slider(
@@ -98,7 +111,7 @@ def render():
             if not _totals_week.empty else {}
         )
 
-    st.title(f"🏈 Week {week} Predictions: {season} Season")
+    st.subheader(f"Week {week} · {season} season")
 
     _wk_correct_col = 'ens_model_correct' if ('ens_model_correct' in week_df.columns and week_df['ens_model_correct'].notna().any()) else 'model_correct'
     if live and not _any_pick:
@@ -134,15 +147,23 @@ def render():
             'backfill': ('🔵', 'Backfilled',        'Historical predictions'),
             'matchup':  ('⚪', 'Schedule',          'Matchups locked. Picks lock Tuesday 9:00 ET'),
         }
-        icon, label, desc = mode_labels.get(mode, ('⚪', 'Manual Run', ''))
-        _badge_color = _MODE_BADGE_COLORS.get(mode, '#888')
-        st.markdown(
-            f"<span style='background:{_badge_color}22;border:1px solid {_badge_color};"
-            f"border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;"
-            f"color:{_badge_color}'>{icon} {label}</span>"
-            f"<span style='font-size:12px;color:#666;margin-left:10px'>{desc} · updated {logged_at}</span>",
-            unsafe_allow_html=True
-        )
+        _icon, label, desc = mode_labels.get(mode, ('⚪', 'Manual run', ''))
+        _badge_colors = {
+            'monday': 'yellow', 'thursday': 'orange', 'sunday': 'green',
+            'backfill': 'blue', 'matchup': 'gray',
+        }
+        _badge_icons = {
+            'monday': ':material/schedule:', 'thursday': ':material/medical_services:',
+            'sunday': ':material/check_circle:', 'backfill': ':material/history:',
+            'matchup': ':material/calendar_today:',
+        }
+        with st.container(horizontal=True, vertical_alignment="center"):
+            st.badge(
+                label,
+                color=_badge_colors.get(mode, 'gray'),
+                icon=_badge_icons.get(mode, ':material/info:'),
+            )
+            st.caption(f"{desc} · updated {logged_at}")
 
     st.divider()
 
@@ -156,32 +177,37 @@ def render():
         filtered_df  = week_df[week_df[_primary_edge].abs() >= edge_threshold].copy()
         hidden_count = len(week_df) - len(filtered_df)
 
-    with st.container(key="jsa-metric-even-wp"):
-        col1, col2, col3, col4 = st.columns(4)
-        col1.markdown(metric_card("Total Games", len(week_df)), unsafe_allow_html=True)
+    with st.container(horizontal=True, key="jsa-metric-even-wp"):
+        st.metric("Total games", len(week_df), border=True)
         if live:
             _n_high = int(week_df.apply(row_display_high, axis=1).sum()) if not week_df.empty else 0
-            col2.markdown(metric_card("HIGH picks", _n_high, "green highlight, 3+ vs Tuesday"),
-                          unsafe_allow_html=True)
+            st.metric(
+                "HIGH picks", _n_high, "3+ points vs Tuesday",
+                delta_color="green", delta_arrow="off", border=True,
+            )
         else:
-            col2.markdown(metric_card("Showing", len(filtered_df), f"edge ≥ {edge_threshold} pts"), unsafe_allow_html=True)
+            st.metric(
+                "Showing", len(filtered_df), f"Edge ≥ {edge_threshold} points",
+                delta_color="gray", delta_arrow="off", border=True,
+            )
         _avg_edge = week_df[_primary_edge].abs().mean()
         if pd.isna(_avg_edge):
-            col3.markdown(metric_card("Avg Ensemble Edge", "—"), unsafe_allow_html=True)
+            st.metric("Average ensemble edge", None, border=True)
         else:
-            col3.markdown(metric_card("Avg Ensemble Edge", f"{_avg_edge:.1f} pts",
-                                      color="green" if _avg_edge >= 1.5 else "blue"), unsafe_allow_html=True)
+            st.metric("Average ensemble edge", f"{_avg_edge:.1f} points", border=True)
 
         if results_in and len(filtered_df) > 0:
             _settled_mask = filtered_df[_correct_col].notna()
             sc  = int(filtered_df.loc[_settled_mask, _correct_col].sum())
             _n_settled_filt = _settled_mask.sum()
             pct = sc / _n_settled_filt * 100 if _n_settled_filt > 0 else 0
-            col4.markdown(metric_card("ATS Record", f"{sc}/{_n_settled_filt}",
-                                      f"{pct:.0f}%",
-                                      color="green" if pct >= 52.4 else "red"), unsafe_allow_html=True)
+            st.metric(
+                "ATS record", f"{sc}/{_n_settled_filt}", f"{pct:.0f}%",
+                delta_color="green" if pct >= 52.4 else "red",
+                delta_arrow="off", border=True,
+            )
         else:
-            col4.markdown(metric_card("ATS Record", "Pending"), unsafe_allow_html=True)
+            st.metric("ATS record", "Pending", border=True)
 
     st.divider()
 
@@ -210,7 +236,7 @@ def render():
                 <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Tuesday HIGH</span>
                 <span style='font-size:12px;background:#1a3a1a;border:1px solid #00c853;
                             border-radius:4px;padding:2px 8px;color:#00c853;'>HIGH</span>
-                <span style='font-size:11px;color:#555;'>Green card = 3+ points vs the Tuesday 9am line, and the live line still 3+. Every other game still shows a pick. No medium tier. A line move can drop HIGH. It cannot create HIGH.</span>
+                <span style='font-size:11px;color:#93A0B1;'>Green card = 3+ points vs the Tuesday 9am line, and the live line still 3+. Every other game still shows a pick. No medium tier. A line move can drop HIGH. It cannot create HIGH.</span>
             </div>
         """, unsafe_allow_html=True)
     elif _has_consensus_col:
@@ -223,7 +249,7 @@ def render():
                             border-radius:4px;padding:2px 8px;color:#ffd600;'>MED</span>
                 <span style='font-size:12px;background:#3a1a1a;border:1px solid #ff5252;
                             border-radius:4px;padding:2px 8px;color:#ff5252;'>PASS</span>
-                <span style='font-size:11px;color:#555;'>All 3 models agree direction · Ensemble edge ≥3 pts = HIGH, ≥1 pt = MED</span>
+                <span style='font-size:11px;color:#93A0B1;'>All 3 models agree direction · Ensemble edge ≥3 pts = HIGH, ≥1 pt = MED</span>
             </div>
         """, unsafe_allow_html=True)
 

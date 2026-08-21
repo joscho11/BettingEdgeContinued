@@ -8,3 +8,7 @@ primaryColor = "#35D08A"
 backgroundColor = "#0B0F14"
 secondaryBackgroundColor = "#121821"
 textColor = "#E7ECF3"
+linkColor = "#35D08A"
+linkUnderline = true
+borderColor = "#2F3B4C"
+showWidgetBorder = true
