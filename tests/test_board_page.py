@@ -663,18 +663,15 @@ def test_outside_market_is_disjoint_from_the_board_and_fully_projected():
 def test_dontayvion_wicks_anchor_row():
     """One fully-verified anchor row, exact in every rendered field.
 
-    Rank note: WR105. The explorer starts from `_load_projections()`, so the disclosed
-    analyst overlay is applied before ranking — exactly as it is for the board's own Model
-    Proj Position Rank. This rank was WR106 until 2026-08-03, when Ricky Pearsall's row was
-    cut to 0.0 for season-ending surgery: his overlay now crosses DOWN past Wicks' 46.5,
-    cancelling Chris Brazzell's long-standing crossing UP (raw 12.8 -> board 55.6).
+    Rank note: WR100. The explorer starts from `_load_projections()`, so the disclosed
+    analyst overlay is applied before ranking. This rank was WR101 until 2026-08-22, when
+    Jayden Higgins's row was cut to 0.0 for a season-ending ACL tear. Ricky Pearsall was
+    already at 0.0 (2026-08-03). Those two overlays both cross DOWN past Wicks' 47.6.
+    Chris Brazzell still crosses UP (raw 23.6, board 55.6). Net: adjusted rank is one
+    better than the raw-column rank (100 vs 101).
 
-    Because the two crossings cancel, the adjusted rank currently EQUALS the raw-column rank
-    (105), so this anchor no longer discriminates adjusted-vs-raw ranking by itself — that
-    property is proven globally by
-    test_ranks_gaps_and_download_use_the_adjusted_projection. What is pinned here is the
-    exact pair of crossings, so any future overlay edit that disturbs either one fails loudly
-    instead of silently shifting the anchor.
+    Pin the exact crossings so a future overlay edit fails loudly here rather than
+    silently shifting the anchor.
     """
     import draft_board_2026 as board
 
@@ -686,12 +683,10 @@ def test_dontayvion_wicks_anchor_row():
     assert wicks["position"] == "WR"
     assert wicks["team"] == "PHI"
     assert float(wicks["model_proj"]) == 47.6
-    assert int(wicks["model_proj_pos_rank_full"]) == 101
+    assert int(wicks["model_proj_pos_rank_full"]) == 100
     assert float(wicks["nfl_talent"]) == 67.9
     assert float(wicks["college_talent"]) == 61.4
 
-    # Pin BOTH crossings and the fact that they cancel, so a future overlay edit fails
-    # loudly here rather than silently shifting the anchor.
     projections = board._load_projections()
     wr = projections[projections["position"].eq("WR")]
     raw_rank = wr["model_projection_raw"].rank(method="min", ascending=False)
@@ -699,8 +694,7 @@ def test_dontayvion_wicks_anchor_row():
     up = wr[(wr["model_projection_raw"] <= 47.6) & (wr["projection"] > 47.6)]
     down = wr[(wr["model_projection_raw"] > 47.6) & (wr["projection"] <= 47.6)]
     assert up["player"].tolist() == ["Chris Brazzell"]
-    assert down["player"].tolist() == ["Ricky Pearsall"]
-    assert len(up) == len(down), "the two crossings must cancel for the anchor to be 105"
+    assert set(down["player"]) == {"Ricky Pearsall", "Jayden Higgins"}
 
 
 def test_outside_market_rank_is_taken_against_the_full_projection_pool():

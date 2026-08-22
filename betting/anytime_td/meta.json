@@ -1,0 +1,23 @@
+{
+  "season": 2025,
+  "weeks": [
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+  ],
+  "model": "34 plus Sleeper half-PPR",
+  "n_rows": 2601,
+  "n_book": 2524,
+  "model_brier_full_2025": 0.13996174773131628,
+  "book_brier_full_2025": 0.1398503900431124,
+  "locked_model_brier_2025": 0.13996174773131628,
+  "locked_book_brier_2025": 0.1398503900431124,
+  "passing_tds": "out",
+  "sleeper_clock": "dump has no T-90 stamp",
+  "label": "demo. for fun. do not bet."
+}

@@ -28,6 +28,7 @@ A page should load CSV or JSON. If a change needs a `.pkl`, it belongs in a priv
 | **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper or ESPN ADP, positional ranks, rank gaps, and talent context. |
 | **Rookie Board** | Rookie hit probabilities, season projections, college production, and athletic context. |
 | **Weekly Fantasy** | Half-PPR and stat projections for QB, RB, WR, and TE. Actual results appear after games finish. |
+| **Anytime TDs** | 2025 weeks 10-17 demo. Priced comparison board of rushing and receiving TD chances versus the book. For fun. Do not bet. |
 | **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, and release status. |
 | **Track Record** | Graded against-the-spread results, confidence tiers, model comparisons, streaks, and betting simulations. |
 | **Season Totals** | Win projections for all 32 teams compared with posted season totals. |

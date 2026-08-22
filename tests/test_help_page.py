@@ -134,6 +134,7 @@ def test_help_covers_live_model_rundowns(tmp_path):
         "How Season Totals are built",
         "How Model Proj is built",
         "How weekly fantasy projections are built",
+        "How the Anytime TD demo works",
         "How the Over/Under model works (2025 demo, experimental)",
         "How the Rookie Board numbers are built",
     ):

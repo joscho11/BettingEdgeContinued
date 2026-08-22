@@ -76,6 +76,7 @@ def render() -> None:
     with st.container(horizontal=True, gap="small"):
         _page_link("rookie-board", "Rookie Board", ":material/biotech:")
         _page_link("weekly-fantasy", "Weekly Fantasy", ":material/trophy:")
+        _page_link("anytime-tds", "Anytime TDs", ":material/sports_score:")
         _page_link("season-totals", "Season Totals", ":material/bar_chart:")
         _page_link("league-history", "League History", ":material/history:")
         _page_link("film-room", "Film Room", ":material/movie:")

@@ -26,6 +26,7 @@ PAGE_MODULES = (
     "page_draft_board",
     "page_rookie_board",
     "page_weekly_fantasy",
+    "page_anytime_td",
     "page_film_room",
     "page_league_history",
     "page_help",
@@ -138,6 +139,8 @@ def test_dfs_is_not_in_the_public_site():
     assert not (_HERE / "site_pages" / "page_dfs.py").is_file()
     fantasy = src.split('"Fantasy":', 1)[1].split("]", 1)[0]
     assert "wf_pg" in fantasy
+    betting = src.split('"Betting":', 1)[1].split("]", 1)[0]
+    assert "atd_pg" in betting
 
 
 def test_nonselected_pages_are_lazy_imported():

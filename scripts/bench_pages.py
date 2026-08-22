@@ -45,6 +45,7 @@ PAGE_MODULES = (
     "page_draft_board",
     "page_rookie_board",
     "page_weekly_fantasy",
+    "page_anytime_td",
     "page_film_room",
     "page_league_history",
     "page_help",

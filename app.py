@@ -71,6 +71,8 @@ board_pg = st.Page(_lazy_render("page_draft_board"), title="Draft Board", icon="
                    url_path="draft-board")
 wp_pg = st.Page(_lazy_render("page_weekly_predictions"), title="Weekly Predictions", icon=":material/query_stats:",
                 url_path="weekly-predictions")
+atd_pg = st.Page(_lazy_render("page_anytime_td"), title="Anytime TDs", icon=":material/sports_score:",
+                 url_path="anytime-tds")
 wf_pg = st.Page(_lazy_render("page_weekly_fantasy"), title="Weekly Fantasy", icon=":material/trophy:",
                 url_path="weekly-fantasy")
 tr_pg = st.Page(_lazy_render("page_track_record"), title="Track Record", icon=":material/monitoring:",
@@ -88,7 +90,8 @@ fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals", icon=":mat
 
 # cross-link registry (design 4g) — populated before nav.run() so pages can link
 nav_registry.PAGES = {
-    "home": home_pg, "draft-board": board_pg, "weekly-predictions": wp_pg, "weekly-fantasy": wf_pg,
+    "home": home_pg, "draft-board": board_pg, "weekly-predictions": wp_pg, "anytime-tds": atd_pg,
+    "weekly-fantasy": wf_pg,
     "track-record": tr_pg, "film-room": film_pg, "league-history": lh_pg, "help": help_pg,
     "rookie-board": rb_pg, "season-totals": fut_pg,
 }
@@ -107,7 +110,7 @@ mobile.inject()
 nav = st.navigation(
     {"": [home_pg],
      "Fantasy": [board_pg, rb_pg, wf_pg],
-     "Betting": [wp_pg, tr_pg, fut_pg],
+     "Betting": [wp_pg, atd_pg, tr_pg, fut_pg],
      "More": [film_pg, lh_pg, help_pg]},
     position="top",
 )

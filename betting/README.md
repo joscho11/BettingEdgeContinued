@@ -4,6 +4,7 @@ This folder is website display data and rules. Training lives in `spread_v3_prod
 
 | Path | Role |
 |---|---|
+| `anytime_td/` | Frozen 2025 Anytime TD demo CSVs (weeks 10-17) |
 | `live_2026.py` | 2026 HIGH / PASS rules |
 | `calibration.py` | Cover rates from the graded tracker |
 | `predictions_tracker.csv` | Graded 2025 demo plus stamped 2026 rows |

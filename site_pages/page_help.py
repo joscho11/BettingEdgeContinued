@@ -133,6 +133,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 
 - **2025 Weekly Predictions** weeks 10-end: old three-model consensus, HIGH / MED / PASS badges, Min Edge slider.
 - **2025 Weekly Fantasy** weeks 10-17: previous per-position XGBoost system, extra prop columns.
+- **Anytime TDs:** 2025 weeks 10-17, rushing and receiving TDs only. The book wins. Do not bet this.
 - **Over/Under totals:** 2025 demo only, experimental, not on the 2026 week page.
 
 **Not a prediction model**
@@ -146,7 +147,7 @@ Everything lives in the top navigation bar, grouped into three menus:
 
 - **Home**: a stable overview of what is live and where to start.
 - **Fantasy**: Draft Board, Rookie Board, and Weekly Fantasy.
-- **Betting**: Weekly Predictions, Track Record, and Season Totals.
+- **Betting**: Weekly Predictions, Anytime TDs, Track Record, and Season Totals.
 - **More**: Film Room, League History, and this Help & Guide.
 
 The site opens on **Home** every time. There is no sidebar. Each product page carries its own controls (Season and Week, plus a Min Edge slider on the 2025 demo weeks) near the top. Season and Week selections on Weekly Predictions and Weekly Fantasy are reflected in the URL, so a filtered view can be shared.
@@ -221,6 +222,16 @@ The page opens on **2026 Week 1**. Rankings for that week will be here soon. **2
 Search by player. Older demo weeks also show extra columns (team EPA, implied total, health, some stat projections). Actual points fill in after the games.
 
 How those files are built sits in **How weekly fantasy projections are built** below.
+        """)
+
+    with st.expander("What is the Anytime TDs page?"):
+        st.markdown("""
+A 2025 weeks 10-17 board of rushing and receiving anytime-TD probabilities
+versus the book. Priced players only, sorted by our P(TD). Passing TDs are out.
+For fun. Do not bet this.
+
+The book still wins on the full 2025 overlap. How the number is built sits in
+**How the Anytime TD demo works** below.
         """)
 
     with st.expander("What is the Draft Board page?"):

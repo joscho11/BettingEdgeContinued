@@ -3,6 +3,7 @@ player_id,player,position,team,raw_projection,adjusted_projection,method,as_of,n
 00-0039894,Xavier Worthy,WR,,84.0,131.0,wr_games_weighted_ppg_x_16_5,2026-07-26,Healthy-rate scenario after a 14-game injury-disrupted season
 00-0039915,Ladd McConkey,WR,,153.1,174.7,wr_games_weighted_ppg_x_16_5,2026-07-26,Healthy-rate scenario with an established role earning receptions
 00-0039916,Ricky Pearsall,WR,,66.3,0.0,wr_player_specific_availability_scenario,2026-08-03,Season-ending knee surgery with placement on injured reserve before the season
+00-0040130,Jayden Higgins,WR,,89.4,0.0,wr_player_specific_availability_scenario,2026-08-22,Season-ending ACL tear with placement on injured reserve before the season
 00-0039919,Rome Odunze,WR,,85.0,125.0,wr_player_specific_role_scenario,2026-07-27,Availability-neutralized role scenario after a five-game absence in a shared receiver room
 00-0038559,Michael Wilson,WR,,115.5,129.4,wr_player_specific_role_scenario,2026-07-27,Probability-weighted role scenario reflecting a healthy teammate's return to the receiver room
 00-0038542,Bijan Robinson,RB,,208.2,248.2,rb_measured_compression_plus_18,2026-07-26,Conservative measured-compression overlay for a confirmed lead back

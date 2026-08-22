@@ -77,6 +77,7 @@ def render_rundowns():
     _season_totals()
     _draft_board()
     _weekly_fantasy()
+    _anytime_td()
     _totals_demo()
     _rookie_board()
 
@@ -256,6 +257,30 @@ usage, expected fantasy points, opponent, and the implied team total. It is not 
                 "the honest story: last week's role is most of next week's projection. "
                 "Top five bars do not sum to 100%."
             )
+
+
+def _anytime_td():
+    with st.expander("How the Anytime TD demo works"):
+        st.markdown("""
+**Status: demo. For fun. Do not bet this.** 2025 weeks 10-17 only.
+
+The number is the chance a skill player scores a **rushing or receiving** touchdown
+in that game. Passing touchdowns are out. The model is a Poisson rate on 34 locked
+usage features plus that week's Sleeper half-PPR projection. It does not use the
+anytime price as an input.
+
+On the full 2025 overlap (n=5,310) the book still wins: Brier **0.13985** vs our
+**0.13996**. Sleeper's dump has no freeze timestamp. The last regular week is skipped
+because those box scores are rest and backups.
+
+The page is a **priced comparison board**: every skill player the books quoted
+that week, our P(TD) next to the book, sorted by our probability. About one in
+five hits. It is not a pick list. A cut of the biggest disagreements lost on 2025.
+        """)
+        st.caption(
+            "This page does not prove a 2026 live freeze would beat the book. "
+            "It is a historical walkthrough of the closest research arm."
+        )
 
 
 def _totals_demo():
