@@ -52,6 +52,8 @@ def test_default_is_home():
         f"default landing page should be Home; titles={titles!r}"
     assert "Weekly predictions" not in titles, \
         f"Weekly Predictions must not be the default; titles={titles!r}"
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Compare anytime TDs" in md
 
 
 def test_nav_groups_fantasy_then_betting():

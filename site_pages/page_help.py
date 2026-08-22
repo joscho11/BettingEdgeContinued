@@ -43,6 +43,7 @@ def render():
         for slug, label, icon in (
             ("draft-board", "Build a draft plan", ":material/list_alt:"),
             ("weekly-predictions", "Read this week's slate", ":material/query_stats:"),
+            ("anytime-tds", "Compare anytime TDs", ":material/sports_score:"),
             ("track-record", "Audit the results", ":material/monitoring:"),
         ):
             page = nav_registry.PAGES.get(slug)
@@ -133,7 +134,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 
 - **2025 Weekly Predictions** weeks 10-end: old three-model consensus, HIGH / MED / PASS badges, Min Edge slider.
 - **2025 Weekly Fantasy** weeks 10-17: previous per-position XGBoost system, extra prop columns.
-- **Anytime TDs:** 2025 weeks 10-17, rushing and receiving TDs only. The book wins. Do not bet this.
+- **Anytime TDs:** 2025 weeks 10-17, rushing and receiving TDs only. Not even money. The book was still a hair more accurate. For fun. Not a proven edge.
 - **Over/Under totals:** 2025 demo only, experimental, not on the 2026 week page.
 
 **Not a prediction model**
@@ -228,10 +229,12 @@ How those files are built sits in **How weekly fantasy projections are built** b
         st.markdown("""
 A 2025 weeks 10-17 board of rushing and receiving anytime-TD probabilities
 versus the book. Priced players only, sorted by our P(TD). Passing TDs are out.
-For fun. Do not bet this.
+Not even money: a typical quote is around one in five, so misses will outnumber
+hits. For fun. Not a proven edge. Bet responsibly.
 
-The book still wins on the full 2025 overlap. How the number is built sits in
-**How the Anytime TD demo works** below.
+Over full 2025 the sportsbooks were still about 0.08% more accurate. On these
+eight demo weeks our numbers were closer in 5; that is not a betting record.
+How the number is built sits in **How the Anytime TD demo works** below.
         """)
 
     with st.expander("What is the Draft Board page?"):

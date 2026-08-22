@@ -28,7 +28,7 @@ A page should load CSV or JSON. If a change needs a `.pkl`, it belongs in a priv
 | **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper or ESPN ADP, positional ranks, rank gaps, and talent context. |
 | **Rookie Board** | Rookie hit probabilities, season projections, college production, and athletic context. |
 | **Weekly Fantasy** | Half-PPR and stat projections for QB, RB, WR, and TE. Actual results appear after games finish. |
-| **Anytime TDs** | 2025 weeks 10-17 demo. Priced comparison board of rushing and receiving TD chances versus the book. For fun. Do not bet. |
+| **Anytime TDs** | 2025 weeks 10-17 demo. Priced comparison board of rushing and receiving TD chances versus the book. For fun. Not a proven edge. |
 | **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, and release status. |
 | **Track Record** | Graded against-the-spread results, confidence tiers, model comparisons, streaks, and betting simulations. |
 | **Season Totals** | Win projections for all 32 teams compared with posted season totals. |
@@ -43,6 +43,7 @@ The site covers four published product families:
 - **NFL spreads:** an independent margin estimate compared with the sportsbook line. The site separates the live 2026 record from the 2025 demo.
 - **Game and season totals:** a 2025 experimental game-total demo plus a separate 32-team season-win product.
 - **Weekly fantasy:** player-level half-PPR and stat projections with postgame grading.
+- **Anytime TDs:** a 2025 demo of rushing and receiving TD chances next to the book. For fun. Not a proven edge.
 - **Draft and rookie analysis:** season projections, market ranks, rookie hit probabilities, and descriptive NFL and college talent scores.
 
 Live spread and weekly-fantasy producers submit candidate files to this repository. The code in `publishing/` validates schemas, coverage, timestamps, hashes, and model versions before it creates an immutable release. The site reads those releases. The grading workflow writes results without changing the original prediction.
@@ -97,6 +98,7 @@ Set `APP_OFFLINE=1` when running page tests without network access. CI uses the 
 ## Guides
 
 - [Betting](betting/README.md)
+- [Anytime TDs](betting/anytime_td/GUIDE.md)
 - [Weekly fantasy](fantasy/GUIDE.md)
 - [Talent scores](fantasy/talent/README.md)
 - [Rookie Board](fantasy/rookie/README.md)

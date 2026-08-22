@@ -15,6 +15,7 @@ Private producers:
 - `spread_v3_prod` writes weekly spread candidates
 - `weekly_projections_v2_prod` writes weekly fantasy candidates
 - `td_count_model_beta` writes 2025 Anytime TD demo CSVs into `betting/anytime_td/`
+- Guide: `betting/anytime_td/GUIDE.md`
 - 2026 Anytime TD book Yes is a manual T-3h paste from Joseph. Do not call the Odds API for live weeks.
 
 This repo validates candidates in `publishing/`, stores them under `data/releases/`,

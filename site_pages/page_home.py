@@ -51,6 +51,7 @@ def render() -> None:
                 ":material/query_stats:",
             )
 
+    with st.container(horizontal=True, gap="medium"):
         with st.container(border=True, height="stretch"):
             st.markdown("### Audit the evidence")
             st.caption(
@@ -59,11 +60,20 @@ def render() -> None:
             )
             _page_link("track-record", "Open the Track Record", ":material/monitoring:")
 
+        with st.container(border=True, height="stretch"):
+            st.markdown("### Compare anytime TDs")
+            st.caption(
+                "2025 demo of rushing and receiving TD chances next to the book. "
+                "Not even money. For fun. Not a proven edge."
+            )
+            _page_link("anytime-tds", "Open Anytime TDs", ":material/sports_score:")
+
     season_start = board_refresh_season_start()
     if date.today() < season_start:
         st.info(
             "The site is in preseason mode. The Draft Board and Week 1 matchups are live; "
             "weekly fantasy rankings publish when that week's projection file lands. "
+            "Anytime TDs is a 2025 demo. "
             f"The next planned Draft Board model snapshot is before {season_start:%B %d}."
         )
     else:
@@ -76,7 +86,6 @@ def render() -> None:
     with st.container(horizontal=True, gap="small"):
         _page_link("rookie-board", "Rookie Board", ":material/biotech:")
         _page_link("weekly-fantasy", "Weekly Fantasy", ":material/trophy:")
-        _page_link("anytime-tds", "Anytime TDs", ":material/sports_score:")
         _page_link("season-totals", "Season Totals", ":material/bar_chart:")
         _page_link("league-history", "League History", ":material/history:")
         _page_link("film-room", "Film Room", ":material/movie:")

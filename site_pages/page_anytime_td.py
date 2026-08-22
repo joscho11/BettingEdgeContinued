@@ -24,6 +24,16 @@ DESKTOP_COLS = [
     "Our fair", "P(2+)", "Hit",
 ]
 PHONE_COLS = ["#", "Player", "Our P(TD)", "Book", "Hit"]
+PHONE_LABELS = {
+    "Our P(TD)": "Ours",
+}
+PHONE_WIDTHS = {
+    "#": 50,
+    "Player": 148,
+    "Our P(TD)": 58,
+    "Book": 54,
+    "Hit": 50,
+}
 
 
 def _parse_week(name: str) -> int | None:
@@ -143,9 +153,8 @@ def _style(view: pd.DataFrame):
     return _apply
 
 
-def _board(view: pd.DataFrame, slug: str, search: str) -> None:
-    table = _display(view)
-    cfg = {
+def _desktop_column_config() -> dict:
+    return {
         "#": st.column_config.NumberColumn("#", format="%d", width=50, pinned=True,
                                            help="Row number in this list as currently sorted."),
         "Player": st.column_config.TextColumn("Player", help="Name and NFL team."),
@@ -162,11 +171,47 @@ def _board(view: pd.DataFrame, slug: str, search: str) -> None:
             "vs book", format="%+.1f",
             help="Our probability minus the book, in percentage points. Not a bet.",
         ),
-        "Our fair": st.column_config.TextColumn("Our fair", help="American odds implied by our P(TD)."),
-        "P(2+)": st.column_config.NumberColumn("P(2+)", format="percent",
-                                               help="Chance of two or more rushing or receiving TDs."),
-        "Hit": st.column_config.TextColumn("Hit", help="Did they score a rushing or receiving TD?"),
+        "Our fair": st.column_config.TextColumn(
+            "Our fair", help="American odds implied by our P(TD).",
+        ),
+        "P(2+)": st.column_config.NumberColumn(
+            "P(2+)", format="percent",
+            help="Chance of two or more rushing or receiving TDs.",
+        ),
+        "Hit": st.column_config.TextColumn(
+            "Hit", help="Did they score a rushing or receiving TD?",
+        ),
     }
+
+
+def _phone_column_config() -> dict:
+    cfg = _desktop_column_config()
+    cfg["#"] = st.column_config.NumberColumn(
+        "#", format="%d", width=PHONE_WIDTHS["#"], pinned=True,
+        help="Row number in this list as currently sorted.",
+    )
+    cfg["Player"] = st.column_config.TextColumn(
+        "Player", width=PHONE_WIDTHS["Player"], pinned=True,
+        help="Name and NFL team.",
+    )
+    cfg["Our P(TD)"] = st.column_config.NumberColumn(
+        PHONE_LABELS["Our P(TD)"], format="percent",
+        width=PHONE_WIDTHS["Our P(TD)"], pinned=True,
+        help="Our chance the player scores a rushing or receiving TD.",
+    )
+    cfg["Book"] = st.column_config.NumberColumn(
+        "Book", format="percent", width=PHONE_WIDTHS["Book"], pinned=True,
+        help="Median implied Yes from at least 3 US books, T-2h close.",
+    )
+    cfg["Hit"] = st.column_config.TextColumn(
+        "Hit", width=PHONE_WIDTHS["Hit"], pinned=True,
+        help="Did they score a rushing or receiving TD?",
+    )
+    return cfg
+
+
+def _board(view: pd.DataFrame, slug: str, search: str) -> None:
+    table = _display(view)
     style_fn = _style(table)
     show = table[DESKTOP_COLS]
     phone = table[PHONE_COLS]
@@ -177,40 +222,55 @@ def _board(view: pd.DataFrame, slug: str, search: str) -> None:
         hide_index=True,
         width="stretch",
         height=TABLE_HEIGHT,
-        column_config=cfg,
+        column_config=_desktop_column_config(),
+        phone_column_config=_phone_column_config(),
         key=f"atd_grid_{slug}_{search}_{len(table)}",
     )
+
+
+def _reading_guide() -> None:
+    with st.expander("How to read this board"):
+        st.markdown("""
+Chance a skill player scores a rushing or receiving touchdown. Passing TDs are
+out. This is not even money: a typical quote is around one in five, so misses
+will outnumber hits. Over full 2025 the sportsbooks were still about 0.08% more
+accurate. On these eight demo weeks our numbers were closer in 5; that is not a
+betting record. For fun, not a proven edge. Bet responsibly.
+
+**Desktop columns.** #, Player (name and team), Pos, Opp, Our P(TD), Book,
+vs book (percentage points, not a pick), Our fair, P(2+), Hit.
+
+**Phone columns.** #, Player, Ours, Book, Hit. Swipe the position tabs.
+        """)
 
 
 def render() -> None:
     st.title("Anytime TDs")
     st.caption(
         "Chance a skill player scores a rushing or receiving touchdown. "
-        "Passing TDs are out. This is not even money: a typical quote is around "
-        "one in five, so misses will outnumber hits. Over full 2025 the sportsbooks "
-        "were still about 0.08% more accurate. On these eight demo weeks our numbers "
-        "were closer in 5; that is not a betting record. For fun, not a proven edge. "
-        "Bet responsibly."
+        "Passing TDs are out. Demo. For fun. Bet responsibly."
     )
     available = available_weeks()
     if not available:
         st.error("Anytime TD demo files are missing.")
         st.stop()
     weeks = sorted(available)
-    controls = st.columns([1, 2])
-    seeded = page_common.seed_widget_from_query("atd_week", "atd_week", weeks)
-    week_kwargs = {"key": "atd_week"}
-    if not seeded and "atd_week" not in st.session_state:
-        week_kwargs["index"] = weeks.index(DEFAULT_WEEK) if DEFAULT_WEEK in weeks else 0
-    week = int(controls[0].selectbox("Week", weeks, **week_kwargs))
-    page_common.sync_query_value("atd_week", week)
-    search = controls[1].text_input(
-        "Search player", placeholder="Barkley, Jefferson", key="atd_search",
-    )
+    with st.container(key="jsa-filter-bar"):
+        controls = st.columns([1, 2])
+        seeded = page_common.seed_widget_from_query("atd_week", "atd_week", weeks)
+        week_kwargs = {"key": "atd_week"}
+        if not seeded and "atd_week" not in st.session_state:
+            week_kwargs["index"] = weeks.index(DEFAULT_WEEK) if DEFAULT_WEEK in weeks else 0
+        week = int(controls[0].selectbox("Week", weeks, **week_kwargs))
+        page_common.sync_query_value("atd_week", week)
+        search = controls[1].text_input(
+            "Search player", placeholder="Barkley, Jefferson", key="atd_search",
+        )
 
     with st.container(horizontal=True, vertical_alignment="center"):
         st.badge("Demo", icon=":material/science:", color="orange")
         st.caption("Priced players only. Sorted by our P(TD). 2025 weeks 10-17 demo.")
+    _reading_guide()
 
     raw = _load_csv(str(available[week]))
     need = [
@@ -230,10 +290,10 @@ def render() -> None:
     hit_pct = 100 * summary["hit_rate"] if summary["hit_rate"] is not None else 0
     with st.container(horizontal=True, key="jsa-metric-even-atd"):
         st.metric("Priced", summary["n"], border=True)
-        st.metric("Scored a TD", f"{summary['hits']}/{summary['n']}", f"{hit_pct:.0f}%",
+        st.metric("Scored", f"{summary['hits']}/{summary['n']}", f"{hit_pct:.0f}%",
                   delta_arrow="off", border=True)
-        st.metric("Our mean P", f"{100 * summary['mean_p']:.0f}%", border=True)
-        st.metric("Book mean P", f"{100 * summary['mean_book']:.0f}%", border=True)
+        st.metric("Our P", f"{100 * summary['mean_p']:.0f}%", border=True)
+        st.metric("Book P", f"{100 * summary['mean_book']:.0f}%", border=True)
 
     if search:
         priced = priced[priced.player_display_name.str.contains(

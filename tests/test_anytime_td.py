@@ -37,12 +37,14 @@ def test_anytime_td_renders_and_owns_controls(tmp_path):
     titles = " ".join(str(t.value) for t in at.title)
     assert "Anytime TDs" in titles
     captions = " ".join(str(c.value) for c in at.caption)
-    blob = captions + " ".join(str(item.value) for item in at.info)
+    md = " ".join(str(item.value) for item in at.markdown)
+    blob = captions + md + " ".join(str(item.value) for item in at.info)
     assert "Passing TDs are out" in blob or "rushing or receiving" in blob
     assert "not even money" in blob
     assert "Bet responsibly" in blob
     assert "closer in 5" in blob
     assert "Eight players" not in blob
+    assert any("How to read this board" in str(e.label) for e in at.expander)
     assert any(getattr(w, "key", None) == "atd_search" for w in at.text_input)
 
 
@@ -74,6 +76,15 @@ def test_priced_rows_drop_unpriced_and_keep_rb_fb():
     summary = page.week_summary(priced)
     assert summary["n"] == 2
     assert summary["hits"] == 1
+
+
+def test_phone_grid_keeps_five_pinned_columns():
+    import page_anytime_td as page
+
+    assert page.PHONE_COLS == ["#", "Player", "Our P(TD)", "Book", "Hit"]
+    assert page.PHONE_LABELS["Our P(TD)"] == "Ours"
+    assert page.PHONE_WIDTHS["#"] >= 50
+    assert set(page.PHONE_COLS).issubset(page.DESKTOP_COLS)
 
 
 def test_week10_priced_board_is_larger_than_a_card():

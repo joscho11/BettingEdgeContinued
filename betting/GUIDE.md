@@ -74,6 +74,11 @@ Publication keeps prediction inputs immutable. Final scores and ATS results are 
 
 Training code for the live spread is in the private `spread_v3_prod` repository. This public tree does not ship notebooks or serialized models.
 
+## Anytime TDs demo
+
+A separate 2025 weeks 10-17 board of rushing and receiving TD chances versus the
+book. For fun. Not a proven edge. Full guide: [anytime_td/GUIDE.md](anytime_td/GUIDE.md).
+
 ## Reproducing the public state
 
 The public repository can validate and display a candidate, but it cannot retrain the private 2026 spread producer. To inspect what is live:
