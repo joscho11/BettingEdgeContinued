@@ -367,7 +367,7 @@ Useful as a rough look at player props. They are **independent** models, so they
 
 **Proj Pts:** projected half-PPR points. 0.5 per reception, 1 per 10 rush or receiving yards, 6 per TD.
 
-**Off EPA:** the team's offensive efficiency over the last 4 games, Expected Points Added per play. Higher is better. Demo weeks only.
+**Off EPA:** the team's offensive efficiency over the last 4 games, Expected Points Added per play. Higher is better. Legacy 2025 demo weeks only; it is not in the Week 17 preview or 2026+ layout.
 
 **EPA Rank:** where that offense ranks among 32 teams this season. Green to red.
 
@@ -380,7 +380,7 @@ Useful as a rough look at player props. They are **independent** models, so they
 
     with st.expander("What is Off EPA?"):
         st.markdown("""
-**Off EPA** is Offensive Expected Points Added per play, averaged over the team's last 4 games. Demo-week column.
+**Off EPA** is Offensive Expected Points Added per play, averaged over the team's last 4 games. It appears only in the legacy 2025 demo layout, not the Week 17 preview or 2026+ layout.
 
 EPA measures how much each play moves the needle toward scoring. A 5-yard gain on 3rd and 4 is worth more than a 5-yard gain on 1st and 10, because it accounts for down, distance, and field position.
 

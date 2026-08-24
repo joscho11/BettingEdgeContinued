@@ -146,33 +146,33 @@ def test_preview_column_contract_matches_simple_and_detailed_views():
     ]
     assert ["#", *weekly._preview_table_columns("QB", True, False)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds", "Proj Rush Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
     ]
     assert ["#", *weekly._preview_table_columns("RB", True, False)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Rush Yds", "Proj Rec Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
     ]
     assert ["#", *weekly._preview_table_columns("WR", True, False)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Rec Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
     ]
     assert ["#", *weekly._preview_table_columns("TE", True, False)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Rec Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
     ]
     assert ["#", *weekly._preview_table_columns("QB", True, True)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds", "Proj Rush Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
         "Actual Pts", "Actual Pass Yds", "Actual Rush Yds",
     ]
     assert ["#", *weekly._preview_table_columns("RB", True, True)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Rush Yds", "Proj Rec Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
         "Actual Pts", "Actual Rush Yds", "Actual Rec Yds",
     ]
     assert ["#", *weekly._preview_table_columns("WR", True, True)] == [
         "#", "Player", "Opponent", "Proj Pts", "Proj Rec Yds",
-        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "EPA Rank", "Team Total", "Health",
         "Actual Pts", "Actual Rec Yds",
     ]
 
@@ -219,7 +219,6 @@ def test_future_release_uses_enabled_player_prop_toggle(tmp_path):
         "pred_rec_yards": [None],
         "pred_wr_rec_yards": [None],
         "pred_te_rec_yards": [None],
-        "off_epa_roll4": [0.08],
         "off_epa_rank": [7],
         "implied_team_total": [24.5],
         "injury_status_score": [1.0],

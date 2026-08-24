@@ -23,7 +23,7 @@ LIVE_FORMAT_PREVIEW = (DEMO_SEASON, 17)
 PREVIEW_DETAIL_SOURCE_COLUMNS = (
     "pred_qb_pass_yards", "pred_qb_rush_yards", "pred_rush_yards",
     "pred_rec_yards", "pred_wr_rec_yards", "pred_te_rec_yards",
-    "off_epa_roll4", "off_epa_rank", "implied_team_total", "injury_status_score",
+    "off_epa_rank", "implied_team_total", "injury_status_score",
 )
 PREVIEW_SIMPLE_COLUMNS = ["Player", "Opponent", "Proj Pts"]
 PREVIEW_PROJECTED_COLUMNS = {
@@ -32,7 +32,7 @@ PREVIEW_PROJECTED_COLUMNS = {
     "WR": ["Proj Rec Yds"],
     "TE": ["Proj Rec Yds"],
 }
-PREVIEW_CONTEXT_COLUMNS = ["Off EPA", "EPA Rank", "Team Total", "Health"]
+PREVIEW_CONTEXT_COLUMNS = ["EPA Rank", "Team Total", "Health"]
 PREVIEW_ACTUAL_COLUMNS = {
     "QB": ["Actual Pass Yds", "Actual Rush Yds"],
     "RB": ["Actual Rush Yds", "Actual Rec Yds"],
@@ -309,7 +309,7 @@ def render():
                 disabled=not detail_available,
                 help=(
                     "Show projected pass, rush, and receiving yards by position, plus "
-                    "last-four offensive EPA, implied team total, and health."
+                    "last-four offensive EPA rank, implied team total, and health."
                 ),
             )) and detail_available
             if detail_available:
@@ -367,10 +367,12 @@ def render():
         def make_style_table(display_df):
             def _style(df):
                 styles = pd.DataFrame("", index=df.index, columns=df.columns)
-                if "Off EPA" in df.columns and "EPA Rank" in df.columns:
+                if "Off EPA" in df.columns or "EPA Rank" in df.columns:
                     for i, rank in enumerate(display_df["off_epa_rank"]):
-                        styles.iloc[i, df.columns.get_loc("Off EPA")]  = rank_color(rank)
-                        styles.iloc[i, df.columns.get_loc("EPA Rank")] = rank_color(rank)
+                        if "Off EPA" in df.columns:
+                            styles.iloc[i, df.columns.get_loc("Off EPA")] = rank_color(rank)
+                        if "EPA Rank" in df.columns:
+                            styles.iloc[i, df.columns.get_loc("EPA Rank")] = rank_color(rank)
                 if "Team Total" in df.columns:
                     for i, val in enumerate(display_df["implied_team_total"]):
                         styles.iloc[i, df.columns.get_loc("Team Total")] = total_color(val)
@@ -473,12 +475,15 @@ def render():
                     display["Opponent"] = display["opponent_team"]
                 display["Proj Pts"] = display["projected_pts"].round(1)
                 has_health = "injury_status_score" in display.columns
-                has_epa = "off_epa_roll4" in display.columns and "off_epa_rank" in display.columns
+                has_epa_value = "off_epa_roll4" in display.columns
+                has_epa_rank = "off_epa_rank" in display.columns
+                has_epa = has_epa_value and has_epa_rank
                 has_total = "implied_team_total" in display.columns
                 if has_health:
                     display["Health"] = display["injury_status_score"].map(injury_icon)
-                if has_epa:
+                if has_epa_value:
                     display["Off EPA"] = display["off_epa_roll4"].round(3)
+                if has_epa_rank:
                     display["EPA Rank"] = display["off_epa_rank"].map(ordinal)
                 if has_total:
                     display["Team Total"] = display["implied_team_total"].round(1)
@@ -570,7 +575,7 @@ def render():
                     "Opponent":   st.column_config.TextColumn("Opponent",
                                       help="This week's opponent. '@' = away game, 'vs' = home game. Note: column sorts alphabetically — meaningful numeric sort not available for matchup labels."),
                     "EPA Rank":   st.column_config.TextColumn("EPA Rank",
-                                      help="Team's offensive EPA rank among all 32 NFL teams this season (1 = best offense, 32 = worst). Note: sorts alphabetically due to a Streamlit limitation — use Off EPA for accurate numeric sorting."),
+                                      help="Team's last-four-game offensive EPA rank among all 32 NFL teams (1 = best offense, 32 = worst). Green is better; red is worse. Note: this text column sorts alphabetically."),
                     "Health":     st.column_config.TextColumn("Health",
                                       help="Player's injury status from the weekly NFL injury report.\n\n✅ Healthy  🟡 Questionable  ⚠️ Doubtful  ❌ Out\n\nNote: sorts alphabetically due to a Streamlit limitation."),
                     "Proj Pts":   st.column_config.NumberColumn("Proj Pts",   format="%.1f",
