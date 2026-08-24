@@ -345,6 +345,8 @@ MAE is the average number of points the projection was off by. For WR, about 3.9
         st.markdown("""
 These extra stat columns appear on the **2025 demo weeks**. 2026 live weeks show half-PPR points; the extra yard/reception columns only show when that file has them.
 
+Open **Stat reference** on Weekly Fantasy to see the available estimates in one table, filter by market, and compare with postgame actuals. These are model estimates, not sportsbook lines or betting recommendations.
+
 Eight separate XGBoost models, trained on the same data with each stat as the target:
 
 | Column | Position | What it predicts |

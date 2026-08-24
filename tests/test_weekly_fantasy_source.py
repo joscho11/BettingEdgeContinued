@@ -125,3 +125,72 @@ def test_slim_2026_schema_has_core_columns():
         assert col in frame.columns
     assert "depth_chart_position" not in frame.columns
     assert "off_epa_roll4" not in frame.columns
+
+
+def test_stat_reference_reshapes_available_component_estimates():
+    frame = pd.DataFrame({
+        "player_id": ["qb1", "rb1", "wr1", "te1"],
+        "player_display_name": ["Quarter Back", "Running Back", "Wide Out", "Tight End"],
+        "position": ["QB", "RB", "WR", "TE"],
+        "team": ["NE", "SEA", "BUF", "MIA"],
+        "opponent_team": ["SEA", "NE", "MIA", "BUF"],
+        "is_home": [1, 0, 1, 0],
+        "depth_chart_position": [1, 1, 1, 1],
+        "projected_pts": [20.0, 14.0, 13.0, 9.0],
+        "pred_qb_pass_yards": [250.5, None, None, None],
+        "pred_qb_rush_yards": [31.0, None, None, None],
+        "pred_rush_yards": [None, 72.5, None, None],
+        "pred_rec_yards": [None, 21.0, None, None],
+        "pred_wr_receptions": [None, None, 5.5, None],
+        "pred_wr_rec_yards": [None, None, 68.0, None],
+        "pred_te_receptions": [None, None, None, 4.0],
+        "pred_te_rec_yards": [None, None, None, 44.0],
+    })
+    actuals = {
+        "qb_pass_yds": {"qb1": 260},
+        "rb_rush_yds": {"rb1": 81},
+        "wr_recs": {"wr1": 6},
+        "te_rec_yds": {"te1": 39},
+    }
+
+    got = weekly._build_stat_reference(frame, actuals)
+
+    assert len(got) == 8
+    assert set(got["Market"]) == {
+        "Passing yards", "Rushing yards", "Receiving yards", "Receptions",
+    }
+    qb_pass = got[(got.player_id == "qb1") & (got.Market == "Passing yards")].iloc[0]
+    assert qb_pass["Model estimate"] == 250.5
+    assert qb_pass["Actual"] == 260
+    assert qb_pass["Opponent"] == "vs SEA"
+    te_rec = got[(got.player_id == "te1") & (got.Market == "Receiving yards")].iloc[0]
+    assert te_rec["Actual"] == 39
+    assert te_rec["Opponent"] == "@ BUF"
+
+
+def test_stat_reference_does_not_infer_components_from_fantasy_points():
+    slim = pd.DataFrame({
+        "player_id": ["00-1"],
+        "player_display_name": ["Test"],
+        "position": ["RB"],
+        "team": ["NE"],
+        "opponent_team": ["SEA"],
+        "projected_pts": [12.4],
+    })
+
+    got = weekly._build_stat_reference(slim)
+
+    assert got.empty
+    assert list(got.columns) == weekly._STAT_REFERENCE_COLUMNS
+
+
+def test_weekly_fantasy_stat_reference_view_renders(tmp_path):
+    at = _render_weekly(tmp_path)
+    view = next(widget for widget in at.segmented_control if widget.key == "wf_view")
+    at = view.set_value("Stat reference").run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "Independent stat estimates" in captions
+    assert "not a mathematical breakdown" in captions
+    assert len(at.dataframe) >= 2
