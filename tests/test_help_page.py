@@ -82,7 +82,8 @@ def test_help_site_org_and_paused_copy(tmp_path):
     assert "opens on **Home**" in md
     assert any("What is the Season Totals page?" in str(e.label) for e in at.expander)
     assert not any("Season Totals (Beta)" in str(e.label) for e in at.expander)
-    assert not any("What is the DFS Optimizer page?" in str(e.label) for e in at.expander)
+    assert any("What is the DFS Optimizer page?" in str(e.label) for e in at.expander)
+    assert "DFS Optimizer" in md
     assert "currently uses mock data" not in md
     assert "roadmap for the 2026 season" not in md
     assert "same automated pipeline that runs the betting predictions" not in md
@@ -134,6 +135,7 @@ def test_help_covers_live_model_rundowns(tmp_path):
         "How Season Totals are built",
         "How Model Proj is built",
         "How weekly fantasy projections are built",
+        "How the DFS optimizer works",
         "How the Anytime TD demo works",
         "How the Over/Under model works (2025 demo, experimental)",
         "How the Rookie Board numbers are built",

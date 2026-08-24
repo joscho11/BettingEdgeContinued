@@ -5,8 +5,9 @@ Guidance for coding agents in this repository.
 ## What this repo is
 
 JoSchoAnalytics is the public Streamlit website plus immutable release artifacts.
-Training, notebooks, serialized models, and DFS live in private producer repos.
-Do not add them back.
+Training, notebooks, serialized models, and DFS projection generation live in
+private producer repos. The public DFS Optimizer page uses a reviewed vendored
+runtime and checked or user-supplied CSV artifacts; it does not generate projections.
 
 **Live site:** https://joschoanalytics.streamlit.app
 
@@ -14,6 +15,7 @@ Private producers:
 
 - `spread_v3_prod` writes weekly spread candidates
 - `weekly_projections_v2_prod` writes weekly fantasy candidates
+- `dfs_optimizer_v1_prod` writes verified direct-DK projection candidates
 - `td_count_model_beta` writes 2025 Anytime TD demo CSVs into `betting/anytime_td/`
 - Guide: `betting/anytime_td/GUIDE.md`
 - 2026 Anytime TD book Yes is a manual T-3h paste from Joseph. Do not call the Odds API for live weeks.
@@ -52,7 +54,8 @@ python -m publishing.cli status
 ## Rules
 
 - Site pages read CSV/JSON artifacts. They do not load `.pkl` files.
-- Do not restore `archive/`, notebooks, training scripts, or DFS.
+- Do not restore `archive/`, notebooks, training scripts, or DFS projection-generation source.
+- Keep the public DFS page on the reviewed vendored runtime and direct-DK CSV contract.
 - Keep HIGH at a 3-point Tuesday leftover. Do not claim CLV. Do not cite the retracted 64.2% as current.
 - Retracted in-repo HIGH was 129/238 (54.20%). Live 2026 HIGH is 192/336.
 - Draft Board copy must not name the 75/25 Sleeper mix.

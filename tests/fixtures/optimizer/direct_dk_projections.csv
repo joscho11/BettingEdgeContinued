@@ -1,0 +1,23 @@
+player_id,player_display_name,position,team,opponent_team,season,week,projected_pts,projection_units
+demo-qb-a,Demo QB Alpha,QB,BUF,KC,2026,1,24.8,direct_dk_points
+demo-qb-b,Demo QB Bravo,QB,KC,BUF,2026,1,22.1,direct_dk_points
+demo-qb-c,Demo QB Charlie,QB,BAL,SF,2026,1,18.4,direct_dk_points
+demo-rb-a,Demo RB Alpha,RB,BUF,KC,2026,1,23.4,direct_dk_points
+demo-rb-b,Demo RB Bravo,RB,KC,BUF,2026,1,20.8,direct_dk_points
+demo-rb-c,Demo RB Charlie,RB,BAL,SF,2026,1,18.2,direct_dk_points
+demo-rb-d,Demo RB Delta,RB,SF,BAL,2026,1,16.7,direct_dk_points
+demo-rb-e,Demo RB Echo,RB,BUF,KC,2026,1,14.4,direct_dk_points
+demo-rb-f,Demo RB Foxtrot,RB,KC,BUF,2026,1,11.8,direct_dk_points
+demo-wr-a,Demo WR Alpha,WR,BUF,KC,2026,1,22.6,direct_dk_points
+demo-wr-b,Demo WR Bravo,WR,KC,BUF,2026,1,20.9,direct_dk_points
+demo-wr-c,Demo WR Charlie,WR,BAL,SF,2026,1,19.1,direct_dk_points
+demo-wr-d,Demo WR Delta,WR,SF,BAL,2026,1,17.5,direct_dk_points
+demo-wr-e,Demo WR Echo,WR,BUF,KC,2026,1,15.8,direct_dk_points
+demo-wr-f,Demo WR Foxtrot,WR,KC,BUF,2026,1,14.3,direct_dk_points
+demo-wr-g,Demo WR Golf,WR,BAL,SF,2026,1,12.1,direct_dk_points
+demo-wr-h,Demo WR Hotel,WR,SF,BAL,2026,1,9.7,direct_dk_points
+demo-wr-out,Unavailable Demo WR,WR,BUF,KC,2026,1,21.0,direct_dk_points
+demo-te-a,Demo TE Alpha,TE,BUF,KC,2026,1,18.1,direct_dk_points
+demo-te-b,Demo TE Bravo,TE,KC,BUF,2026,1,15.2,direct_dk_points
+demo-te-c,Demo TE Charlie,TE,BAL,SF,2026,1,12.4,direct_dk_points
+demo-te-d,Demo TE Delta,TE,SF,BAL,2026,1,9.0,direct_dk_points

@@ -103,30 +103,30 @@ def _render_weekly_release(tmp_path, projection_path, season=2026, week=1):
     return at
 
 
-def test_weekly_fantasy_names_2025_demo(tmp_path):
+def test_weekly_fantasy_names_2025_preview(tmp_path):
     at = _render_weekly(tmp_path)
     blob = " ".join(
         str(getattr(w, "value", ""))
         for w in list(at.caption) + list(at.info) + list(at.markdown) + list(at.title)
     ).lower()
-    assert "demo" in blob
+    assert "preview" in blob
     assert "2025" in blob
-    assert "week 10" in blob
+    assert "week 17" in blob
 
 
-def test_weekly_fantasy_defaults_to_2025_week10(tmp_path):
+def test_weekly_fantasy_defaults_to_2025_week17(tmp_path):
     at = _render_weekly(tmp_path)
     by_key = {getattr(w, "key", None): w.value for w in at.selectbox}
     assert int(by_key["wf_season"]) == 2025
-    assert int(by_key["wf_week"]) == 10
+    assert int(by_key["wf_week"]) == 17
     markdown = " ".join(str(item.value) for item in at.markdown)
     assert "green-badge" in markdown and "Published" in markdown
     captions = " ".join(str(item.value) for item in at.caption)
     assert "Next: 2026 Week 1 · Awaiting projections" in captions
     infos = " ".join(str(w.value) for w in at.info).lower()
     assert "2025" in infos
-    assert "demo" in infos
-    assert "no agent notes for this week" in infos
+    assert "2026 format preview" in infos
+    assert "no agent notes for this week" not in infos
 
 
 def test_coming_soon_copy_points_at_2025_demo():
@@ -199,6 +199,86 @@ def test_week17_excludes_skattebo_without_changing_the_frozen_source():
     pd.testing.assert_frame_equal(future_release, source)
 
 
+def _week17_id(source: pd.DataFrame, name: str) -> str:
+    hit = source.loc[source["player_display_name"].eq(name), "player_id"]
+    assert not hit.empty, name
+    return str(hit.iloc[0])
+
+
+def test_board_drops_dnp_and_doubtful_for_demo_and_live_weeks():
+    path = _HERE / "fantasy" / "fantasy_projections" / "projections_2025_week17.csv"
+    source = pd.read_csv(path)
+    mixon = _week17_id(source, "Joe Mixon")
+    lamar = _week17_id(source, "Lamar Jackson")
+    montgomery = _week17_id(source, "David Montgomery")
+    played = set(source["player_id"].astype(str)) - {mixon}
+
+    shown = weekly.eligible_board_rows(source, 2025, 17, played_ids=played)
+    ids = set(shown["player_id"].astype(str))
+    assert mixon not in ids
+    assert lamar not in ids
+    assert montgomery in ids
+
+    live = weekly.eligible_board_rows(source, 2026, 1, played_ids=played)
+    live_ids = set(live["player_id"].astype(str))
+    assert mixon not in live_ids
+    assert lamar not in live_ids
+    assert montgomery in live_ids
+
+
+def test_pregame_board_drops_roster_ir_and_keeps_questionable():
+    frame = pd.DataFrame({
+        "player_id": ["ir1", "q1", "healthy"],
+        "player_display_name": ["IR Back", "Q Receiver", "Starter"],
+        "position": ["RB", "WR", "RB"],
+        "injury_status_score": [1.0, 0.5, 1.0],
+        "projected_pts": [14.0, 12.0, 10.0],
+    })
+    shown = weekly.eligible_board_rows(
+        frame, 2026, 1, unavailable_ids={"ir1"},
+    )
+    ids = set(shown["player_id"].astype(str))
+    assert ids == {"q1", "healthy"}
+
+
+def test_unavailable_roster_ids_uses_weekly_ina_then_season_ir(monkeypatch):
+    weekly_frame = pd.DataFrame({
+        "gsis_id": ["act1", "ina1"],
+        "week": [1, 1],
+        "status": ["ACT", "INA"],
+    })
+    season_frame = pd.DataFrame({
+        "gsis_id": ["res1"],
+        "status": ["RES"],
+    })
+    monkeypatch.setattr(weekly, "_OFFLINE", False)
+    monkeypatch.setattr(weekly, "_load_weekly_rosters_season", lambda season: weekly_frame)
+    monkeypatch.setattr(weekly, "_load_season_rosters", lambda season: season_frame)
+    assert weekly.unavailable_roster_ids(2026, 1) == frozenset({"ina1", "res1"})
+
+    empty_week = pd.DataFrame({
+        "gsis_id": ["act1"],
+        "week": [2],
+        "status": ["ACT"],
+    })
+    monkeypatch.setattr(weekly, "_load_weekly_rosters_season", lambda season: empty_week)
+    assert weekly.unavailable_roster_ids(2026, 1) == frozenset({"res1"})
+
+    monkeypatch.setattr(weekly, "_OFFLINE", True)
+    assert weekly.unavailable_roster_ids(2026, 1) == frozenset()
+
+
+def test_slim_2026_dnp_filter_without_injury_column():
+    frame = pd.DataFrame({
+        "player_id": ["play", "sit"],
+        "player_display_name": ["Play", "Sit"],
+        "position": ["RB", "RB"],
+        "projected_pts": [12.0, 11.0],
+    })
+    shown = weekly.eligible_board_rows(frame, 2026, 1, played_ids={"play"})
+    assert set(shown["player_id"].astype(str)) == {"play"}
+
+
 def test_slim_2026_schema_has_core_columns():
     frame = pd.DataFrame({
         "player_id": ["00-1"],
@@ -243,7 +323,7 @@ def test_future_release_uses_enabled_player_prop_toggle(tmp_path):
 
     more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
     assert more_info.disabled is False
-    assert more_info.label == "More info — projected yards for player props"
+    assert more_info.label == "More info: projected yards for player props"
     captions = " ".join(str(item.value) for item in at.caption)
     assert "player-prop over/under lines" in captions
     infos = " ".join(str(item.value) for item in at.info).lower()
@@ -269,7 +349,7 @@ def test_week17_renders_simple_and_detailed_2026_preview(tmp_path):
     assert all(widget.key != "wf_view" for widget in at.segmented_control)
     more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
     assert more_info.value is False
-    assert more_info.label == "More info — projected yards for player props"
+    assert more_info.label == "More info: projected yards for player props"
     captions = " ".join(str(item.value) for item in at.caption)
     assert "compare our projected yardage" in captions
     assert "player-prop over/under lines" in captions
@@ -281,3 +361,13 @@ def test_week17_renders_simple_and_detailed_2026_preview(tmp_path):
     more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
     assert more_info.value is True
     assert len(at.dataframe) >= 2
+
+
+def test_preview_phone_grid_keeps_ranking_columns():
+    import page_weekly_fantasy as page
+
+    assert page.PREVIEW_PHONE_COLUMNS == [
+        "#", "Player", "Opponent", "Proj Pts", "Health", "Actual Pts",
+    ]
+    assert set(page.PREVIEW_SIMPLE_COLUMNS).issubset(page.PREVIEW_PHONE_COLUMNS)
+

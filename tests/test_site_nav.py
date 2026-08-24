@@ -26,6 +26,7 @@ PAGE_MODULES = (
     "page_draft_board",
     "page_rookie_board",
     "page_weekly_fantasy",
+    "page_dfs",
     "page_anytime_td",
     "page_film_room",
     "page_league_history",
@@ -54,6 +55,10 @@ def test_default_is_home():
         f"Weekly Predictions must not be the default; titles={titles!r}"
     md = " ".join(str(m.value) for m in at.markdown)
     assert "Compare anytime TDs" in md
+    links = " ".join(
+        str(getattr(link, "label", "")) for link in at.get("page_link")
+    )
+    assert "DFS Optimizer" in links
 
 
 def test_nav_groups_fantasy_then_betting():
@@ -135,11 +140,16 @@ def test_page_analytics_are_route_specific_and_deduplicated(tmp_path):
     assert "private_filter" not in json.dumps(events)
 
 
-def test_dfs_is_not_in_the_public_site():
+def test_dfs_is_available_in_the_public_fantasy_nav():
     src = Path(ENTRY).read_text(encoding="utf-8")
-    assert "page_dfs" not in src
-    assert not (_HERE / "site_pages" / "page_dfs.py").is_file()
+    assert '_lazy_render("page_dfs")' in src
+    assert (_HERE / "site_pages" / "page_dfs.py").is_file()
+    wheel = _HERE / "vendor" / "jsa_dfs_optimizer-0.2.1-py3-none-any.whl"
+    assert wheel.is_file() and wheel.stat().st_size > 0
+    req = (_HERE / "requirements.txt").read_text(encoding="utf-8")
+    assert "./vendor/jsa_dfs_optimizer-0.2.1-py3-none-any.whl" in req
     fantasy = src.split('"Fantasy":', 1)[1].split("]", 1)[0]
+    assert "dfs_pg" in fantasy
     assert "wf_pg" in fantasy
     betting = src.split('"Betting":', 1)[1].split("]", 1)[0]
     assert "atd_pg" in betting

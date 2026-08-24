@@ -30,49 +30,50 @@ def render() -> None:
         st.badge("No paid picks", icon=":material/verified:", color="blue")
 
     st.subheader("Start here")
-    with st.container(horizontal=True, gap="medium"):
-        with st.container(border=True, height="stretch"):
-            st.markdown("### Build a draft plan")
-            st.caption(
-                "Compare the frozen independent projection with daily Sleeper or ESPN ADP "
-                "across the 180-player board."
-            )
-            _page_link("draft-board", "Open the Draft Board", ":material/list_alt:")
+    with st.container(key="jsa-home-start"):
+        with st.container(horizontal=True, gap="medium"):
+            with st.container(border=True, height="stretch"):
+                st.markdown("### Build a draft plan")
+                st.caption(
+                    "Compare the frozen independent projection with daily Sleeper or ESPN ADP "
+                    "across the 180-player board."
+                )
+                _page_link("draft-board", "Open the Draft Board", ":material/list_alt:")
 
-        with st.container(border=True, height="stretch"):
-            st.markdown("### Check the NFL slate")
-            st.caption(
-                "Review every matchup and the Tuesday HIGH betting card. Week 1 "
-                "matchups are already published."
-            )
-            _page_link(
-                "weekly-predictions",
-                "Open Weekly Predictions",
-                ":material/query_stats:",
-            )
+            with st.container(border=True, height="stretch"):
+                st.markdown("### Check the NFL slate")
+                st.caption(
+                    "Review every matchup and the Tuesday HIGH betting card. Week 1 "
+                    "matchups are already published."
+                )
+                _page_link(
+                    "weekly-predictions",
+                    "Open Weekly Predictions",
+                    ":material/query_stats:",
+                )
 
-    with st.container(horizontal=True, gap="medium"):
-        with st.container(border=True, height="stretch"):
-            st.markdown("### Audit the evidence")
-            st.caption(
-                "See the graded record, confidence definitions, break-even line, and "
-                "where live 2026 differs from the 2025 demo."
-            )
-            _page_link("track-record", "Open the Track Record", ":material/monitoring:")
+        with st.container(horizontal=True, gap="medium"):
+            with st.container(border=True, height="stretch"):
+                st.markdown("### Audit the evidence")
+                st.caption(
+                    "See the graded record, confidence definitions, break-even line, and "
+                    "where live 2026 differs from the 2025 demo."
+                )
+                _page_link("track-record", "Open the Track Record", ":material/monitoring:")
 
-        with st.container(border=True, height="stretch"):
-            st.markdown("### Compare anytime TDs")
-            st.caption(
-                "2025 demo of rushing and receiving TD chances next to the book. "
-                "Not even money. For fun. Not a proven edge."
-            )
-            _page_link("anytime-tds", "Open Anytime TDs", ":material/sports_score:")
+            with st.container(border=True, height="stretch"):
+                st.markdown("### Compare anytime TDs")
+                st.caption(
+                    "2025 demo of rushing and receiving TD chances next to the book. "
+                    "Not even money. For fun. Not a proven edge."
+                )
+                _page_link("anytime-tds", "Open Anytime TDs", ":material/sports_score:")
 
     season_start = board_refresh_season_start()
     if date.today() < season_start:
         st.info(
-            "The site is in preseason mode. The Draft Board and Week 1 matchups are live; "
-            "weekly fantasy rankings publish when that week's projection file lands. "
+            "The site is in preseason mode. The Draft Board and Week 1 matchups are live. "
+            "Weekly fantasy rankings and DFS projections publish when those files land. "
             "Anytime TDs is a 2025 demo. "
             f"The next planned Draft Board model snapshot is before {season_start:%B %d}."
         )
@@ -83,9 +84,10 @@ def render() -> None:
         )
 
     st.subheader("Explore the rest")
-    with st.container(horizontal=True, gap="small"):
+    with st.container(horizontal=True, gap="small", key="jsa-home-explore"):
         _page_link("rookie-board", "Rookie Board", ":material/biotech:")
         _page_link("weekly-fantasy", "Weekly Fantasy", ":material/trophy:")
+        _page_link("dfs-optimizer", "DFS Optimizer", ":material/target:")
         _page_link("season-totals", "Season Totals", ":material/bar_chart:")
         _page_link("league-history", "League History", ":material/history:")
         _page_link("film-room", "Film Room", ":material/movie:")

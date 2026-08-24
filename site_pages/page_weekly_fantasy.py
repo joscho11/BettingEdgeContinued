@@ -16,21 +16,30 @@ from publishing.paths import resolve_site_path
 
 _HERE = Path(__file__).resolve().parents[1]
 DEMO_SEASON = 2025
+DEMO_WEEK = 17
 LIVE_FROM_SEASON = 2026
 LIVE_WEEK = 1
 REG_WEEKS = tuple(range(1, 19))
-LIVE_FORMAT_PREVIEW = (DEMO_SEASON, 17)
+LIVE_FORMAT_PREVIEW = (DEMO_SEASON, DEMO_WEEK)
 # The frozen Week 17 artifact mislabeled this Reserve/Injured player as healthy.
 # Keep the archived source byte-identical and correct only the public preview.
 WEEKLY_DISPLAY_EXCLUSIONS = {
     LIVE_FORMAT_PREVIEW: frozenset({"00-0040715"}),
 }
+# injury_status_score: 0 Out, 0.1 Doubtful, 0.5 Questionable, 1.0 healthy.
+# Questionable players often play; Out and Doubtful do not belong on the board.
+RULED_OUT_INJURY_SCORE = 0.1
+RULED_OUT_STATUSES = frozenset({"Out", "Doubtful"})
+# Weekly roster codes. Season-roster fallback omits INA (D45: season INA undercounts).
+UNAVAILABLE_WEEKLY_STATUS = frozenset({"IR", "RES", "PUP", "INA", "OUT", "SUS"})
+UNAVAILABLE_SEASON_STATUS = frozenset({"IR", "RES", "PUP", "OUT", "SUS"})
 PREVIEW_DETAIL_SOURCE_COLUMNS = (
     "pred_qb_pass_yards", "pred_qb_rush_yards", "pred_rush_yards",
     "pred_rec_yards", "pred_wr_rec_yards", "pred_te_rec_yards",
     "off_epa_rank", "implied_team_total", "injury_status_score",
 )
 PREVIEW_SIMPLE_COLUMNS = ["Player", "Opponent", "Proj Pts"]
+PREVIEW_PHONE_COLUMNS = ["#", "Player", "Opponent", "Proj Pts", "Health", "Actual Pts"]
 PREVIEW_PROJECTED_COLUMNS = {
     "QB": ["Proj Pass Yds", "Proj Rush Yds"],
     "RB": ["Proj Rush Yds", "Proj Rec Yds"],
@@ -97,34 +106,37 @@ def _weeks_by_season(available: dict[tuple[int, int], Path]) -> dict[int, list[i
 
 def _fantasy_season_week_controls(
     available: dict[tuple[int, int], Path],
-    default: tuple[int, int] = (DEMO_SEASON, 10),
+    default: tuple[int, int] = (DEMO_SEASON, DEMO_WEEK),
 ) -> tuple[int, int]:
     """Own Season/Week widgets, seeded by the active validated release."""
     weeks_by = _weeks_by_season(available)
     seasons = sorted(weeks_by, reverse=True)
-    cols = st.columns(2)
-    season_seeded = page_common.seed_widget_from_query("wf_season", "wf_season", seasons)
-    season_kwargs = {
-        "key": "wf_season",
-        "on_change": page_common.reset_widget_and_query,
-        "args": ("wf_week", "wf_week"),
-    }
-    if not season_seeded and "wf_season" not in st.session_state and default[0] in seasons:
-        season_kwargs["index"] = seasons.index(default[0])
-    season = int(cols[0].selectbox("Season", seasons, **season_kwargs))
-    page_common.sync_query_value("wf_season", season)
-    weeks = weeks_by[season]
-    want = default[1] if season == default[0] else (
-        10 if season == DEMO_SEASON else (LIVE_WEEK if season >= LIVE_FROM_SEASON else weeks[0])
-    )
-    if "wf_week" in st.session_state and st.session_state["wf_week"] not in weeks:
-        del st.session_state["wf_week"]
-    seeded = page_common.seed_widget_from_query("wf_week", "wf_week", weeks)
-    week_kwargs = {"key": "wf_week"}
-    if not seeded and "wf_week" not in st.session_state:
-        week_kwargs["index"] = weeks.index(want) if want in weeks else 0
-    week = int(cols[1].selectbox("Week", weeks, **week_kwargs))
-    page_common.sync_query_value("wf_week", week)
+    with st.container(key="jsa-filter-bar"):
+        cols = st.columns(2)
+        season_seeded = page_common.seed_widget_from_query("wf_season", "wf_season", seasons)
+        season_kwargs = {
+            "key": "wf_season",
+            "on_change": page_common.reset_widget_and_query,
+            "args": ("wf_week", "wf_week"),
+        }
+        if not season_seeded and "wf_season" not in st.session_state and default[0] in seasons:
+            season_kwargs["index"] = seasons.index(default[0])
+        season = int(cols[0].selectbox("Season", seasons, **season_kwargs))
+        page_common.sync_query_value("wf_season", season)
+        weeks = weeks_by[season]
+        want = default[1] if season == default[0] else (
+            DEMO_WEEK if season == DEMO_SEASON else (
+                LIVE_WEEK if season >= LIVE_FROM_SEASON else weeks[0]
+            )
+        )
+        if "wf_week" in st.session_state and st.session_state["wf_week"] not in weeks:
+            del st.session_state["wf_week"]
+        seeded = page_common.seed_widget_from_query("wf_week", "wf_week", weeks)
+        week_kwargs = {"key": "wf_week"}
+        if not seeded and "wf_week" not in st.session_state:
+            week_kwargs["index"] = weeks.index(want) if want in weeks else 0
+        week = int(cols[1].selectbox("Week", weeks, **week_kwargs))
+        page_common.sync_query_value("wf_week", week)
     return season, week
 
 
@@ -156,6 +168,113 @@ def _apply_display_exclusions(
     return frame.loc[
         ~frame["player_id"].astype(str).isin(excluded_ids)
     ].copy()
+
+
+def _ruled_out_by_injury(frame: pd.DataFrame) -> pd.Series:
+    """True for Out or Doubtful. Questionable stays until box-score DNP."""
+    mask = pd.Series(False, index=frame.index)
+    if "injury_status_score" in frame.columns:
+        score = pd.to_numeric(frame["injury_status_score"], errors="coerce")
+        mask = mask | score.le(RULED_OUT_INJURY_SCORE)
+    if "injury_status" in frame.columns:
+        status = frame["injury_status"].astype("string").str.strip()
+        mask = mask | status.isin(RULED_OUT_STATUSES)
+    return mask.fillna(False)
+
+
+def eligible_board_rows(
+    frame: pd.DataFrame,
+    season: int,
+    week: int,
+    *,
+    played_ids: set[str] | frozenset[str] | None = None,
+    unavailable_ids: set[str] | frozenset[str] | None = None,
+) -> pd.DataFrame:
+    """Rows allowed on the public board. Frozen CSVs stay byte-identical.
+
+    Drops hardcoded exclusions, Out/Doubtful, roster IR/inactives, and (once
+    box scores exist) anyone with no player_stats row for that week.
+    """
+    out = _apply_display_exclusions(frame, season, week)
+    if out.empty or "player_id" not in out.columns:
+        return out
+    out = out.loc[~_ruled_out_by_injury(out)].copy()
+    pid = out["player_id"].astype(str)
+    blocked = {str(x) for x in (unavailable_ids or ())}
+    if blocked:
+        out = out.loc[~pid.isin(blocked)].copy()
+        pid = out["player_id"].astype(str)
+    if played_ids is not None:
+        allowed = {str(x) for x in played_ids}
+        out = out.loc[pid.isin(allowed)].copy()
+    return out
+
+
+def _roster_player_id_column(frame: pd.DataFrame) -> str | None:
+    for col in ("gsis_id", "player_id"):
+        if col in frame.columns:
+            return col
+    return None
+
+
+def _ids_with_status(frame: pd.DataFrame, statuses: frozenset[str]) -> frozenset[str]:
+    id_col = _roster_player_id_column(frame)
+    if id_col is None or "status" not in frame.columns or frame.empty:
+        return frozenset()
+    status = frame["status"].astype("string").str.strip().str.upper()
+    hit = frame.loc[status.isin({s.upper() for s in statuses}), id_col]
+    return frozenset(hit.dropna().astype(str))
+
+
+def _to_pandas(raw):
+    return raw.to_pandas() if hasattr(raw, "to_pandas") else raw
+
+
+@st.cache_data(ttl=3600, max_entries=4)
+def _load_weekly_rosters_season(season: int) -> pd.DataFrame | None:
+    try:
+        import nflreadpy as nfl
+        raw = _to_pandas(nfl.load_rosters_weekly([season]))
+        keep = [c for c in ("gsis_id", "player_id", "week", "status") if c in raw.columns]
+        return raw.loc[:, keep].copy() if keep else None
+    except Exception as err:
+        import logging as _logging
+        _logging.warning("load_rosters_weekly(%s) failed: %s", season, err)
+        return None
+
+
+@st.cache_data(ttl=3600, max_entries=4)
+def _load_season_rosters(season: int) -> pd.DataFrame | None:
+    try:
+        import nflreadpy as nfl
+        raw = _to_pandas(nfl.load_rosters([season]))
+        keep = [c for c in ("gsis_id", "player_id", "status") if c in raw.columns]
+        return raw.loc[:, keep].copy() if keep else None
+    except Exception as err:
+        import logging as _logging
+        _logging.warning("load_rosters(%s) failed: %s", season, err)
+        return None
+
+
+def unavailable_roster_ids(season: int, week: int) -> frozenset[str]:
+    """Players who should not appear before box scores exist.
+
+    Weekly INA is the inactive list. Season IR/RES/PUP still apply so a
+    reserve player does not sit on the board until that list posts.
+    """
+    if _OFFLINE:
+        return frozenset()
+    ids: set[str] = set()
+    weekly = _load_weekly_rosters_season(int(season))
+    if weekly is not None and "week" in weekly.columns:
+        week_rows = weekly.loc[
+            pd.to_numeric(weekly["week"], errors="coerce").eq(int(week))
+        ]
+        ids.update(_ids_with_status(week_rows, UNAVAILABLE_WEEKLY_STATUS))
+    seasonal = _load_season_rosters(int(season))
+    if seasonal is not None:
+        ids.update(_ids_with_status(seasonal, UNAVAILABLE_SEASON_STATUS))
+    return frozenset(ids)
 
 
 def _preview_table_columns(
@@ -256,7 +375,9 @@ def render():
         "and postgame actuals."
     )
     available = available_projection_files()
-    default = page_common.release_default_selection("fantasy", (DEMO_SEASON, 10))
+    default = page_common.release_default_selection(
+        "fantasy", (DEMO_SEASON, DEMO_WEEK)
+    )
     season, week = _fantasy_season_week_controls(available, default)
     page_common.render_release_status("fantasy", season, week)
 
@@ -285,9 +406,6 @@ def render():
             )
         elif int(season) == DEMO_SEASON:
             st.info(f"This is the 2025 Week {week} demo from the previous weekly model.")
-        proj_df = _apply_display_exclusions(
-            _load_proj_csv(str(available[(season, week)])), season, week
-        )
         preview_layout = _uses_preview_layout(season, week)
 
         # Actual results (available after week is played)
@@ -302,6 +420,20 @@ def render():
         actual_wr_recs     = _actuals.get('wr_recs',     {})
         actual_te_rec_yds  = _actuals.get('te_rec_yds',  {})
         actual_te_recs     = _actuals.get('te_recs',     {})
+
+        played_ids = (
+            {str(pid) for pid in _half_ppr_dict} if actuals_in else None
+        )
+        unavailable_ids = (
+            frozenset() if actuals_in else unavailable_roster_ids(season, week)
+        )
+        proj_df = eligible_board_rows(
+            _load_proj_csv(str(available[(season, week)])),
+            season,
+            week,
+            played_ids=played_ids,
+            unavailable_ids=unavailable_ids,
+        )
 
         # The preview exercises the live 2026 surface, which has no legacy agent cards.
         fantasy_analysis = None
@@ -325,7 +457,7 @@ def render():
         if preview_layout:
             detail_available = _preview_detail_available(proj_df)
             show_more_info = bool(st.toggle(
-                "More info — projected yards for player props",
+                "More info: projected yards for player props",
                 value=False,
                 key="wf_more_info",
                 disabled=not detail_available,
@@ -337,7 +469,7 @@ def render():
             if detail_available:
                 st.caption(
                     "Enable **More info** to compare our projected yardage with sportsbook "
-                    "player-prop over/under lines. These are model estimates—not sportsbook "
+                    "player-prop over/under lines. These are model estimates, not sportsbook "
                     "lines or betting recommendations."
                 )
             else:
@@ -347,8 +479,8 @@ def render():
                 )
 
         player_search = st.text_input(
-            "🔍 Search player",
-            placeholder="e.g. Mahomes, Jefferson, Kelce…",
+            "Search player",
+            placeholder="e.g. Mahomes, Jefferson, Kelce",
             key="fantasy_search"
         )
 
@@ -588,7 +720,7 @@ def render():
                 tbl.insert(0, "#", range(1, len(tbl) + 1))
                 style_fn = make_style_table(display)
 
-                _dnp_note = "Blank = player did not play (DNP) in this game."
+                _dnp_note = "Blank = missing from the box-score feed. Players who did not play are removed from this board."
                 col_config = {
                     "#":          st.column_config.NumberColumn("#", format="%d", width=50, pinned=True,   # grid minimum; pinned = grow 0, so it keeps that exact width
                                       help="Row number in this table as currently sorted and filtered — a counter to keep your place, not a ranking."),
@@ -599,7 +731,7 @@ def render():
                     "EPA Rank":   st.column_config.TextColumn("EPA Rank",
                                       help="Team's last-four-game offensive EPA rank among all 32 NFL teams (1 = best offense, 32 = worst). Green is better; red is worse. Note: this text column sorts alphabetically."),
                     "Health":     st.column_config.TextColumn("Health",
-                                      help="Player's injury status from the weekly NFL injury report.\n\n✅ Healthy  🟡 Questionable  ⚠️ Doubtful  ❌ Out\n\nNote: sorts alphabetically due to a Streamlit limitation."),
+                                      help="Player's injury status from the weekly NFL injury report.\n\n✅ Healthy  🟡 Questionable\n\nOut, Doubtful, IR, and anyone who did not play are removed from the board.\n\nNote: sorts alphabetically due to a Streamlit limitation."),
                     "Proj Pts":   st.column_config.NumberColumn("Proj Pts",   format="%.1f",
                                       help="Projected half-PPR fantasy points for this week. Half-PPR scoring: 0.5 pts per reception, 1 pt per 10 rush/rec yards, 6 pts per TD."),
                     "Off EPA":    st.column_config.NumberColumn("Off EPA",    format="%+.3f",
@@ -650,7 +782,7 @@ def render():
                                       help=f"Actual number of receptions recorded in this game. {_dnp_note}")
 
                 if preview_layout:
-                    phone_keep = list(tbl.columns)
+                    phone_keep = [col for col in PREVIEW_PHONE_COLUMNS if col in tbl.columns]
                 else:
                     phone_keep = [
                         col for col in (
@@ -727,7 +859,3 @@ def render():
                         st.markdown(row_html, unsafe_allow_html=True)
                 elif not preview_layout:
                     st.info("No agent notes for this week.")
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 4: DFS
-# ══════════════════════════════════════════════════════════════════════════════

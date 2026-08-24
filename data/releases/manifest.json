@@ -4,7 +4,7 @@
   },
   "products": {
     "fantasy": {
-      "active_build": "fantasy-2025w10-33a7de4ef33f",
+      "active_build": "fantasy-2025w17-7d66bf84318a",
       "builds": {
         "fantasy-2025w10-33a7de4ef33f": {
           "artifact": "data/releases/builds/fantasy/2025/week10/fantasy-2025w10-33a7de4ef33f/artifact.csv",
@@ -213,7 +213,7 @@
         "status": "Awaiting projections",
         "week": 1
       },
-      "previous_build": null
+      "previous_build": "fantasy-2025w10-33a7de4ef33f"
     },
     "predictions": {
       "active_build": "predictions-2025w10-8f1701d7a6db",
@@ -429,5 +429,5 @@
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-08-21T02:39:17Z"
+  "updated_at": "2026-08-24T04:13:06Z"
 }

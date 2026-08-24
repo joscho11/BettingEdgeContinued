@@ -77,6 +77,7 @@ def render_rundowns():
     _season_totals()
     _draft_board()
     _weekly_fantasy()
+    _dfs_optimizer()
     _anytime_td()
     _totals_demo()
     _rookie_board()
@@ -235,8 +236,9 @@ It is **not live-validated**. The first live test is the 2026 season.
 def _weekly_fantasy():
     with st.expander("How weekly fantasy projections are built"):
         st.markdown("""
-**2026 Week 1 is not on the site yet.** That page opens there on purpose. Rankings
-land once the live weekly file is published.
+**2026 Week 1 is not on the site yet.** Rankings land once the live weekly file is
+published. Until then the page opens on the latest published file, the **2025 Week 17**
+demo in the 2026 layout.
 
 **What you can read today** is the **2025 demo** (weeks 10-17). Those files came from
 four per-position XGBoost models trained on 2020-2024, with 2025 held out. Scoring is
@@ -257,6 +259,30 @@ usage, expected fantasy points, opponent, and the implied team total. It is not 
                 "the honest story: last week's role is most of next week's projection. "
                 "Top five bars do not sum to 100%."
             )
+
+
+def _dfs_optimizer():
+    with st.expander("How the DFS optimizer works"):
+        st.markdown("""
+The public page builds a DraftKings NFL Classic lineup from **direct DK-point**
+projections. It is not the half-PPR Weekly Fantasy model, and it does not convert
+those rankings into DK points.
+
+You supply the salary file for the contest. The projection file is either a checked
+producer artifact or an upload with the same contract: direct DK points plus a sidecar
+that names the product, scoring, season, week, and file hash. The solver is a reviewed
+vendored integer program: $50,000 cap, standard Classic slots, one FLEX from RB/WR/TE.
+
+DST is not a trained player model. It uses DraftKings average points, labeled on the
+page. Injured and unmatched skill players are dropped. Questionable stays in.
+
+No projection-edge claim. The 2026 Week 1 artifact is not published yet, so a
+salary-only upload cannot produce a lineup.
+        """)
+        st.caption(
+            "This page does not prove a Classic lineup will beat the field. It is a "
+            "constrained optimizer on this model's DK-point estimates."
+        )
 
 
 def _anytime_td():

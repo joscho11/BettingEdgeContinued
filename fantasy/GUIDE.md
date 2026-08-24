@@ -39,7 +39,7 @@ QB, WR, and TE lower mean absolute error in this holdout. RB does not. Rank corr
 
 ## Frozen 2025 demo
 
-The public repository keeps Weeks 10 through 17 of the earlier system under `fantasy/fantasy_projections/`. Those CSVs support the demo and reproducibility checks. They are not updated by the 2026 producer.
+The public repository keeps Weeks 10 through 17 of the earlier system under `fantasy/fantasy_projections/`. Those CSVs support the demo and reproducibility checks. They are not updated by the 2026 producer. The Weekly Fantasy page hides Out, Doubtful, IR/inactives, and anyone with no box-score row for that week. The frozen files stay byte-identical.
 
 The corrected version-one holdout comparison against a rolling three-game baseline was:
 

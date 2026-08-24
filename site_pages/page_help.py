@@ -39,11 +39,12 @@ def render():
     _hc_total        = _stats["hc_total"]
     _hc_pct          = _stats["hc_pct"]
     st.subheader("Start here")
-    with st.container(horizontal=True, gap="small"):
+    with st.container(horizontal=True, gap="small", key="jsa-help-start"):
         for slug, label, icon in (
             ("draft-board", "Build a draft plan", ":material/list_alt:"),
             ("weekly-predictions", "Read this week's slate", ":material/query_stats:"),
             ("anytime-tds", "Compare anytime TDs", ":material/sports_score:"),
+            ("dfs-optimizer", "Build a DK lineup", ":material/target:"),
             ("track-record", "Audit the results", ":material/monitoring:"),
         ):
             page = nav_registry.PAGES.get(slug)
@@ -128,7 +129,8 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 - **Rookie Board:** hit % and RB/WR/TE season-total projections for the 2024-2026 classes.
 - **Season Totals:** 32-team win projections. HIGH is the only certified pick.
 - **Weekly Predictions:** 2026 matchups are up. Picks lock Tuesday 9:00 ET. HIGH is the green 3-point Tuesday ticket.
-- **Weekly Fantasy:** opens on 2026 Week 1. Those rankings land once that file is published.
+- **Weekly Fantasy:** 2026 Week 1 rankings land once that file is published. Until then the page opens on the latest published file (the 2025 Week 17 demo in the 2026 layout).
+- **DFS Optimizer:** DraftKings Classic lineup builder. Upload a salary CSV. Uses a published direct-DK file when one exists; otherwise upload your own. No 2026 Week 1 projection file is published yet. Not a performance claim.
 
 **Demo / walkthrough (not the live book)**
 
@@ -147,7 +149,7 @@ Talent Scores are descriptive context. League History is your Sleeper or ESPN le
 Everything lives in the top navigation bar, grouped into three menus:
 
 - **Home**: a stable overview of what is live and where to start.
-- **Fantasy**: Draft Board, Rookie Board, and Weekly Fantasy.
+- **Fantasy**: Draft Board, Rookie Board, Weekly Fantasy, and DFS Optimizer.
 - **Betting**: Weekly Predictions, Anytime TDs, Track Record, and Season Totals.
 - **More**: Film Room, League History, and this Help & Guide.
 
@@ -218,11 +220,26 @@ How the number is built sits in **How Season Totals are built** below.
         st.markdown("""
 Weekly half-PPR projections for QB, RB, WR, and TE.
 
-The page opens on **2026 Week 1**. Rankings for that week will be here soon. **2025 weeks are a demo** from the previous weekly model.
+The page currently opens on the latest published file: the **2025 Week 17** demo in the 2026 layout. Rankings are simple by default; **More info** reveals projected yards and matchup context when that file has them. **2026 Week 1** rankings land once that file is published. Older 2025 weeks are a demo from the previous weekly model.
+
+Out, Doubtful, IR, inactives, and anyone who did not play are removed from the board. Questionable stays until box scores exist.
 
 Search by player. Older demo weeks also show extra columns (team EPA, implied total, health, some stat projections). Actual points fill in after the games.
 
 How those files are built sits in **How weekly fantasy projections are built** below.
+        """)
+
+    with st.expander("What is the DFS Optimizer page?"):
+        st.markdown("""
+A DraftKings NFL Classic lineup builder. Upload the salary CSV for the contest you want. The page uses a published direct-DK projection file when one exists, or a CSV you upload.
+
+Classic roster: 1 QB, 2 RB, 3 WR, 1 TE, 1 FLEX, 1 DST, $50,000 salary cap. OUT, IR, Doubtful, PUP, SUSP, and NFI players are excluded. Questionable players stay eligible. DST uses DraftKings average points until a labeled DST model ships.
+
+This site does not generate DFS projections. Those files come from a private producer and have to pass the same release checks as the other products. No 2026 Week 1 projection file is published yet.
+
+The optimizer picks the highest projected legal lineup under your locks and exclusions. Historical diagnostics have not shown a projection edge. Treat the output as research, not a performance claim. Check late news and the DraftKings import preview before you enter.
+
+How the file contract works sits in **How the DFS optimizer works** below.
         """)
 
     with st.expander("What is the Anytime TDs page?"):
@@ -316,7 +333,7 @@ When an approved agent artifact is present again, High means the model edge is s
 
     with st.expander("How do the fantasy projections work?"):
         st.markdown("""
-The Weekly Fantasy page uses a separate system from the betting model.
+The Weekly Fantasy page uses a separate system from the betting model. The DFS Optimizer is a third system: Classic DK points, not half-PPR.
 
 **2025 demo (weeks 10-17 on this page).** Four per-position XGBoost models trained on 2020-2024, with 2025 held out. Walkthrough only. Not the 2026 live weekly model.
 
@@ -345,7 +362,7 @@ MAE is the average number of points the projection was off by. For WR, about 3.9
         st.markdown("""
 These extra stat columns appear on the **2025 demo weeks**. Week 17 is the 2026 layout preview: rankings start with a four-column simple view, and **More info** reveals the available stat and matchup context in the same table. Its frozen source CSV is unchanged. 2026 live weeks show the detailed toggle when their release includes those fields.
 
-On the 2026 preview and live weekly layout, enable **More info — projected yards for player props** to see the available passing, rushing, and receiving-yard estimates beside the fantasy rankings. You can compare them with sportsbook player-prop over/under lines. They are model estimates, not sportsbook lines or betting recommendations.
+On the 2026 preview and live weekly layout, enable **More info** to see the available passing, rushing, and receiving-yard estimates beside the fantasy rankings. You can compare them with sportsbook player-prop over/under lines. They are model estimates, not sportsbook lines or betting recommendations.
 
 Eight separate XGBoost models, trained on the same data with each stat as the target:
 
@@ -373,9 +390,9 @@ Useful as a rough look at player props. They are **independent** models, so they
 
 **Team Total:** Vegas implied team total, how many points Vegas expects this team to score.
 
-**Health:** injury report. ✅ Healthy · 🟡 Questionable · ⚠️ Doubtful · ❌ Out. Players ruled Out are removed.
+**Health:** injury report. ✅ Healthy · 🟡 Questionable. Out, Doubtful, IR, and anyone who did not play are removed from the board.
 
-**Actual Pts / Actual [stat]:** fills in after the game. Blank means the player did not play.
+**Actual Pts / Actual [stat]:** fills in after the game for players who played.
         """)
 
     with st.expander("What is Off EPA?"):
@@ -440,7 +457,7 @@ Play-by-play and schedule data come from nflreadpy, going back far enough to bui
 
 Injury reports feed availability: Out and Doubtful players reduce a team's talent and lineup features. The All-Pro CSV (1997-2025) is a custom roster-talent file, updated manually each January.
 
-Posted win totals on Season Totals are a sportsbook snapshot with an as-of date on that page. Sleeper ADP, ESPN ADP, and Sleeper projections on the Draft Board refresh daily. The LLM agent is paused (August 2026).
+Posted win totals on Season Totals are a sportsbook snapshot with an as-of date on that page. Sleeper ADP, ESPN ADP, and Sleeper projections on the Draft Board refresh daily. DFS Optimizer projections are checked producer artifacts, not generated on this site. The LLM agent is paused (August 2026).
         """)
 
     with st.expander("Is this financial advice?"):

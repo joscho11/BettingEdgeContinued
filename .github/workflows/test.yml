@@ -43,6 +43,7 @@ jobs:
           tests/test_calibration.py
           tests/test_app_draft_board.py
           tests/test_site_nav.py
+          tests/test_page_dfs.py
           tests/test_board_page.py
           tests/test_betting_pages.py
           tests/test_live_2026.py
@@ -115,6 +116,7 @@ jobs:
           tests/test_dashboard_utils.py
           tests/test_app_draft_board.py
           tests/test_site_nav.py
+          tests/test_page_dfs.py
           tests/test_board_page.py
           tests/test_betting_pages.py
           tests/test_live_2026.py

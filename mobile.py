@@ -307,6 +307,32 @@ details summary{
   flex:0 0 auto !important;
 }
 
+/* Home start-here cards stay 2-up on a phone and clip the CTA ("Open the Draft E…").
+   Stack them so the full page_link label is tappable. Explore links wrap instead
+   of squeezing six items into one row. */
+[class*="st-key-jsa-home-start"] [data-testid="stHorizontalBlock"]{
+  flex-direction:column !important;
+  flex-wrap:nowrap !important;
+  gap:.7rem !important;
+}
+[class*="st-key-jsa-home-start"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"],
+[class*="st-key-jsa-home-start"] [data-testid="stHorizontalBlock"] > [data-testid="stElementContainer"]{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+}
+[class*="st-key-jsa-home-explore"],
+[class*="st-key-jsa-help-start"]{
+  flex-wrap:wrap !important;
+  row-gap:.4rem !important;
+}
+[class*="st-key-jsa-home-explore"] [data-testid="stPageLink-NavLink"],
+[class*="st-key-jsa-home-explore"] a,
+[class*="st-key-jsa-help-start"] [data-testid="stPageLink-NavLink"],
+[class*="st-key-jsa-help-start"] a{
+  white-space:nowrap !important;
+}
+
 }  /* end phones */
 
 
@@ -841,6 +867,16 @@ details summary{
     align-items:stretch !important;
     gap:.45rem !important;
   }
+  /* Keyed horizontal containers ARE the flex row (Anytime TDs, Weekly Predictions,
+     DFS). The descendant rule above only fires when metrics sit in nested columns. */
+  [class*="st-key-jsa-metric-even"]:has(> [data-testid="stElementContainer"] [data-testid="stMetric"]){
+    display:grid !important;
+    flex-wrap:unset !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    grid-auto-rows:1fr !important;
+    align-items:stretch !important;
+    gap:.45rem !important;
+  }
   [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"],
   [class*="st-key-jsa-metric-even"] [data-testid="stHorizontalBlock"]:has(.jsa-mcard) > [data-testid="stColumn"]{
     min-width:0 !important;
@@ -853,6 +889,12 @@ details summary{
     align-items:stretch !important;
     overflow:visible !important;
     box-sizing:border-box !important;
+  }
+  [class*="st-key-jsa-metric-even"]:has(> [data-testid="stElementContainer"] [data-testid="stMetric"]) > [data-testid="stElementContainer"]{
+    min-width:0 !important;
+    width:auto !important;
+    max-width:none !important;
+    flex:none !important;
   }
   [class*="st-key-jsa-metric-even"] [data-testid="stElementContainer"],
   [class*="st-key-jsa-metric-even"] [data-testid="stMarkdownContainer"]{
