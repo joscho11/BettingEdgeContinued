@@ -698,7 +698,7 @@ def render():
                             "</div>"
                         )
                         st.markdown(row_html, unsafe_allow_html=True)
-                else:
+                elif not preview_layout:
                     st.info("No agent notes for this week.")
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -126,6 +126,7 @@ def test_weekly_fantasy_defaults_to_2025_week10(tmp_path):
     infos = " ".join(str(w.value) for w in at.info).lower()
     assert "2025" in infos
     assert "demo" in infos
+    assert "no agent notes for this week" in infos
 
 
 def test_coming_soon_copy_points_at_2025_demo():
@@ -231,6 +232,8 @@ def test_future_release_uses_enabled_player_prop_toggle(tmp_path):
     assert more_info.label == "More info — projected yards for player props"
     captions = " ".join(str(item.value) for item in at.caption)
     assert "player-prop over/under lines" in captions
+    infos = " ".join(str(item.value) for item in at.info).lower()
+    assert "no agent notes for this week" not in infos
 
     at = more_info.set_value(True).run()
     assert not at.exception, at.exception
@@ -248,6 +251,7 @@ def test_week17_renders_simple_and_detailed_2026_preview(tmp_path):
     assert "2026 format preview" in infos
     assert "source CSV has not been changed" in infos
     assert "simple by default" in infos
+    assert "No agent notes for this week" not in infos
     assert all(widget.key != "wf_view" for widget in at.segmented_control)
     more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
     assert more_info.value is False
