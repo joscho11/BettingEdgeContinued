@@ -77,6 +77,32 @@ def _render_weekly(tmp_path):
     return at
 
 
+def _render_weekly_release(tmp_path, projection_path, season=2026, week=1):
+    h = tmp_path / "h_weekly_release.py"
+    h.write_text(
+        f"import sys; sys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "from pathlib import Path\n"
+        "import page_weekly_fantasy as p\n"
+        "_available = p.available_projection_files\n"
+        "_default = p.page_common.release_default_selection\n"
+        "_status = p.page_common.render_release_status\n"
+        "try:\n"
+        f"    p.available_projection_files = lambda: {{({season}, {week}): Path(r'{projection_path}')}}\n"
+        f"    p.page_common.release_default_selection = lambda *a, **k: ({season}, {week})\n"
+        "    p.page_common.render_release_status = lambda *a, **k: None\n"
+        "    p.render()\n"
+        "finally:\n"
+        "    p.available_projection_files = _available\n"
+        "    p.page_common.release_default_selection = _default\n"
+        "    p.page_common.render_release_status = _status\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(h), default_timeout=180).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    return at
+
+
 def test_weekly_fantasy_names_2025_demo(tmp_path):
     at = _render_weekly(tmp_path)
     blob = " ".join(
@@ -150,6 +176,13 @@ def test_preview_column_contract_matches_simple_and_detailed_views():
     ]
 
 
+def test_preview_layout_covers_week17_and_every_future_live_season():
+    assert weekly._uses_preview_layout(2025, 17)
+    assert not weekly._uses_preview_layout(2025, 16)
+    assert weekly._uses_preview_layout(2026, 1)
+    assert weekly._uses_preview_layout(2027, 18)
+
+
 def test_slim_2026_schema_has_core_columns():
     frame = pd.DataFrame({
         "player_id": ["00-1"],
@@ -166,6 +199,43 @@ def test_slim_2026_schema_has_core_columns():
         assert col in frame.columns
     assert "depth_chart_position" not in frame.columns
     assert "off_epa_roll4" not in frame.columns
+
+
+def test_future_release_uses_enabled_player_prop_toggle(tmp_path):
+    projection_path = tmp_path / "projections_2026_week01.csv"
+    pd.DataFrame({
+        "player_id": ["00-1"],
+        "player_display_name": ["Test Quarterback"],
+        "position": ["QB"],
+        "team": ["NE"],
+        "opponent_team": ["SEA"],
+        "season": [2026],
+        "week": [1],
+        "projected_pts": [20.4],
+        "pred_qb_pass_yards": [252.5],
+        "pred_qb_rush_yards": [28.0],
+        "pred_rush_yards": [None],
+        "pred_rec_yards": [None],
+        "pred_wr_rec_yards": [None],
+        "pred_te_rec_yards": [None],
+        "off_epa_roll4": [0.08],
+        "off_epa_rank": [7],
+        "implied_team_total": [24.5],
+        "injury_status_score": [1.0],
+    }).to_csv(projection_path, index=False)
+
+    at = _render_weekly_release(tmp_path, projection_path)
+
+    more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
+    assert more_info.disabled is False
+    assert more_info.label == "More info — projected yards for player props"
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "player-prop over/under lines" in captions
+
+    at = more_info.set_value(True).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert next(widget for widget in at.toggle if widget.key == "wf_more_info").value is True
 
 
 def test_week17_renders_simple_and_detailed_2026_preview(tmp_path):

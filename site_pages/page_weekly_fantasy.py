@@ -134,6 +134,10 @@ def _preview_detail_available(frame: pd.DataFrame) -> bool:
     return set(PREVIEW_DETAIL_SOURCE_COLUMNS) <= set(frame.columns)
 
 
+def _uses_preview_layout(season: int, week: int) -> bool:
+    return (int(season), int(week)) == LIVE_FORMAT_PREVIEW or int(season) >= LIVE_FROM_SEASON
+
+
 def _preview_table_columns(
     position: str,
     show_more_info: bool,
@@ -262,7 +266,7 @@ def render():
         elif int(season) == DEMO_SEASON:
             st.info(f"This is the 2025 Week {week} demo from the previous weekly model.")
         proj_df = _load_proj_csv(str(available[(season, week)]))
-        preview_layout = live_format_preview or int(season) >= LIVE_FROM_SEASON
+        preview_layout = _uses_preview_layout(season, week)
 
         # Actual results (available after week is played)
         _actuals       = load_actual_stats(season, week)
