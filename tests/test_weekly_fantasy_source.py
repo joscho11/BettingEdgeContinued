@@ -109,19 +109,25 @@ def test_coming_soon_copy_points_at_2025_demo():
     assert "demo" in text.lower()
 
 
-def test_week17_preview_uses_live_points_only_schema_without_changing_csv():
+def test_preview_column_contract_matches_simple_and_detailed_views():
     path = _HERE / "fantasy" / "fantasy_projections" / "projections_2025_week17.csv"
     source = pd.read_csv(path)
 
-    preview = weekly._live_format_preview_frame(source)
-
-    assert len(preview) == len(source)
-    assert list(preview.columns) == [
-        "player_id", "player_display_name", "position", "team", "opponent_team",
-        "projected_pts",
+    assert weekly._preview_detail_available(source)
+    assert ["#", *weekly._preview_table_columns(False, False)] == [
+        "#", "Player", "Opponent", "Proj Pts",
     ]
-    assert not any(column.startswith("pred_") for column in preview.columns)
-    assert "depth_chart_position" not in preview.columns
+    assert ["#", *weekly._preview_table_columns(True, False)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds",
+        "Proj Rush Yds", "Proj Rec Yds", "Off EPA", "EPA Rank",
+        "Team Total", "Health",
+    ]
+    assert ["#", *weekly._preview_table_columns(True, True)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds",
+        "Proj Rush Yds", "Proj Rec Yds", "Off EPA", "EPA Rank",
+        "Team Total", "Health",
+        "Actual Pts", "Actual Pass Yds", "Actual Rush Yds", "Actual Rec Yds",
+    ]
 
 
 def test_slim_2026_schema_has_core_columns():
@@ -211,7 +217,7 @@ def test_weekly_fantasy_stat_reference_view_renders(tmp_path):
     assert len(at.dataframe) >= 2
 
 
-def test_week17_renders_as_2026_points_only_preview(tmp_path):
+def test_week17_renders_simple_and_detailed_2026_preview(tmp_path):
     at = _render_weekly(tmp_path)
     week = next(widget for widget in at.selectbox if widget.key == "wf_week")
     at = week.set_value(17).run()
@@ -220,10 +226,13 @@ def test_week17_renders_as_2026_points_only_preview(tmp_path):
     infos = " ".join(str(item.value) for item in at.info)
     assert "2026 format preview" in infos
     assert "source CSV has not been changed" in infos
+    assert "simple by default" in infos
+    more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
+    assert more_info.value is False
 
-    view = next(widget for widget in at.segmented_control if widget.key == "wf_view")
-    at = view.set_value("Stat reference").run()
+    at = more_info.set_value(True).run()
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
-    infos = " ".join(str(item.value) for item in at.info)
-    assert "no independent component-stat estimates" in infos
+    more_info = next(widget for widget in at.toggle if widget.key == "wf_more_info")
+    assert more_info.value is True
+    assert len(at.dataframe) >= 2

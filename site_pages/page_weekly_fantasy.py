@@ -20,10 +20,19 @@ LIVE_FROM_SEASON = 2026
 LIVE_WEEK = 1
 REG_WEEKS = tuple(range(1, 19))
 LIVE_FORMAT_PREVIEW = (DEMO_SEASON, 17)
-LIVE_PROJECTION_COLUMNS = (
-    "player_id", "player_display_name", "position", "team", "opponent_team",
-    "season", "week", "projected_pts",
+PREVIEW_DETAIL_SOURCE_COLUMNS = (
+    "pred_qb_pass_yards", "pred_qb_rush_yards", "pred_rush_yards",
+    "pred_rec_yards", "pred_wr_rec_yards", "pred_te_rec_yards",
+    "off_epa_roll4", "off_epa_rank", "implied_team_total", "injury_status_score",
 )
+PREVIEW_SIMPLE_COLUMNS = ["Player", "Opponent", "Proj Pts"]
+PREVIEW_DETAIL_COLUMNS = PREVIEW_SIMPLE_COLUMNS + [
+    "Proj Pass Yds", "Proj Rush Yds", "Proj Rec Yds",
+    "Off EPA", "EPA Rank", "Team Total", "Health",
+]
+PREVIEW_ACTUAL_COLUMNS = [
+    "Actual Pts", "Actual Pass Yds", "Actual Rush Yds", "Actual Rec Yds",
+]
 _JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
 
 
@@ -115,9 +124,15 @@ def _coming_soon_copy(season: int, week: int) -> str:
     )
 
 
-def _live_format_preview_frame(frame: pd.DataFrame) -> pd.DataFrame:
-    """Render a frozen legacy week through the points-only 2026 site contract."""
-    return frame.loc[:, [column for column in LIVE_PROJECTION_COLUMNS if column in frame]].copy()
+def _preview_detail_available(frame: pd.DataFrame) -> bool:
+    return set(PREVIEW_DETAIL_SOURCE_COLUMNS) <= set(frame.columns)
+
+
+def _preview_table_columns(show_more_info: bool, actuals_in: bool) -> list[str]:
+    columns = list(PREVIEW_DETAIL_COLUMNS if show_more_info else PREVIEW_SIMPLE_COLUMNS)
+    if actuals_in:
+        columns.extend(PREVIEW_ACTUAL_COLUMNS)
+    return columns
 
 
 @st.cache_data(ttl=3600)
@@ -388,14 +403,14 @@ def render():
         if live_format_preview:
             st.info(
                 "2026 format preview: these are the frozen 2025 Week 17 projections "
-                "rendered through the live points-only release format. The source CSV "
-                "has not been changed."
+                "in the planned live layout. Rankings are simple by default; turn on "
+                "More info for the full matchup and stat context. The source CSV has "
+                "not been changed."
             )
         elif int(season) == DEMO_SEASON:
             st.info(f"This is the 2025 Week {week} demo from the previous weekly model.")
         proj_df = _load_proj_csv(str(available[(season, week)]))
-        if live_format_preview:
-            proj_df = _live_format_preview_frame(proj_df)
+        preview_layout = live_format_preview or int(season) >= LIVE_FROM_SEASON
 
         # Actual results (available after week is played)
         _actuals       = load_actual_stats(season, week)
@@ -435,6 +450,25 @@ def render():
             key="wf_view",
             label_visibility="collapsed",
         )
+
+        show_more_info = False
+        if preview_layout and view == "Fantasy rankings":
+            detail_available = _preview_detail_available(proj_df)
+            show_more_info = bool(st.toggle(
+                "More info",
+                value=False,
+                key="wf_more_info",
+                disabled=not detail_available,
+                help=(
+                    "Show projected stat lines, last-four offensive EPA, implied team "
+                    "total, and health."
+                ),
+            )) and detail_available
+            if not detail_available:
+                st.caption(
+                    "More info will unlock when the weekly release includes component "
+                    "stat and matchup fields."
+                )
 
         player_search = st.text_input(
             "🔍 Search player",
@@ -543,18 +577,49 @@ def render():
                     if extra in pos_df.columns:
                         keep.append(extra)
                 display = pos_df[keep].copy()
-                if has_qb_stats:
-                    display["Proj Pass Yds"] = pos_df["pred_qb_pass_yards"].fillna(0).round(0).astype(int)
-                    display["Proj Rush Yds"] = pos_df["pred_qb_rush_yards"].fillna(0).round(0).astype(int)
-                if has_rb_yds:
-                    display["Proj Rush Yds"] = pos_df["pred_rush_yards"].fillna(0).round(0).astype(int)
-                    display["Proj Rec Yds"]  = pos_df["pred_rec_yards"].fillna(0).round(0).astype(int)
-                if has_wr_stats:
-                    display["Proj Receptions"] = pos_df["pred_wr_receptions"].fillna(0).round(1)
-                    display["Proj Rec Yds"]    = pos_df["pred_wr_rec_yards"].fillna(0).round(0).astype(int)
-                if has_te_stats:
-                    display["Proj Receptions"] = pos_df["pred_te_receptions"].fillna(0).round(1)
-                    display["Proj Rec Yds"]    = pos_df["pred_te_rec_yards"].fillna(0).round(0).astype(int)
+                if preview_layout:
+                    empty_stat = pd.Series(float("nan"), index=pos_df.index)
+                    display["Proj Pass Yds"] = (
+                        pd.to_numeric(pos_df["pred_qb_pass_yards"], errors="coerce")
+                        if pos == "QB" and "pred_qb_pass_yards" in pos_df else empty_stat
+                    )
+                    if pos == "QB" and "pred_qb_rush_yards" in pos_df:
+                        display["Proj Rush Yds"] = pd.to_numeric(
+                            pos_df["pred_qb_rush_yards"], errors="coerce"
+                        )
+                    elif pos == "RB" and "pred_rush_yards" in pos_df:
+                        display["Proj Rush Yds"] = pd.to_numeric(
+                            pos_df["pred_rush_yards"], errors="coerce"
+                        )
+                    else:
+                        display["Proj Rush Yds"] = empty_stat
+                    if pos == "RB" and "pred_rec_yards" in pos_df:
+                        display["Proj Rec Yds"] = pd.to_numeric(
+                            pos_df["pred_rec_yards"], errors="coerce"
+                        )
+                    elif pos == "WR" and "pred_wr_rec_yards" in pos_df:
+                        display["Proj Rec Yds"] = pd.to_numeric(
+                            pos_df["pred_wr_rec_yards"], errors="coerce"
+                        )
+                    elif pos == "TE" and "pred_te_rec_yards" in pos_df:
+                        display["Proj Rec Yds"] = pd.to_numeric(
+                            pos_df["pred_te_rec_yards"], errors="coerce"
+                        )
+                    else:
+                        display["Proj Rec Yds"] = empty_stat
+                else:
+                    if has_qb_stats:
+                        display["Proj Pass Yds"] = pos_df["pred_qb_pass_yards"].fillna(0).round(0).astype(int)
+                        display["Proj Rush Yds"] = pos_df["pred_qb_rush_yards"].fillna(0).round(0).astype(int)
+                    if has_rb_yds:
+                        display["Proj Rush Yds"] = pos_df["pred_rush_yards"].fillna(0).round(0).astype(int)
+                        display["Proj Rec Yds"]  = pos_df["pred_rec_yards"].fillna(0).round(0).astype(int)
+                    if has_wr_stats:
+                        display["Proj Receptions"] = pos_df["pred_wr_receptions"].fillna(0).round(1)
+                        display["Proj Rec Yds"]    = pos_df["pred_wr_rec_yards"].fillna(0).round(0).astype(int)
+                    if has_te_stats:
+                        display["Proj Receptions"] = pos_df["pred_te_receptions"].fillna(0).round(1)
+                        display["Proj Rec Yds"]    = pos_df["pred_te_rec_yards"].fillna(0).round(0).astype(int)
 
                 display["Player"] = display["player_display_name"] + " - " + display["team"]
                 if "is_home" in display.columns:
@@ -574,26 +639,55 @@ def render():
                 if has_total:
                     display["Team Total"] = display["implied_team_total"].round(1)
 
-                extra_stat = []
-                if has_qb_stats:
-                    extra_stat = ["Proj Pass Yds", "Proj Rush Yds"]
-                elif has_rb_yds:
-                    extra_stat = ["Proj Rush Yds", "Proj Rec Yds"]
-                elif has_wr_stats or has_te_stats:
-                    extra_stat = ["Proj Receptions", "Proj Rec Yds"]
-                tail = []
-                if has_epa:
-                    tail.extend(["Off EPA", "EPA Rank"])
-                if has_total:
-                    tail.append("Team Total")
-                if has_health:
-                    tail.append("Health")
-                base_cols = ["Player", "Opponent", "Proj Pts"] + extra_stat + tail
+                if preview_layout:
+                    base_cols = _preview_table_columns(show_more_info, actuals_in=False)
+                else:
+                    extra_stat = []
+                    if has_qb_stats:
+                        extra_stat = ["Proj Pass Yds", "Proj Rush Yds"]
+                    elif has_rb_yds:
+                        extra_stat = ["Proj Rush Yds", "Proj Rec Yds"]
+                    elif has_wr_stats or has_te_stats:
+                        extra_stat = ["Proj Receptions", "Proj Rec Yds"]
+                    tail = []
+                    if has_epa:
+                        tail.extend(["Off EPA", "EPA Rank"])
+                    if has_total:
+                        tail.append("Team Total")
+                    if has_health:
+                        tail.append("Health")
+                    base_cols = ["Player", "Opponent", "Proj Pts"] + extra_stat + tail
 
                 if actuals_in:
                     _actual_raw = display["player_id"].map(_half_ppr_dict)
                     display["Actual Pts"] = pd.to_numeric(_actual_raw, errors="coerce").round(1)
-                    if has_qb_stats:
+                    if preview_layout:
+                        display["Actual Pass Yds"] = pd.to_numeric(
+                            display["player_id"].map(actual_qb_pass_yds if pos == "QB" else {}),
+                            errors="coerce",
+                        )
+                        if pos == "QB":
+                            rush_actuals = actual_qb_rush_yds
+                        elif pos == "RB":
+                            rush_actuals = actual_rush_yds
+                        else:
+                            rush_actuals = {}
+                        display["Actual Rush Yds"] = pd.to_numeric(
+                            display["player_id"].map(rush_actuals), errors="coerce"
+                        )
+                        if pos == "RB":
+                            rec_actuals = actual_rb_rec_yds
+                        elif pos == "WR":
+                            rec_actuals = actual_wr_rec_yds
+                        elif pos == "TE":
+                            rec_actuals = actual_te_rec_yds
+                        else:
+                            rec_actuals = {}
+                        display["Actual Rec Yds"] = pd.to_numeric(
+                            display["player_id"].map(rec_actuals), errors="coerce"
+                        )
+                        tbl_cols = _preview_table_columns(show_more_info, actuals_in=True)
+                    elif has_qb_stats:
                         display["Actual Pass Yds"] = pd.to_numeric(display["player_id"].map(actual_qb_pass_yds), errors="coerce")
                         display["Actual Rush Yds"] = pd.to_numeric(display["player_id"].map(actual_qb_rush_yds), errors="coerce")
                         tbl_cols = base_cols + ["Actual Pts", "Actual Pass Yds", "Actual Rush Yds"]
@@ -638,21 +732,36 @@ def render():
                     "Team Total": st.column_config.NumberColumn("Team Total", format="%.1f",
                                       help="Vegas implied team total — the number of points Vegas expects this team to score. Derived by splitting the game over/under based on the point spread. Higher = Vegas expects more scoring, which generally means more fantasy opportunity."),
                 }
-                if has_qb_stats:
-                    col_config["Proj Pass Yds"] = st.column_config.NumberColumn("Proj Pass Yds", format="%d",
-                                      help="Projected passing yards for this game, from a separate XGBoost model trained specifically on QB passing stats. Useful as a reference for pass yards prop bets.")
-                    col_config["Proj Rush Yds"] = st.column_config.NumberColumn("Proj Rush Yds", format="%d",
-                                      help="Projected rushing yards for this game, from a separate XGBoost model trained on QB rushing stats. Useful as a reference for rush yards prop bets.")
-                if has_rb_yds:
-                    col_config["Proj Rush Yds"] = st.column_config.NumberColumn("Proj Rush Yds", format="%d",
-                                      help="Projected rushing yards for this game, from a separate XGBoost model trained on RB rushing stats. Useful as a reference for rush yards prop bets.")
-                    col_config["Proj Rec Yds"]  = st.column_config.NumberColumn("Proj Rec Yds",  format="%d",
-                                      help="Projected receiving yards for this game, from a separate XGBoost model trained on RB receiving stats. Useful as a reference for receiving yards prop bets.")
-                if (has_wr_stats or has_te_stats):
-                    col_config["Proj Receptions"] = st.column_config.NumberColumn("Proj Receptions", format="%.1f",
-                                      help="Projected number of receptions for this game, from a separate XGBoost model. Useful as a reference for receptions prop bets.")
-                    col_config["Proj Rec Yds"]    = st.column_config.NumberColumn("Proj Rec Yds",    format="%d",
-                                      help="Projected receiving yards for this game, from a separate XGBoost model. Useful as a reference for receiving yards prop bets.")
+                if preview_layout:
+                    if show_more_info:
+                        col_config["Proj Pass Yds"] = st.column_config.NumberColumn(
+                            "Proj Pass Yds", format="%.1f",
+                            help="Independent weekly passing-yards estimate. Blank when not applicable."
+                        )
+                        col_config["Proj Rush Yds"] = st.column_config.NumberColumn(
+                            "Proj Rush Yds", format="%.1f",
+                            help="Independent weekly rushing-yards estimate. Blank when not applicable."
+                        )
+                        col_config["Proj Rec Yds"] = st.column_config.NumberColumn(
+                            "Proj Rec Yds", format="%.1f",
+                            help="Independent weekly receiving-yards estimate. Blank when not applicable."
+                        )
+                else:
+                    if has_qb_stats:
+                        col_config["Proj Pass Yds"] = st.column_config.NumberColumn("Proj Pass Yds", format="%d",
+                                          help="Projected passing yards for this game, from a separate XGBoost model trained specifically on QB passing stats. Useful as a reference for pass yards prop bets.")
+                        col_config["Proj Rush Yds"] = st.column_config.NumberColumn("Proj Rush Yds", format="%d",
+                                          help="Projected rushing yards for this game, from a separate XGBoost model trained on QB rushing stats. Useful as a reference for rush yards prop bets.")
+                    if has_rb_yds:
+                        col_config["Proj Rush Yds"] = st.column_config.NumberColumn("Proj Rush Yds", format="%d",
+                                          help="Projected rushing yards for this game, from a separate XGBoost model trained on RB rushing stats. Useful as a reference for rush yards prop bets.")
+                        col_config["Proj Rec Yds"]  = st.column_config.NumberColumn("Proj Rec Yds",  format="%d",
+                                          help="Projected receiving yards for this game, from a separate XGBoost model trained on RB receiving stats. Useful as a reference for receiving yards prop bets.")
+                    if has_wr_stats or has_te_stats:
+                        col_config["Proj Receptions"] = st.column_config.NumberColumn("Proj Receptions", format="%.1f",
+                                          help="Projected number of receptions for this game, from a separate XGBoost model. Useful as a reference for receptions prop bets.")
+                        col_config["Proj Rec Yds"]    = st.column_config.NumberColumn("Proj Rec Yds",    format="%d",
+                                          help="Projected receiving yards for this game, from a separate XGBoost model. Useful as a reference for receiving yards prop bets.")
                 if actuals_in:
                     col_config["Actual Pts"]        = st.column_config.NumberColumn("Actual Pts",        format="%.1f",
                                       help=f"Actual half-PPR fantasy points scored in this game. {_dnp_note}")
@@ -665,11 +774,14 @@ def render():
                     col_config["Actual Receptions"] = st.column_config.NumberColumn("Actual Receptions", format="%.1f",
                                       help=f"Actual number of receptions recorded in this game. {_dnp_note}")
 
-                phone_keep = [
-                    col for col in (
-                        "#", "Player", "Opponent", "Proj Pts", "Health", "Actual Pts",
-                    ) if col in tbl.columns
-                ]
+                if preview_layout:
+                    phone_keep = list(tbl.columns)
+                else:
+                    phone_keep = [
+                        col for col in (
+                            "#", "Player", "Opponent", "Proj Pts", "Health", "Actual Pts",
+                        ) if col in tbl.columns
+                    ]
                 dataframe_phone_desktop(
                     tbl.style.apply(style_fn, axis=None),
                     tbl[phone_keep].style.apply(style_fn, axis=None),
@@ -678,7 +790,10 @@ def render():
                     width="stretch",
                     height=TABLE_HEIGHT,
                     column_config=col_config,
-                    key=f"wf_grid_{pos}_{season}_{week}_{player_search}_{len(tbl)}",
+                    key=(
+                        f"wf_grid_{pos}_{season}_{week}_{player_search}_{len(tbl)}_"
+                        f"{'detail' if show_more_info else 'simple'}"
+                    ),
                 )
 
                 # ── Agent Analysis ────────────────────────────────────────────
