@@ -19,6 +19,11 @@ DEMO_SEASON = 2025
 LIVE_FROM_SEASON = 2026
 LIVE_WEEK = 1
 REG_WEEKS = tuple(range(1, 19))
+LIVE_FORMAT_PREVIEW = (DEMO_SEASON, 17)
+LIVE_PROJECTION_COLUMNS = (
+    "player_id", "player_display_name", "position", "team", "opponent_team",
+    "season", "week", "projected_pts",
+)
 _JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
 
 
@@ -108,6 +113,11 @@ def _coming_soon_copy(season: int, week: int) -> str:
         f"{season} Week {week} projections will be here soon. "
         "Switch Season to 2025 for a demo of this board."
     )
+
+
+def _live_format_preview_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    """Render a frozen legacy week through the points-only 2026 site contract."""
+    return frame.loc[:, [column for column in LIVE_PROJECTION_COLUMNS if column in frame]].copy()
 
 
 @st.cache_data(ttl=3600)
@@ -374,9 +384,18 @@ def render():
                 "2025 on this page is a demo."
             )
     else:
-        if int(season) == DEMO_SEASON:
+        live_format_preview = (int(season), int(week)) == LIVE_FORMAT_PREVIEW
+        if live_format_preview:
+            st.info(
+                "2026 format preview: these are the frozen 2025 Week 17 projections "
+                "rendered through the live points-only release format. The source CSV "
+                "has not been changed."
+            )
+        elif int(season) == DEMO_SEASON:
             st.info(f"This is the 2025 Week {week} demo from the previous weekly model.")
         proj_df = _load_proj_csv(str(available[(season, week)]))
+        if live_format_preview:
+            proj_df = _live_format_preview_frame(proj_df)
 
         # Actual results (available after week is played)
         _actuals       = load_actual_stats(season, week)
@@ -391,15 +410,16 @@ def render():
         actual_te_rec_yds  = _actuals.get('te_rec_yds',  {})
         actual_te_recs     = _actuals.get('te_recs',     {})
 
-        # Load cached agent analysis if available
-        fa_path = str(_HERE / "fantasy" / f"agent_analysis_{season}_week{week}.json")
+        # The preview exercises the live 2026 surface, which has no legacy agent cards.
         fantasy_analysis = None
-        try:
-            if os.path.exists(fa_path):
-                with open(fa_path) as _f:
-                    fantasy_analysis = json.load(_f)
-        except (IOError, json.JSONDecodeError):
-            fantasy_analysis = None
+        if not live_format_preview:
+            fa_path = str(_HERE / "fantasy" / f"agent_analysis_{season}_week{week}.json")
+            try:
+                if os.path.exists(fa_path):
+                    with open(fa_path) as _f:
+                        fantasy_analysis = json.load(_f)
+            except (IOError, json.JSONDecodeError):
+                fantasy_analysis = None
 
         if actuals_in:
             st.success(f"Results are in! Actual stats are now shown alongside projections for Week {week}.")

@@ -109,6 +109,21 @@ def test_coming_soon_copy_points_at_2025_demo():
     assert "demo" in text.lower()
 
 
+def test_week17_preview_uses_live_points_only_schema_without_changing_csv():
+    path = _HERE / "fantasy" / "fantasy_projections" / "projections_2025_week17.csv"
+    source = pd.read_csv(path)
+
+    preview = weekly._live_format_preview_frame(source)
+
+    assert len(preview) == len(source)
+    assert list(preview.columns) == [
+        "player_id", "player_display_name", "position", "team", "opponent_team",
+        "projected_pts",
+    ]
+    assert not any(column.startswith("pred_") for column in preview.columns)
+    assert "depth_chart_position" not in preview.columns
+
+
 def test_slim_2026_schema_has_core_columns():
     frame = pd.DataFrame({
         "player_id": ["00-1"],
@@ -194,3 +209,21 @@ def test_weekly_fantasy_stat_reference_view_renders(tmp_path):
     assert "Independent stat estimates" in captions
     assert "not a mathematical breakdown" in captions
     assert len(at.dataframe) >= 2
+
+
+def test_week17_renders_as_2026_points_only_preview(tmp_path):
+    at = _render_weekly(tmp_path)
+    week = next(widget for widget in at.selectbox if widget.key == "wf_week")
+    at = week.set_value(17).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    infos = " ".join(str(item.value) for item in at.info)
+    assert "2026 format preview" in infos
+    assert "source CSV has not been changed" in infos
+
+    view = next(widget for widget in at.segmented_control if widget.key == "wf_view")
+    at = view.set_value("Stat reference").run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    infos = " ".join(str(item.value) for item in at.info)
+    assert "no independent component-stat estimates" in infos

@@ -343,7 +343,7 @@ MAE is the average number of points the projection was off by. For WR, about 3.9
 
     with st.expander("What are the prop stat columns?"):
         st.markdown("""
-These extra stat columns appear on the **2025 demo weeks**. 2026 live weeks show half-PPR points; the extra yard/reception columns only show when that file has them.
+These extra stat columns appear on the **2025 demo weeks**. Week 17 is deliberately rendered in the points-only 2026 format as a layout preview, so its legacy stat columns stay hidden even though its frozen source CSV is unchanged. 2026 live weeks show half-PPR points; the extra yard/reception columns only show when that file has them.
 
 Open **Stat reference** on Weekly Fantasy to see the available estimates in one table, filter by market, and compare with postgame actuals. These are model estimates, not sportsbook lines or betting recommendations.
 
