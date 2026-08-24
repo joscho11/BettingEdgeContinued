@@ -20,6 +20,11 @@ LIVE_FROM_SEASON = 2026
 LIVE_WEEK = 1
 REG_WEEKS = tuple(range(1, 19))
 LIVE_FORMAT_PREVIEW = (DEMO_SEASON, 17)
+# The frozen Week 17 artifact mislabeled this Reserve/Injured player as healthy.
+# Keep the archived source byte-identical and correct only the public preview.
+WEEKLY_DISPLAY_EXCLUSIONS = {
+    LIVE_FORMAT_PREVIEW: frozenset({"00-0040715"}),
+}
 PREVIEW_DETAIL_SOURCE_COLUMNS = (
     "pred_qb_pass_yards", "pred_qb_rush_yards", "pred_rush_yards",
     "pred_rec_yards", "pred_wr_rec_yards", "pred_te_rec_yards",
@@ -136,6 +141,21 @@ def _preview_detail_available(frame: pd.DataFrame) -> bool:
 
 def _uses_preview_layout(season: int, week: int) -> bool:
     return (int(season), int(week)) == LIVE_FORMAT_PREVIEW or int(season) >= LIVE_FROM_SEASON
+
+
+def _apply_display_exclusions(
+    frame: pd.DataFrame,
+    season: int,
+    week: int,
+) -> pd.DataFrame:
+    excluded_ids = WEEKLY_DISPLAY_EXCLUSIONS.get(
+        (int(season), int(week)), frozenset()
+    )
+    if not excluded_ids or "player_id" not in frame.columns:
+        return frame
+    return frame.loc[
+        ~frame["player_id"].astype(str).isin(excluded_ids)
+    ].copy()
 
 
 def _preview_table_columns(
@@ -265,7 +285,9 @@ def render():
             )
         elif int(season) == DEMO_SEASON:
             st.info(f"This is the 2025 Week {week} demo from the previous weekly model.")
-        proj_df = _load_proj_csv(str(available[(season, week)]))
+        proj_df = _apply_display_exclusions(
+            _load_proj_csv(str(available[(season, week)])), season, week
+        )
         preview_layout = _uses_preview_layout(season, week)
 
         # Actual results (available after week is played)

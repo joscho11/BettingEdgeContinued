@@ -184,6 +184,21 @@ def test_preview_layout_covers_week17_and_every_future_live_season():
     assert weekly._uses_preview_layout(2027, 18)
 
 
+def test_week17_excludes_skattebo_without_changing_the_frozen_source():
+    path = _HERE / "fantasy" / "fantasy_projections" / "projections_2025_week17.csv"
+    source = pd.read_csv(path)
+    skattebo_id = "00-0040715"
+
+    assert skattebo_id in set(source["player_id"].astype(str))
+    displayed = weekly._apply_display_exclusions(source, 2025, 17)
+    assert skattebo_id not in set(displayed["player_id"].astype(str))
+
+    other_week = weekly._apply_display_exclusions(source, 2025, 16)
+    future_release = weekly._apply_display_exclusions(source, 2026, 1)
+    pd.testing.assert_frame_equal(other_week, source)
+    pd.testing.assert_frame_equal(future_release, source)
+
+
 def test_slim_2026_schema_has_core_columns():
     frame = pd.DataFrame({
         "player_id": ["00-1"],
