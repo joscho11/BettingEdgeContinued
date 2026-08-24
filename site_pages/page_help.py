@@ -345,7 +345,7 @@ MAE is the average number of points the projection was off by. For WR, about 3.9
         st.markdown("""
 These extra stat columns appear on the **2025 demo weeks**. Week 17 is the 2026 layout preview: rankings start with a four-column simple view, and **More info** reveals the available stat and matchup context in the same table. Its frozen source CSV is unchanged. 2026 live weeks show the detailed toggle when their release includes those fields.
 
-Open **Stat reference** on Weekly Fantasy to see the available estimates in one table, filter by market, and compare with postgame actuals. These are model estimates, not sportsbook lines or betting recommendations.
+On the 2026 preview and live weekly layout, enable **More info — projected yards for player props** to see the available passing, rushing, and receiving-yard estimates beside the fantasy rankings. You can compare them with sportsbook player-prop over/under lines. They are model estimates, not sportsbook lines or betting recommendations.
 
 Eight separate XGBoost models, trained on the same data with each stat as the target:
 

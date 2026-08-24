@@ -225,168 +225,6 @@ def load_actual_stats(season: int, week: int) -> dict:
         return {}
 
 
-_STAT_REFERENCE_MARKETS = (
-    ("QB", "pred_qb_pass_yards", "Passing yards", "qb_pass_yds"),
-    ("QB", "pred_qb_rush_yards", "Rushing yards", "qb_rush_yds"),
-    ("RB", "pred_rush_yards", "Rushing yards", "rb_rush_yds"),
-    ("RB", "pred_rec_yards", "Receiving yards", "rb_rec_yds"),
-    ("WR", "pred_wr_receptions", "Receptions", "wr_recs"),
-    ("WR", "pred_wr_rec_yards", "Receiving yards", "wr_rec_yds"),
-    ("TE", "pred_te_receptions", "Receptions", "te_recs"),
-    ("TE", "pred_te_rec_yards", "Receiving yards", "te_rec_yds"),
-)
-_STAT_REFERENCE_COLUMNS = [
-    "player_id", "Player", "Pos", "Opponent", "Market", "Model estimate",
-    "Proj Pts", "Actual",
-]
-
-
-def _build_stat_reference(proj_df: pd.DataFrame, actuals: dict | None = None) -> pd.DataFrame:
-    """Return one row per available player/stat estimate in a weekly artifact.
-
-    The legacy stat models are independent of the half-PPR model, so this is a
-    reference view rather than an additive fantasy-point decomposition.
-    """
-    required = {"player_id", "player_display_name", "position", "team",
-                "opponent_team", "projected_pts"}
-    if not required <= set(proj_df.columns):
-        return pd.DataFrame(columns=_STAT_REFERENCE_COLUMNS)
-
-    actuals = actuals or {}
-    frames = []
-    for position, source, market, actual_key in _STAT_REFERENCE_MARKETS:
-        if source not in proj_df.columns:
-            continue
-        subset = proj_df[proj_df["position"].eq(position)].copy()
-        if position == "QB" and "depth_chart_position" in subset.columns:
-            subset = subset[pd.to_numeric(
-                subset["depth_chart_position"], errors="coerce"
-            ).eq(1)]
-        subset[source] = pd.to_numeric(subset[source], errors="coerce")
-        subset = subset[subset[source].notna()]
-        if subset.empty:
-            continue
-        subset = subset.sort_values("projected_pts", ascending=False).drop_duplicates(
-            subset="player_id"
-        )
-
-        out = pd.DataFrame(index=subset.index)
-        out["player_id"] = subset["player_id"].astype(str)
-        out["Player"] = (
-            subset["player_display_name"].astype(str) + " - " + subset["team"].astype(str)
-        )
-        out["Pos"] = position
-        if "is_home" in subset.columns:
-            sep = subset["is_home"].map(
-                lambda value: "vs" if value in (1, True, 1.0) else "@"
-            )
-            out["Opponent"] = sep + " " + subset["opponent_team"].astype(str)
-        else:
-            out["Opponent"] = subset["opponent_team"].astype(str)
-        out["Market"] = market
-        out["Model estimate"] = subset[source]
-        out["Proj Pts"] = pd.to_numeric(subset["projected_pts"], errors="coerce")
-        out["Actual"] = pd.to_numeric(
-            subset["player_id"].map(actuals.get(actual_key, {})), errors="coerce"
-        )
-        frames.append(out.reset_index(drop=True))
-
-    if not frames:
-        return pd.DataFrame(columns=_STAT_REFERENCE_COLUMNS)
-    return pd.concat(frames, ignore_index=True).loc[:, _STAT_REFERENCE_COLUMNS]
-
-
-def _render_stat_reference(
-    proj_df: pd.DataFrame,
-    actuals: dict,
-    *,
-    season: int,
-    week: int,
-    player_search: str,
-) -> None:
-    reference = _build_stat_reference(proj_df, actuals)
-    if reference.empty:
-        st.info(
-            "This release contains a half-PPR projection but no independent component-stat "
-            "estimates. The site will not infer a fake passing, rushing, or receiving "
-            "breakdown from one fantasy-point total."
-        )
-        return
-
-    st.caption(
-        "Independent stat estimates from the selected weekly release. They are not a "
-        "mathematical breakdown of Proj Pts, sportsbook lines, or betting recommendations."
-    )
-    market_order = [
-        market for market in ("Passing yards", "Rushing yards", "Receiving yards", "Receptions")
-        if market in set(reference["Market"])
-    ]
-    selected = st.pills(
-        "Markets",
-        market_order,
-        default=market_order,
-        selection_mode="multi",
-        key="wf_stat_markets",
-    )
-    if not selected:
-        st.info("Choose at least one market to show its model estimates.")
-        return
-
-    shown = reference[reference["Market"].isin(selected)].copy()
-    if player_search:
-        shown = shown[
-            shown["Player"].str.contains(player_search, case=False, na=False, regex=False)
-        ]
-    else:
-        shown = (
-            shown.sort_values(["Market", "Model estimate"], ascending=[True, False])
-            .groupby("Market", sort=False, as_index=False)
-            .head(50)
-        )
-    if shown.empty:
-        st.info("No stat estimates match the current player and market filters.")
-        return
-
-    shown = shown.sort_values(["Market", "Model estimate"], ascending=[True, False])
-    table_columns = ["Player", "Pos", "Opponent", "Market", "Model estimate", "Proj Pts"]
-    if shown["Actual"].notna().any():
-        table_columns.append("Actual")
-    table = shown[table_columns].reset_index(drop=True)
-    table.insert(0, "#", range(1, len(table) + 1))
-    phone_columns = [
-        column for column in ("Player", "Market", "Model estimate", "Actual")
-        if column in table.columns
-    ]
-    column_config = {
-        "#": st.column_config.NumberColumn("#", format="%d", width=50, pinned=True),
-        "Player": st.column_config.TextColumn("Player", pinned=True),
-        "Pos": st.column_config.TextColumn("Pos", width=60),
-        "Opponent": st.column_config.TextColumn("Opponent"),
-        "Market": st.column_config.TextColumn("Market"),
-        "Model estimate": st.column_config.NumberColumn(
-            "Model estimate",
-            format="%.1f",
-            help="Independent weekly estimate for the named box-score stat. This is not a sportsbook line.",
-        ),
-        "Proj Pts": st.column_config.NumberColumn(
-            "Proj Pts", format="%.1f", help="Separate half-PPR fantasy-point projection."
-        ),
-        "Actual": st.column_config.NumberColumn(
-            "Actual", format="%.1f", help="Postgame box-score result when available."
-        ),
-    }
-    dataframe_phone_desktop(
-        table,
-        table[phone_columns],
-        slug="wf-stat-reference",
-        hide_index=True,
-        width="stretch",
-        height=TABLE_HEIGHT,
-        column_config=column_config,
-        key=f"wf_stat_reference_{season}_{week}_{player_search}_{len(table)}",
-    )
-
-
 def render():
     st.title("Weekly fantasy projections")
     st.caption(
@@ -457,31 +295,29 @@ def render():
 
         st.divider()
 
-        view = st.segmented_control(
-            "Weekly Fantasy view",
-            ["Fantasy rankings", "Stat reference"],
-            default="Fantasy rankings",
-            key="wf_view",
-            label_visibility="collapsed",
-        )
-
         show_more_info = False
-        if preview_layout and view == "Fantasy rankings":
+        if preview_layout:
             detail_available = _preview_detail_available(proj_df)
             show_more_info = bool(st.toggle(
-                "More info",
+                "More info — projected yards for player props",
                 value=False,
                 key="wf_more_info",
                 disabled=not detail_available,
                 help=(
-                    "Show projected stat lines, last-four offensive EPA, implied team "
-                    "total, and health."
+                    "Show projected pass, rush, and receiving yards by position, plus "
+                    "last-four offensive EPA, implied team total, and health."
                 ),
             )) and detail_available
-            if not detail_available:
+            if detail_available:
                 st.caption(
-                    "More info will unlock when the weekly release includes component "
-                    "stat and matchup fields."
+                    "Enable **More info** to compare our projected yardage with sportsbook "
+                    "player-prop over/under lines. These are model estimates—not sportsbook "
+                    "lines or betting recommendations."
+                )
+            else:
+                st.caption(
+                    "Player-prop yardage estimates will unlock here when the weekly release "
+                    "includes component stat and matchup fields."
                 )
 
         player_search = st.text_input(
@@ -489,16 +325,6 @@ def render():
             placeholder="e.g. Mahomes, Jefferson, Kelce…",
             key="fantasy_search"
         )
-
-        if view == "Stat reference":
-            _render_stat_reference(
-                proj_df,
-                _actuals,
-                season=season,
-                week=week,
-                player_search=player_search,
-            )
-            return
 
         ptab_qb, ptab_rb, ptab_wr, ptab_te = st.tabs(
             ["QB", "RB", "WR", "TE"],
