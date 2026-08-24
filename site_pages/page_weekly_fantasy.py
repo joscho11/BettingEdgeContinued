@@ -26,13 +26,19 @@ PREVIEW_DETAIL_SOURCE_COLUMNS = (
     "off_epa_roll4", "off_epa_rank", "implied_team_total", "injury_status_score",
 )
 PREVIEW_SIMPLE_COLUMNS = ["Player", "Opponent", "Proj Pts"]
-PREVIEW_DETAIL_COLUMNS = PREVIEW_SIMPLE_COLUMNS + [
-    "Proj Pass Yds", "Proj Rush Yds", "Proj Rec Yds",
-    "Off EPA", "EPA Rank", "Team Total", "Health",
-]
-PREVIEW_ACTUAL_COLUMNS = [
-    "Actual Pts", "Actual Pass Yds", "Actual Rush Yds", "Actual Rec Yds",
-]
+PREVIEW_PROJECTED_COLUMNS = {
+    "QB": ["Proj Pass Yds", "Proj Rush Yds"],
+    "RB": ["Proj Rush Yds", "Proj Rec Yds"],
+    "WR": ["Proj Rec Yds"],
+    "TE": ["Proj Rec Yds"],
+}
+PREVIEW_CONTEXT_COLUMNS = ["Off EPA", "EPA Rank", "Team Total", "Health"]
+PREVIEW_ACTUAL_COLUMNS = {
+    "QB": ["Actual Pass Yds", "Actual Rush Yds"],
+    "RB": ["Actual Rush Yds", "Actual Rec Yds"],
+    "WR": ["Actual Rec Yds"],
+    "TE": ["Actual Rec Yds"],
+}
 _JSA_PROJ_DIR = _HERE / "fantasy" / "fantasy_projections"
 
 
@@ -128,10 +134,18 @@ def _preview_detail_available(frame: pd.DataFrame) -> bool:
     return set(PREVIEW_DETAIL_SOURCE_COLUMNS) <= set(frame.columns)
 
 
-def _preview_table_columns(show_more_info: bool, actuals_in: bool) -> list[str]:
-    columns = list(PREVIEW_DETAIL_COLUMNS if show_more_info else PREVIEW_SIMPLE_COLUMNS)
+def _preview_table_columns(
+    position: str,
+    show_more_info: bool,
+    actuals_in: bool,
+) -> list[str]:
+    columns = list(PREVIEW_SIMPLE_COLUMNS)
+    if show_more_info:
+        columns.extend(PREVIEW_PROJECTED_COLUMNS[position])
+        columns.extend(PREVIEW_CONTEXT_COLUMNS)
     if actuals_in:
-        columns.extend(PREVIEW_ACTUAL_COLUMNS)
+        columns.append("Actual Pts")
+        columns.extend(PREVIEW_ACTUAL_COLUMNS[position])
     return columns
 
 
@@ -640,7 +654,9 @@ def render():
                     display["Team Total"] = display["implied_team_total"].round(1)
 
                 if preview_layout:
-                    base_cols = _preview_table_columns(show_more_info, actuals_in=False)
+                    base_cols = _preview_table_columns(
+                        pos, show_more_info, actuals_in=False
+                    )
                 else:
                     extra_stat = []
                     if has_qb_stats:
@@ -686,7 +702,9 @@ def render():
                         display["Actual Rec Yds"] = pd.to_numeric(
                             display["player_id"].map(rec_actuals), errors="coerce"
                         )
-                        tbl_cols = _preview_table_columns(show_more_info, actuals_in=True)
+                        tbl_cols = _preview_table_columns(
+                            pos, show_more_info, actuals_in=True
+                        )
                     elif has_qb_stats:
                         display["Actual Pass Yds"] = pd.to_numeric(display["player_id"].map(actual_qb_pass_yds), errors="coerce")
                         display["Actual Rush Yds"] = pd.to_numeric(display["player_id"].map(actual_qb_rush_yds), errors="coerce")

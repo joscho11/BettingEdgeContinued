@@ -114,19 +114,39 @@ def test_preview_column_contract_matches_simple_and_detailed_views():
     source = pd.read_csv(path)
 
     assert weekly._preview_detail_available(source)
-    assert ["#", *weekly._preview_table_columns(False, False)] == [
+    assert ["#", *weekly._preview_table_columns("QB", False, False)] == [
         "#", "Player", "Opponent", "Proj Pts",
     ]
-    assert ["#", *weekly._preview_table_columns(True, False)] == [
-        "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds",
-        "Proj Rush Yds", "Proj Rec Yds", "Off EPA", "EPA Rank",
-        "Team Total", "Health",
+    assert ["#", *weekly._preview_table_columns("QB", True, False)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds", "Proj Rush Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
     ]
-    assert ["#", *weekly._preview_table_columns(True, True)] == [
-        "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds",
-        "Proj Rush Yds", "Proj Rec Yds", "Off EPA", "EPA Rank",
-        "Team Total", "Health",
-        "Actual Pts", "Actual Pass Yds", "Actual Rush Yds", "Actual Rec Yds",
+    assert ["#", *weekly._preview_table_columns("RB", True, False)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Rush Yds", "Proj Rec Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
+    ]
+    assert ["#", *weekly._preview_table_columns("WR", True, False)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Rec Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
+    ]
+    assert ["#", *weekly._preview_table_columns("TE", True, False)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Rec Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
+    ]
+    assert ["#", *weekly._preview_table_columns("QB", True, True)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Pass Yds", "Proj Rush Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "Actual Pts", "Actual Pass Yds", "Actual Rush Yds",
+    ]
+    assert ["#", *weekly._preview_table_columns("RB", True, True)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Rush Yds", "Proj Rec Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "Actual Pts", "Actual Rush Yds", "Actual Rec Yds",
+    ]
+    assert ["#", *weekly._preview_table_columns("WR", True, True)] == [
+        "#", "Player", "Opponent", "Proj Pts", "Proj Rec Yds",
+        "Off EPA", "EPA Rank", "Team Total", "Health",
+        "Actual Pts", "Actual Rec Yds",
     ]
 
 
