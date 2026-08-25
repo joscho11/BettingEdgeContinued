@@ -25,7 +25,7 @@ A page should load CSV or JSON. If a change needs a `.pkl`, it belongs in a priv
 | Page | What it covers |
 |---|---|
 | **Home** | Site status, release timing, and links to the main products. |
-| **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper or ESPN ADP, positional ranks, rank gaps, and talent context. |
+| **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper, ESPN, or Yahoo ADP, positional ranks, rank gaps, and talent context. |
 | **Rookie Board** | Rookie hit probabilities, season projections, college production, and athletic context. |
 | **Weekly Fantasy** | Half-PPR and stat projections for QB, RB, WR, and TE. Actual results appear after games finish. |
 | **DFS Optimizer** | DraftKings NFL Classic lineup builder. Upload a salary CSV plus a checked direct-DK projection file. Not a performance claim. |
@@ -33,7 +33,7 @@ A page should load CSV or JSON. If a change needs a `.pkl`, it belongs in a priv
 | **Weekly Predictions** | NFL spread predictions, market comparisons, model confidence, and release status. |
 | **Track Record** | Graded against-the-spread results, confidence tiers, model comparisons, streaks, and betting simulations. |
 | **Season Totals** | Win projections for all 32 teams compared with posted season totals. |
-| **League History** | Sleeper and ESPN league records, rivalries, manager profiles, draft habits, roster production, and league-wide trends. |
+| **League History** | Sleeper, ESPN, and Yahoo league records, rivalries, manager profiles, draft habits, roster production, and league-wide trends. |
 | **Film Room** | Short video breakdowns with written analysis and links to the related product. |
 | **Help & Guide** | Betting definitions, model summaries, feature explanations, confidence rules, and product limitations. |
 

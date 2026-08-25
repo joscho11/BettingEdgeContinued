@@ -24,6 +24,7 @@ DATASET = SEAS / "season_dataset_2014_2026.csv"
 # remains the authority for the 180-player universe and model values/ranks.
 LIVE_OVERLAY = SEAS / "board_adp_live_2026.csv"
 LIVE_ESPN_OVERLAY = SEAS / "board_espn_adp_live_2026.csv"
+LIVE_YAHOO_OVERLAY = SEAS / "board_yahoo_adp_live_2026.csv"
 # Legacy per-position files supply only optional Sleeper projection and team metadata.
 # The independent model projection is read solely from INDEPENDENT_V2.
 PROJ_RESULTS = _HERE / "fantasy" / "projections" / "results"
@@ -280,6 +281,24 @@ def _load_board_2026_cached(source_fingerprint):
                         ids.map(espn_idx["espn_pos_rank"]), errors="coerce"
                     ).astype("Int64")
 
+    df["yahoo_adp"] = pd.NA
+    df["yahoo_pos_rank"] = pd.Series([pd.NA] * len(df), dtype="Int64")
+    if LIVE_YAHOO_OVERLAY.exists():
+        yahoo = pd.read_csv(LIVE_YAHOO_OVERLAY, dtype={"player_id": "string"})
+        required_yahoo = {"player_id", "yahoo_adp", "yahoo_pos_rank", "refreshed_at"}
+        if len(yahoo) == 180 and required_yahoo <= set(yahoo.columns):
+            yahoo["player_id"] = yahoo["player_id"].astype("string")
+            if not yahoo["player_id"].duplicated().any():
+                yahoo_idx = yahoo.set_index("player_id")
+                ids = df["player_id"].astype("string")
+                if ids.isin(yahoo_idx.index).all():
+                    df["yahoo_adp"] = pd.to_numeric(
+                        ids.map(yahoo_idx["yahoo_adp"]), errors="coerce"
+                    )
+                    df["yahoo_pos_rank"] = pd.to_numeric(
+                        ids.map(yahoo_idx["yahoo_pos_rank"]), errors="coerce"
+                    ).astype("Int64")
+
     legacy = _load_projections().reset_index() if any(
         (PROJ_RESULTS / f"{p}_projection_2026.csv").exists() for p in ("rb", "wr", "te", "qb")
     ) else pd.DataFrame(columns=["player_id", "player", "position", "team", "sleeper"])
@@ -393,6 +412,7 @@ def _board_source_fingerprint():
         INDEPENDENT_V2,
         LIVE_OVERLAY,
         LIVE_ESPN_OVERLAY,
+        LIVE_YAHOO_OVERLAY,
         *(PROJ_RESULTS / f"{position}_projection_2026.csv"
           for position in ("rb", "wr", "te", "qb")),
         ANALYST_PROJECTION_ADJUSTMENTS,
@@ -602,19 +622,28 @@ def _pretty_iso_date(iso) -> str:
         return str(iso)
 
 
-@st.cache_data
-def _espn_refresh_date():
-    """The valid ESPN overlay date, or None if absent/stale-schema."""
-    if not LIVE_ESPN_OVERLAY.exists():
+def _overlay_refresh_date(path: Path, adp_col: str, rank_col: str):
+    """The valid 180-row overlay date, or None if absent/stale-schema."""
+    if not path.exists():
         return None
     try:
-        overlay = pd.read_csv(LIVE_ESPN_OVERLAY, dtype={"player_id": "string"})
-        required = {"player_id", "espn_adp", "espn_pos_rank", "refreshed_at"}
+        overlay = pd.read_csv(path, dtype={"player_id": "string"})
+        required = {"player_id", adp_col, rank_col, "refreshed_at"}
         if len(overlay) != 180 or not required <= set(overlay.columns):
             return None
         return str(overlay["refreshed_at"].iloc[0])
     except (KeyError, ValueError, pd.errors.EmptyDataError):
         return None
+
+
+@st.cache_data
+def _espn_refresh_date():
+    return _overlay_refresh_date(LIVE_ESPN_OVERLAY, "espn_adp", "espn_pos_rank")
+
+
+@st.cache_data
+def _yahoo_refresh_date():
+    return _overlay_refresh_date(LIVE_YAHOO_OVERLAY, "yahoo_adp", "yahoo_pos_rank")
 
 
 def _adp_caption(market: str = "Sleeper ADP"):
@@ -629,6 +658,17 @@ def _adp_caption(market: str = "Sleeper ADP"):
                 "and Model Gap update from this pull; Model Proj points and ranks remain "
                 "frozen until the early-September snapshot. ESPN publishes one ADP, "
                 "not a half-PPR-specific ranking.")
+    if market == YAHOO_ADP_MARKET:
+        iso = _yahoo_refresh_date()
+        if not iso:
+            return ("Model Proj is frozen. "
+                    "Yahoo ADP will appear after the next successful Yahoo market pull. "
+                    "Sleeper prices stay on the Sleeper view.")
+        pretty = _pretty_iso_date(iso)
+        return (f"Live Yahoo ADP refresh: {pretty}. Draft-price ranks, Sleeper Gap, "
+                "and Model Gap update from this pull; Model Proj points and ranks remain "
+                "frozen until the early-September snapshot. Yahoo publishes one ADP, "
+                "not a half-PPR-specific ranking. Players Yahoo has not priced stay blank.")
     iso = _refresh_date()
     if not iso:
         return ("Model Proj is frozen. "
@@ -657,9 +697,14 @@ SORT_KEYS = {
     "College Talent Score": "college_talent",
 }
 
-ADP_MARKETS = ("Sleeper ADP", "ESPN ADP")
+ADP_MARKETS = ("Sleeper ADP", "ESPN ADP", "Yahoo ADP")
 DEFAULT_ADP_MARKET = "Sleeper ADP"
 ESPN_ADP_MARKET = "ESPN ADP"
+YAHOO_ADP_MARKET = "Yahoo ADP"
+_MARKET_PRICE_COLS = {
+    ESPN_ADP_MARKET: ("espn_adp", "espn_pos_rank"),
+    YAHOO_ADP_MARKET: ("yahoo_adp", "yahoo_pos_rank"),
+}
 
 
 def sort_keys_for(market: str) -> dict:
@@ -676,14 +721,17 @@ def sort_keys_for(market: str) -> dict:
 def apply_board_market(df: pd.DataFrame, market: str) -> pd.DataFrame:
     """Reprice the 180 from the selected ADP source. Model Proj ranks stay frozen.
 
-    Sleeper remains the stored default. ESPN copies espn_adp / espn_pos_rank onto the
-    displayed price columns and recomputes both gaps. Unmatched ESPN rows stay blank.
+    Sleeper remains the stored default. ESPN and Yahoo copy their overlay price
+    and position rank onto the displayed columns and recompute both gaps.
+    Unmatched rows stay blank. Sleeper prices are never used as a fill.
     """
     out = df.copy()
-    if market != ESPN_ADP_MARKET:
+    spec = _MARKET_PRICE_COLS.get(market)
+    if spec is None:
         return out
-    out["adp_half_ppr"] = pd.to_numeric(out["espn_adp"], errors="coerce")
-    out["pos_rank"] = pd.to_numeric(out["espn_pos_rank"], errors="coerce").astype("Int64")
+    adp_col, rank_col = spec
+    out["adp_half_ppr"] = pd.to_numeric(out[adp_col], errors="coerce")
+    out["pos_rank"] = pd.to_numeric(out[rank_col], errors="coerce").astype("Int64")
     out["sleeper_gap"] = (out["pos_rank"] - out["sleeper_proj_pos_rank"]).astype("Int64")
     out["model_gap"] = (out["pos_rank"] - out["model_proj_pos_rank"]).astype("Int64")
     return out
@@ -771,8 +819,9 @@ COLUMN_META = [
     ("position", _TXT, "Position", "His position.", {"width": "small"}),
     ("team", _TXT, "Team", "His 2026 team. Blank = not signed / unavailable.", {"width": "small"}),
     ("adp_half_ppr", _NUM, "Sleeper ADP",
-     "Average draft position from the selected source (Sleeper half-PPR, or ESPN). "
-     "ESPN publishes one ADP, not a half-PPR-specific ranking. Lower = earlier.", {"format": "%.1f"}),
+     "Average draft position from the selected source (Sleeper half-PPR, ESPN, or Yahoo). "
+     "ESPN and Yahoo each publish one ADP, not a half-PPR-specific ranking. Lower = earlier.",
+     {"format": "%.1f"}),
     ("pos_rank", _NUM, "Position Rank",
      "His rank at his position by draft price (1 = first off the board at the position).",
      {"format": "%d", "width": "small"}),
@@ -822,9 +871,23 @@ _DISPLAY_COLS = [m[0] for m in COLUMN_META]
 _EXPORT_NAMES = {m[0]: m[2] for m in COLUMN_META}       # colkey -> on-screen label
 
 
+_ADP_COLUMN_HELP = {
+    ESPN_ADP_MARKET: (
+        "Average draft position from ESPN. ESPN publishes one ADP, not a "
+        "half-PPR-specific ranking. Lower = earlier."
+    ),
+    YAHOO_ADP_MARKET: (
+        "Average draft position from Yahoo. Yahoo publishes one ADP, not a "
+        "half-PPR-specific ranking. Players Yahoo has not priced stay blank. "
+        "Lower = earlier."
+    ),
+}
+
+
 def column_meta_for(market: str = DEFAULT_ADP_MARKET):
     """Display metadata for the selected draft-price source."""
-    if market != ESPN_ADP_MARKET:
+    help_ = _ADP_COLUMN_HELP.get(market)
+    if help_ is None:
         return COLUMN_META
     rows = []
     for item in COLUMN_META:
@@ -832,10 +895,7 @@ def column_meta_for(market: str = DEFAULT_ADP_MARKET):
             rows.append(item)
             continue
         rows.append((
-            "adp_half_ppr", _NUM, "ESPN ADP",
-            "Average draft position from ESPN. ESPN publishes one ADP, not a "
-            "half-PPR-specific ranking. Lower = earlier.",
-            {"format": "%.1f"},
+            "adp_half_ppr", _NUM, market, help_, {"format": "%.1f"},
         ))
     return rows
 
@@ -1176,12 +1236,13 @@ def render():
             "This board lists the independent model's exact 180-player 2026 universe: "
             "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the current draft "
             "price and **Model Proj**, plus Sleeper's projection when its record "
-            "matches. Use **Draft price** to switch Sleeper ADP (the default) and ESPN ADP "
-            "for the same 180 players. Sleeper ADP, ESPN ADP, Sleeper Proj, and both gap "
+            "matches. Use **Draft price** to switch Sleeper ADP (the default), ESPN ADP, "
+            "or Yahoo ADP for the same 180 players. Sleeper ADP, ESPN ADP, Yahoo ADP, "
+            "Sleeper Proj, and both gap "
             "columns refresh daily; Model Proj points and ranks stay frozen. For each "
             "available projection, the gap between his draft-price rank and his projected "
             "rank at his position.\n\n"
-            "- **Sleeper ADP / ESPN ADP** is his average draft position from the selected "
+            "- **Sleeper ADP / ESPN ADP / Yahoo ADP** is his average draft position from the selected "
             "source; **Position Rank** turns that into his rank at his position "
             "(1 = first off the board there).\n"
             "- **Sleeper Proj** and **Model Proj** are two estimates of his "
@@ -1202,7 +1263,7 @@ def render():
         for _key, _kind, _label, _help, _extra in COLUMN_META:
             _detail = " *(hidden in the compact view)*" if _key in _DETAIL_ONLY else ""
             if _key == "adp_half_ppr":
-                _label = "Sleeper ADP / ESPN ADP"
+                _label = "Sleeper ADP / ESPN ADP / Yahoo ADP"
             st.markdown(f"- **{_label}**{_detail} — {_help}")
         st.caption("The board opens on the full view. Turn off **Show projection and talent "
                    "detail** for a compact comparison view that drops the raw Sleeper and model "
@@ -1228,7 +1289,8 @@ def render():
         market = st.segmented_control(
             "Draft price", list(ADP_MARKETS), key="db26_adp_src", required=True,
             help="Sleeper ADP is the default market this board was built against. "
-                 "ESPN ADP is ESPN's published average draft position for the same 180 players.",
+                 "ESPN ADP and Yahoo ADP are each platform's published average draft "
+                 "position for the same 180 players.",
         )
         if market not in ADP_MARKETS:
             market = DEFAULT_ADP_MARKET
@@ -1318,9 +1380,9 @@ def render():
                    "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
                    "scenario overlay is applied.")
     else:
-        st.caption("Model Proj and Model Gap in this view use ESPN draft prices. ADP is not a "
+        st.caption(f"Model Proj and Model Gap in this view use {market} draft prices. ADP is not a "
                    "model input. The 5-of-6 ADP-ordering backtest is vs Sleeper ADP and does "
-                   "not apply to ESPN ADP. No analyst scenario overlay is applied.")
+                   f"not apply to {market}. No analyst scenario overlay is applied.")
     st.caption("NFL Talent Score ranks NFL players against NFL players; College Talent Score "
                "ranks 2026 rookies against past drafted prospects — different instruments on "
                "different scales, and neither feeds any other column.")
@@ -1349,8 +1411,11 @@ def render():
         "Download board (CSV)",
         data=view[_DISPLAY_COLS].rename(columns=export_names_for(market))
                        .to_csv(index=False).encode("utf-8"),
-        file_name=("draft_board_2026.csv" if market == DEFAULT_ADP_MARKET
-                   else "draft_board_2026_espn.csv"), mime="text/csv",
+        file_name={
+            DEFAULT_ADP_MARKET: "draft_board_2026.csv",
+            ESPN_ADP_MARKET: "draft_board_2026_espn.csv",
+            YAHOO_ADP_MARKET: "draft_board_2026_yahoo.csv",
+        }.get(market, "draft_board_2026.csv"), mime="text/csv",
         key="db26_dl")
     st.caption("The download carries every column, including any the compact view hides, for the "
                "rows currently filtered and in the current sort order.")
@@ -1358,7 +1423,7 @@ def render():
     st.markdown("---")
     st.caption(
         "**About these numbers.** Sleeper ADP and Sleeper Proj are Sleeper's. ESPN ADP is "
-        "ESPN's. Model Proj is "
+        "ESPN's. Yahoo ADP is Yahoo's. Model Proj is "
         "the published v6 projection, evaluated historically on 2021-2025 and not "
         "live-validated (the first live test is 2026). The gap columns are simple "
         "positional-rank differences shown for context. All of this is descriptive "

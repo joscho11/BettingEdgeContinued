@@ -515,11 +515,10 @@ def test_semantic_gap_colors_and_active_sort_tint():
     model_proj_col = view[board._DISPLAY_COLS].columns.get_loc("model_proj")
 
     active_style = dict(ctx[(0, model_gap_col)])
-    # Assert against the module constant, not a literal, so the tint lives in one place. It must
-    # stay a GREEN surface (Joseph's call 2026-07-27: the old #1b5e3a read as grey on the
-    # deployed dark skin) and stay dark enough that the red/green value encoding rendered on top
-    # of it remains legible.
-    assert active_style["background-color"] == board._SORT_TINT
+    # Pin the approved hex. Darker greens (#1b5e3a, #16703a) read grey on the dark skin.
+    # The Yahoo ADP toggle must keep this exact surface, not a new grey or a darker green.
+    assert board._SORT_TINT == "#1a8f45"
+    assert active_style["background-color"] == "#1a8f45"
     tint = board._SORT_TINT.lstrip("#")
     r, g, b = (int(tint[i:i + 2], 16) for i in (0, 2, 4))
     assert g > r and g > b, f"the active-sort tint must read green, got #{tint}"
@@ -549,32 +548,50 @@ def test_semantic_gap_colors_and_active_sort_tint():
     assert (pos_i, model_proj_col) not in ctx or "color" not in dict(ctx[(pos_i, model_proj_col)])
 
 
-def test_sort_tint_actually_reaches_the_rendered_grid():
-    """The Styler-context assertion above is pandas-side only — it passes even if streamlit
-    never transports the style. Streamlit 1.59 marshals Styler CSS INTO `arrow_data` (there is
-    no top-level `styler` proto field any more), so assert the tint survives all the way into
-    what the front end is actually handed."""
-    import draft_board_2026 as board
-
-    at = _run()
-    proto = None
+def _board_grid_payloads(at):
+    payloads = []
     for el in at.dataframe:
         value = el.value
         frame = value.data if hasattr(value, "data") else value
         try:
             if {"adp_half_ppr", "model_gap"} <= set(frame.columns):
-                proto = el.proto
-                break
+                payloads.append(str(el.proto))
         except Exception:
             pass
-    assert proto is not None, "board dataframe not found"
+    return payloads
 
-    payload = str(proto)
-    tint = board._SORT_TINT.lstrip("#")
-    assert tint in payload, (
-        f"the active-sort tint #{tint} never reached the grid payload — the Styler is being "
-        "computed but not transported, so the board would render with no cell colour at all")
-    assert "background-color" in payload, "no background-color survived into the grid payload"
+
+def _assert_sort_tint_in_grids(at, board, label):
+    payloads = _board_grid_payloads(at)
+    assert payloads, f"board dataframe not found ({label})"
+    tint = board._SORT_TINT.lstrip("#").lower()
+    for payload in payloads:
+        assert tint in payload.lower(), (
+            f"{label}: the active-sort tint #{tint} never reached the grid payload. "
+            "The Styler is being computed but not transported, so the board would render "
+            "with no cell colour at all")
+        assert "background-color" in payload, (
+            f"{label}: no background-color survived into the grid payload")
+
+
+def test_sort_tint_actually_reaches_the_rendered_grid():
+    """The Styler-context assertion above is pandas-side only. It passes even if streamlit
+    never transports the style. Streamlit 1.59 marshals Styler CSS INTO `arrow_data` (there is
+    no top-level `styler` proto field any more), so assert the tint survives all the way into
+    what the front end is actually handed. Check every Draft-price market: a Yahoo or ESPN
+    remount must not drop the green for a grey grid."""
+    import draft_board_2026 as board
+
+    assert board._SORT_TINT == "#1a8f45"
+    at = _run()
+    _assert_sort_tint_in_grids(at, board, "Sleeper ADP")
+    control = _adp_control(at)
+    for market in ("ESPN ADP", "Yahoo ADP"):
+        at = control.set_value(market).run()
+        assert not at.exception, at.exception
+        assert not at.error, [e.value for e in at.error]
+        _assert_sort_tint_in_grids(at, board, market)
+        control = _adp_control(at)
 
 
 def test_no_forbidden_language_in_rendered_copy():
@@ -954,10 +971,79 @@ def test_draft_board_reads_espn_market_from_shareable_url():
     assert "does not apply to ESPN ADP" in captions
 
 
+def test_yahoo_adp_toggle_reprices_board_without_moving_model_proj():
+    import draft_board_2026 as board
+
+    at = _run()
+    control = _adp_control(at)
+    assert control.value == "Sleeper ADP"
+    sleeper = _board_df(at).set_index("player")
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "5 of 6" in captions
+    assert "does not apply to Yahoo ADP" not in captions
+
+    at = control.set_value("Yahoo ADP").run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    yahoo = _board_df(at)
+    assert yahoo is not None and yahoo.shape[0] == 180
+    adp = pd.to_numeric(yahoo["adp_half_ppr"], errors="coerce")
+    n_blank = int(adp.isna().sum())
+    assert n_blank > 0
+    assert adp.isna().to_numpy()[-n_blank:].all(), "Yahoo blanks must sort last"
+    real = adp.dropna().to_numpy()
+    assert (real[:-1] <= real[1:]).all(), "Yahoo view must default to Yahoo ADP ascending"
+    yahoo = yahoo.set_index("player")
+    assert sleeper["model_proj"].sort_index().equals(yahoo["model_proj"].sort_index())
+    assert sleeper["model_proj_pos_rank"].astype("Int64").sort_index().equals(
+        yahoo["model_proj_pos_rank"].astype("Int64").sort_index()
+    )
+    assert float(sleeper.loc["Oronde Gadsden", "adp_half_ppr"]) != float(
+        yahoo.loc["Oronde Gadsden", "adp_half_ppr"]
+    )
+    row = yahoo.loc["Oronde Gadsden"]
+    assert int(row["model_gap"]) == int(row["pos_rank"] - row["model_proj_pos_rank"])
+    assert int(row["sleeper_gap"]) == int(row["pos_rank"] - row["sleeper_proj_pos_rank"])
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "does not apply to Yahoo ADP" in captions
+    assert "Live Yahoo ADP refresh" in captions
+    assert _adp_control(at).value == "Yahoo ADP"
+    text = " ".join(str(m.value) for m in at.markdown)
+    hits = _FORBIDDEN.findall(text)
+    assert not hits, f"forbidden language after Yahoo toggle: {hits}"
+
+    labels = [m[2] for m in board.column_meta_for(board.YAHOO_ADP_MARKET)]
+    assert "Yahoo ADP" in labels
+    assert "Sleeper ADP" not in labels
+    assert "ESPN ADP" not in labels
+
+
+def _yahoo_query_entry():
+    import streamlit as st
+    st.query_params["db26_adp_src"] = "Yahoo ADP"
+    st.query_params["db26_pos"] = "TE"
+    st.query_params["db26_search"] = "Gadsden"
+    import page_draft_board
+    page_draft_board.render()
+
+
+def test_draft_board_reads_yahoo_market_from_shareable_url():
+    at = AppTest.from_function(_yahoo_query_entry, default_timeout=180).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert _adp_control(at).value == "Yahoo ADP"
+    board_df = _board_df(at)
+    assert board_df is not None and len(board_df) == 1
+    assert board_df.iloc[0]["player"] == "Oronde Gadsden"
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "does not apply to Yahoo ADP" in captions
+
+
 def test_espn_overlay_is_in_the_board_cache_fingerprint():
     import draft_board_2026 as board
     paths = [p for p, _mtime, _size in board._board_source_fingerprint()]
     assert str(board.LIVE_ESPN_OVERLAY) in paths
+    assert str(board.LIVE_YAHOO_OVERLAY) in paths
     assert str(board.LIVE_OVERLAY) in paths
 
 

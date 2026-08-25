@@ -33,7 +33,8 @@ def _render_pool_summary(pool: pd.DataFrame, summary: dict) -> None:
         st.metric("Model coverage", f"{coverage:.1f}%", border=True)
         st.metric("Excluded", f"{excluded:,}", border=True)
     games = ", ".join(summary.get("games", [])) or "Game metadata unavailable"
-    st.caption(f"{summary.get('n_games', 0)} games · {games} · DST uses DraftKings average points.")
+    dst_note = pool.attrs.get("dst_caption", "DST: DraftKings average (no game line)")
+    st.caption(f"{summary.get('n_games', 0)} games · {games} · {dst_note}.")
 
     audit = pool[
         ["name", "position", "team", "salary", "status", "match", "match_name",

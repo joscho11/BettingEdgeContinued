@@ -62,6 +62,7 @@ jobs:
           tests/test_page_rookie_board.py
           tests/test_weekly_fantasy_source.py
           tests/test_espn_adp.py
+          tests/test_yahoo_adp.py
           tests/test_board_refresh.py
           tests/test_board_refresh_coverage.py
           tests/test_publishing_pipeline.py
@@ -134,3 +135,4 @@ jobs:
           tests/test_page_rookie_board.py
           tests/test_weekly_fantasy_source.py
           tests/test_espn_adp.py
+          tests/test_yahoo_adp.py

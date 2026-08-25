@@ -1,4 +1,4 @@
-"""League History page backed by Sleeper and ESPN league endpoints."""
+"""League History page backed by Sleeper, ESPN, and Yahoo league endpoints."""
 import concurrent.futures as _cf
 import glob
 import html as _html
@@ -28,7 +28,7 @@ _HISTORY_CACHE_ENTRIES = 8
 _MATCHUP_FETCH_WORKERS = 6
 _MAX_HISTORY_SEASONS = 10
 _SEASON_CACHE_ENTRIES = _HISTORY_CACHE_ENTRIES * _MAX_HISTORY_SEASONS
-_LEAGUE_PROVIDERS = ("Sleeper", "ESPN")
+_LEAGUE_PROVIDERS = ("Sleeper", "ESPN", "Yahoo")
 _LEAGUE_HISTORY_TABS = (
     "🧠 Draft & Roster Insights",
     "🏆 All-Time Leaderboard",
@@ -419,6 +419,10 @@ def _league_request_error(
     espn_access: str = "Public",
     espn_s2: str = "",
     swid: str = "",
+    yahoo_season: int | None = None,
+    yahoo_access: str = "Public",
+    yahoo_y: str = "",
+    yahoo_t: str = "",
 ) -> str | None:
     if provider == "ESPN":
         import espn_league_history as _espn
@@ -432,6 +436,18 @@ def _league_request_error(
         if espn_access == "Private":
             return _espn.private_credentials_error(espn_s2, swid)
         return None
+    if provider == "Yahoo":
+        import yahoo_league_history as _yahoo
+
+        id_error = _yahoo.league_id_error(raw_league_id)
+        if id_error:
+            return id_error
+        year_error = _yahoo.season_error(yahoo_season, dt.now().year)
+        if year_error:
+            return year_error
+        if yahoo_access == "Private":
+            return _yahoo.private_credentials_error(yahoo_y, yahoo_t)
+        return None
     return _league_id_error(raw_league_id)
 
 
@@ -440,6 +456,52 @@ def _league_import_help_markdown(
     espn_access: str = "Public",
 ) -> str:
     """Return device-specific instructions for the active import method."""
+    if provider == "Yahoo":
+        if espn_access == "Private":
+            return """
+### League ID and season
+
+**On a phone:** Open the league in the Yahoo Fantasy app and copy the league ID from league info, or share the league link and copy the number after `/f1/`. Use the latest season the league played.
+
+**On a computer:** Open the league at `football.fantasysports.yahoo.com`. Copy the digits after `/f1/` in the address bar, then choose the latest season the league played. A URL like `/2025/f1/123456` is season 2025 and league ID 123456.
+
+### Y and T cookies
+
+**On a phone:** The normal iPhone and Android browser menus do not expose these cookie values. Get the League ID on the phone, but use a signed-in desktop browser for the two cookies.
+
+**On a computer (Chrome or Edge):**
+
+1. Sign in at `football.fantasysports.yahoo.com` and open the private league.
+2. Open Developer Tools (`F12`, or right-click and select **Inspect**).
+3. Select **Application → Storage → Cookies**, then the Yahoo origin.
+4. Filter for `Y`; copy its **Value** into **Yahoo Y cookie**.
+5. Filter for `T`; copy its **Value** into **Yahoo T cookie**.
+
+In Firefox, use **Developer Tools → Storage → Cookies**. In Safari on Mac, enable developer features, then use **Develop → Show Web Inspector → Storage → Cookies**.
+
+Treat both values like passwords. Never paste them into chat or send them to another person. This importer sends them only to Yahoo, never logs or shared-caches them, and clears both fields after a successful load. Use private import only on a deployment you trust.
+
+If Yahoo still denies access, ask the commissioner to make the league publicly viewable and use the Public importer instead.
+"""
+        return """
+### On a phone
+
+1. Open the league in the Yahoo Fantasy app.
+2. Open league info or share the league link.
+3. Copy the number after `/f1/` into **Yahoo League ID**.
+4. Choose the latest season the league played.
+
+### On a computer
+
+1. Open the league at `football.fantasysports.yahoo.com`.
+2. Copy the digits after `/f1/` in the address bar. A URL like `/2025/f1/123456` is season 2025 and league ID 123456.
+3. Paste that number below and choose the latest season the league played.
+
+### If Yahoo denies public access
+
+Here, **Public** uses Yahoo's publicly viewable setting. Your commissioner exposes league pages with that setting. Otherwise, switch this importer to **Private** and use the signed-in browser instructions.
+"""
+
     if provider == "Sleeper":
         return """
 ### On a phone
@@ -507,9 +569,9 @@ Here, **Public** uses ESPN's **viewable to public** setting. Your League Manager
 """
 
 
-def _render_league_import_help(provider: str, espn_access: str) -> None:
+def _render_league_import_help(provider: str, access: str = "Public") -> None:
     with st.expander("Where to find your league details"):
-        st.markdown(_league_import_help_markdown(provider, espn_access))
+        st.markdown(_league_import_help_markdown(provider, access))
 
 
 @st.cache_data(ttl=3600, max_entries=_SLEEPER_GET_CACHE_ENTRIES)
@@ -823,47 +885,80 @@ def _fetch_sleeper_history(start_league_id: str, max_seasons: int | None = None)
     return {"league_name": league_name or "League", "seasons": seasons}
 
 
-def _render_load_form(provider: str = "Sleeper", espn_access: str = "Public"):
+def _render_load_form(provider: str = "Sleeper", access: str = "Public"):
     with st.form("lh_load_form", border=False):
         is_espn = provider == "ESPN"
+        is_yahoo = provider == "Yahoo"
+        needs_season = is_espn or is_yahoo
         league_id_input = st.text_input(
             f"{provider} League ID",
             value="",
-            placeholder=("e.g. 48153503" if is_espn else "e.g. 1255197436951932928"),
+            placeholder=(
+                "e.g. 48153503" if is_espn else
+                "e.g. 123456" if is_yahoo else
+                "e.g. 1255197436951932928"
+            ),
             help=(
                 "Copy the leagueId value from your ESPN fantasy league URL."
                 if is_espn else
+                "Copy the number after /f1/ in your Yahoo fantasy league URL."
+                if is_yahoo else
                 "Find it in your Sleeper league URL: sleeper.com/leagues/{ID}/league"
             ),
             key="lh_league_id",
         )
         espn_season = None
+        yahoo_season = None
         espn_s2 = ""
         swid = ""
-        if is_espn:
-            espn_season = st.number_input(
+        yahoo_y = ""
+        yahoo_t = ""
+        if needs_season:
+            season_value = st.number_input(
                 "Most recent season",
                 min_value=2018,
                 max_value=dt.now().year,
                 value=dt.now().year,
                 step=1,
-                key="lh_espn_season",
-                help="ESPN league IDs need a season. Use the season shown in the league URL.",
+                key="lh_espn_season" if is_espn else "lh_yahoo_season",
+                help=(
+                    "ESPN league IDs need a season. Use the season shown in the league URL."
+                    if is_espn else
+                    "Yahoo league IDs need a season. Use the year in the league URL, such as /2025/f1/123456."
+                ),
             )
-            if espn_access == "Private":
-                swid = st.text_input(
-                    "ESPN SWID cookie",
-                    type="password",
-                    placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}",
-                    key="lh_espn_swid",
-                    help="Copy the SWID value from fantasy.espn.com in your browser's cookie storage.",
-                )
-                espn_s2 = st.text_input(
-                    "ESPN espn_s2 cookie",
-                    type="password",
-                    key="lh_espn_s2",
-                    help="Copy the espn_s2 value from the same signed-in ESPN browser session.",
-                )
+            if is_espn:
+                espn_season = season_value
+            else:
+                yahoo_season = season_value
+            if access == "Private":
+                if is_espn:
+                    swid = st.text_input(
+                        "ESPN SWID cookie",
+                        type="password",
+                        placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}",
+                        key="lh_espn_swid",
+                        help="Copy the SWID value from fantasy.espn.com in your browser's cookie storage.",
+                    )
+                    espn_s2 = st.text_input(
+                        "ESPN espn_s2 cookie",
+                        type="password",
+                        key="lh_espn_s2",
+                        help="Copy the espn_s2 value from the same signed-in ESPN browser session.",
+                    )
+                else:
+                    yahoo_y = st.text_input(
+                        "Yahoo Y cookie",
+                        type="password",
+                        key="lh_yahoo_y",
+                        help="Copy the Y value from football.fantasysports.yahoo.com in your browser's cookie storage.",
+                    )
+                    yahoo_t = st.text_input(
+                        "Yahoo T cookie",
+                        type="password",
+                        key="lh_yahoo_t",
+                        help="Copy the T value from the same signed-in Yahoo browser session.",
+                    )
         history_depth = st.segmented_control(
             "History depth",
             ["Recent 3 seasons", "All linked seasons"],
@@ -872,12 +967,15 @@ def _render_load_form(provider: str = "Sleeper", espn_access: str = "Public"):
             key="lh_history_depth",
             help=(
                 "Recent 3 is the faster first view. Private results stay only in this browser session."
-                if is_espn and espn_access == "Private" else
+                if access == "Private" else
                 "Recent 3 is the faster first view. Per-season results stay cached for an hour."
             ),
         )
         load_requested = st.form_submit_button("Load league history", type="primary")
-    return league_id_input, espn_season, espn_s2, swid, history_depth, load_requested
+    return (
+        league_id_input, espn_season, espn_s2, swid, history_depth, load_requested,
+        yahoo_season, yahoo_y, yahoo_t,
+    )
 
 
 def _load_history_with_status(
@@ -1056,13 +1154,136 @@ def _load_espn_history_with_status(
         }, None
 
 
+def _fetch_yahoo_history(
+    league_id: str,
+    season: int,
+    max_seasons: int | None = None,
+    game_key: str | None = None,
+) -> dict:
+    import yahoo_league_history as _yahoo
+
+    return _yahoo.fetch_history(
+        league_id, season, max_seasons=max_seasons, game_key=game_key,
+    )
+
+
+def _load_yahoo_history_with_status(
+    league_id: str,
+    season: int,
+    max_seasons: int | None = None,
+    private_credentials: tuple[str, str] | None = None,
+    game_key: str | None = None,
+) -> tuple[dict, str | None]:
+    """Fetch Yahoo seasons; credentialed responses remain outside shared caches."""
+    import yahoo_league_history as _yahoo
+
+    empty = {
+        "league_name": "League",
+        "seasons": {},
+        "player_directory": {},
+        "provider": "Yahoo",
+    }
+    is_private = private_credentials is not None
+    with st.status("Finding linked Yahoo seasons…", expanded=True) as status:
+        try:
+            if is_private:
+                yahoo_y, yahoo_t = private_credentials
+                full_chain = _yahoo.history_chain_private(
+                    league_id, int(season), yahoo_y, yahoo_t, game_key,
+                )
+            else:
+                full_chain = _yahoo.history_chain(league_id, int(season), game_key)
+        except _yahoo.YahooLeagueError as exc:
+            status.update(label=str(exc), state="error", expanded=True)
+            return empty, str(exc)
+        if not full_chain:
+            message = "Yahoo did not return a league for that ID and season."
+            status.update(label=message, state="error", expanded=True)
+            return empty, message
+        chain = (
+            full_chain[:max(1, int(max_seasons))]
+            if max_seasons is not None else full_chain
+        )
+        years = ", ".join(item["season"] for item in chain)
+        if len(chain) < len(full_chain):
+            st.write(
+                f"Found {len(full_chain)} linked seasons. Loading the newest "
+                f"{len(chain)}: {years}."
+            )
+        else:
+            st.write(
+                f"Found {len(chain)} {'season' if len(chain) == 1 else 'seasons'}: {years}."
+            )
+        low = max(10, len(chain) * 8)
+        high = max(25, len(chain) * 20)
+        st.write(
+            f"Yahoo weekly rosters are a larger pull. First load usually takes {low} to "
+            f"{high} seconds; "
+            + (
+                "private results stay only in this browser session."
+                if is_private else
+                "reloads are instant for an hour."
+            )
+        )
+        seasons = {}
+        player_directory = {}
+        errors = []
+        for index, item in enumerate(chain, 1):
+            year = int(item["season"])
+            status.update(label=f"Loading {year} (season {index} of {len(chain)})")
+            st.write(f"{year}: standings, draft board, weekly scores and rosters")
+            try:
+                if is_private:
+                    yahoo_y, yahoo_t = private_credentials
+                    fetched_year, payload, players = _yahoo.fetch_one_season_private(
+                        item["league_id"], year, yahoo_y, yahoo_t, item.get("game_key"),
+                    )
+                else:
+                    fetched_year, payload, players = _yahoo.fetch_one_season(
+                        item["league_id"], year, item.get("game_key"),
+                    )
+            except _yahoo.YahooLeagueError as exc:
+                errors.append(f"{year}: {exc}")
+                st.write(f"{year} could not be loaded: {exc}")
+                continue
+            seasons[fetched_year] = payload
+            player_directory.update(players)
+        if not seasons:
+            message = errors[0].split(": ", 1)[-1] if errors else (
+                "This Yahoo league exists, but no season history came back."
+            )
+            status.update(label=message, state="error", expanded=True)
+            return empty, message
+        if errors:
+            status.update(
+                label=f"Loaded {len(seasons)} seasons; {len(errors)} could not be loaded.",
+                state="complete",
+                expanded=False,
+            )
+        else:
+            status.update(
+                label=f"Loaded {len(seasons)} {'season' if len(seasons) == 1 else 'seasons'}.",
+                state="complete",
+                expanded=False,
+            )
+        return {
+            "league_name": chain[0]["name"] or "League",
+            "seasons": seasons,
+            "player_directory": player_directory,
+            "provider": "Yahoo",
+        }, None
+
+
 def render():
     if st.session_state.pop("lh_clear_espn_credentials", False):
         st.session_state.pop("lh_espn_s2", None)
         st.session_state.pop("lh_espn_swid", None)
+    if st.session_state.pop("lh_clear_yahoo_credentials", False):
+        st.session_state.pop("lh_yahoo_y", None)
+        st.session_state.pop("lh_yahoo_t", None)
 
     st.title("Fantasy league history")
-    st.caption("Turn a Sleeper or ESPN league into a multi-season manager and roster review.")
+    st.caption("Turn a Sleeper, ESPN, or Yahoo league into a multi-season manager and roster review.")
 
     _provider_input = st.segmented_control(
         "League platform",
@@ -1070,26 +1291,41 @@ def render():
         default="Sleeper",
         required=True,
         key="lh_provider",
-        help="ESPN private leagues require session-cookie values from your signed-in browser.",
+        help="Private ESPN and Yahoo leagues require session-cookie values from your signed-in browser.",
     )
-    _espn_access_input = "Public"
+    _access_input = "Public"
     if _provider_input == "ESPN":
-        _espn_access_input = st.segmented_control(
+        _access_input = st.segmented_control(
             "ESPN league access",
             ("Public", "Private"),
             default="Public",
             required=True,
             key="lh_espn_access",
         )
-        if _espn_access_input == "Private":
+        if _access_input == "Private":
             st.caption(
                 "Private import needs the SWID and espn_s2 values from a signed-in desktop "
                 "browser. Treat them like passwords. Do not paste them into chat, and use this "
                 "only on a deployment you trust. The importer never logs or shared-caches them "
                 "and clears both fields after a successful load."
             )
+    elif _provider_input == "Yahoo":
+        _access_input = st.segmented_control(
+            "Yahoo league access",
+            ("Public", "Private"),
+            default="Public",
+            required=True,
+            key="lh_yahoo_access",
+        )
+        if _access_input == "Private":
+            st.caption(
+                "Private import needs the Y and T values from a signed-in desktop "
+                "browser. Treat them like passwords. Do not paste them into chat, and use this "
+                "only on a deployment you trust. The importer never logs or shared-caches them "
+                "and clears both fields after a successful load."
+            )
 
-    _render_league_import_help(_provider_input, _espn_access_input)
+    _render_league_import_help(_provider_input, _access_input)
 
     # A form batches text entry. Without it, every numeric keystroke could start a
     # multi-season public API crawl on the next Streamlit rerun.
@@ -1100,19 +1336,33 @@ def render():
         _espn_swid_input,
         _history_depth,
         _load_requested,
-    ) = _render_load_form(_provider_input, _espn_access_input)
+        _yahoo_season_input,
+        _yahoo_y_input,
+        _yahoo_t_input,
+    ) = _render_load_form(_provider_input, _access_input)
 
     _form_error = None
     _private_credentials = None
+    _yahoo_game_key = None
     if _load_requested:
         _submitted_lid = _league_id_input.strip()
+        if _provider_input == "Yahoo":
+            import yahoo_league_history as _yahoo
+
+            _submitted_lid, _yahoo_game_key, _ = _yahoo.parse_league_ref(
+                _submitted_lid
+            )
         _form_error = _league_request_error(
             _provider_input,
             _submitted_lid,
             _espn_season_input,
-            _espn_access_input,
+            _access_input if _provider_input == "ESPN" else "Public",
             _espn_s2_input,
             _espn_swid_input,
+            _yahoo_season_input,
+            _access_input if _provider_input == "Yahoo" else "Public",
+            _yahoo_y_input,
+            _yahoo_t_input,
         )
         if _form_error is None:
             _submitted_limit = 3 if _history_depth == "Recent 3 seasons" else None
@@ -1121,29 +1371,44 @@ def render():
             st.session_state["lh_loaded_espn_season"] = (
                 int(_espn_season_input) if _provider_input == "ESPN" else None
             )
+            st.session_state["lh_loaded_yahoo_season"] = (
+                int(_yahoo_season_input) if _provider_input == "Yahoo" else None
+            )
+            st.session_state["lh_loaded_yahoo_game_key"] = (
+                _yahoo_game_key if _provider_input == "Yahoo" else None
+            )
             st.session_state["lh_loaded_espn_access"] = (
-                _espn_access_input if _provider_input == "ESPN" else "Public"
+                _access_input if _provider_input == "ESPN" else "Public"
+            )
+            st.session_state["lh_loaded_yahoo_access"] = (
+                _access_input if _provider_input == "Yahoo" else "Public"
             )
             st.session_state["lh_loaded_history_limit"] = _submitted_limit
             st.session_state.pop("lh_acq_league_id", None)
             st.session_state.pop("lh_history_ready_for", None)
             st.session_state.pop("lh_private_history_ready_for", None)
             st.session_state.pop("lh_private_history", None)
-            if _provider_input == "ESPN" and _espn_access_input == "Private":
+            if _provider_input == "ESPN" and _access_input == "Private":
                 _private_credentials = (_espn_s2_input, _espn_swid_input)
+            elif _provider_input == "Yahoo" and _access_input == "Private":
+                _private_credentials = (_yahoo_y_input, _yahoo_t_input)
 
     # Keep a successfully loaded result visible while users change page controls or
     # prepare a different ID. Only an explicit, valid Load submits a new public request.
     _lid = st.session_state.get("lh_loaded_league_id", "")
     _provider = st.session_state.get("lh_loaded_provider", "Sleeper")
     _espn_season = st.session_state.get("lh_loaded_espn_season")
+    _yahoo_season = st.session_state.get("lh_loaded_yahoo_season")
+    _yahoo_game_key = st.session_state.get("lh_loaded_yahoo_game_key")
     _espn_access = st.session_state.get("lh_loaded_espn_access", "Public")
+    _yahoo_access = st.session_state.get("lh_loaded_yahoo_access", "Public")
     _history_limit = st.session_state.get("lh_loaded_history_limit", 3)
     _ready_key = "|".join((
         _provider,
         _lid,
-        str(_espn_season or ""),
-        _espn_access,
+        str(_espn_season or _yahoo_season or ""),
+        _espn_access if _provider == "ESPN" else _yahoo_access,
+        str(_yahoo_game_key or ""),
         str(_history_limit if _history_limit is not None else "all"),
     ))
     if _form_error:
@@ -1152,7 +1417,7 @@ def render():
     if not _lid:
         if not _form_error:
             if _provider_input == "ESPN":
-                if _espn_access_input == "Private":
+                if _access_input == "Private":
                     st.info(
                         "Enter your ESPN league ID, most recent season, SWID, and espn_s2 "
                         "values, then select Load league history.  \n\n"
@@ -1169,6 +1434,24 @@ def render():
                         "the same seasons are instant for an hour.  \n\n"
                         "Find the ID in your ESPN URL as the leagueId value."
                     )
+            elif _provider_input == "Yahoo":
+                if _access_input == "Private":
+                    st.info(
+                        "Enter your Yahoo league ID, most recent season, Y cookie, and T cookie "
+                        "values, then select Load league history.  \n\n"
+                        "Recent 3 seasons is the faster default. Private results stay only "
+                        "in your current browser session; the credential fields are cleared "
+                        "after the import. Find the ID after /f1/ in your Yahoo URL."
+                    )
+                else:
+                    st.info(
+                        "Enter your public Yahoo league ID and its most recent season, then select "
+                        "Load league history.  \n\n"
+                        "Recent 3 seasons is the faster default. Yahoo weekly rosters are a larger "
+                        "pull than Sleeper, so the first import can take 10-25 seconds per season; "
+                        "the same seasons are instant for an hour.  \n\n"
+                        "Find the ID after /f1/ in your Yahoo URL."
+                    )
             else:
                 st.info(
                     "Enter your Sleeper league ID, then select Load league history.  \n\n"
@@ -1184,30 +1467,41 @@ def render():
         )
     else:
         _is_private_espn = _provider == "ESPN" and _espn_access == "Private"
+        _is_private_yahoo = _provider == "Yahoo" and _yahoo_access == "Private"
+        _is_private_import = _is_private_espn or _is_private_yahoo
         _just_loaded = False
         if (
-            _is_private_espn
+            _is_private_import
             and st.session_state.get("lh_private_history_ready_for") == _ready_key
         ):
             _lh = st.session_state.get("lh_private_history") or {
-                "league_name": "League", "seasons": {}, "provider": "ESPN",
+                "league_name": "League", "seasons": {}, "provider": _provider,
             }
             _load_error = None if _lh.get("seasons") else (
-                "Private ESPN history is no longer in this browser session. "
+                f"Private {_provider} history is no longer in this browser session. "
                 "Select Load league history again."
             )
-        elif _is_private_espn:
+        elif _is_private_import:
             if _private_credentials is None:
-                _lh = {"league_name": "League", "seasons": {}, "provider": "ESPN"}
+                _lh = {"league_name": "League", "seasons": {}, "provider": _provider}
                 _load_error = (
-                    "Re-enter the ESPN cookie values and select Load league history."
+                    f"Re-enter the {_provider} cookie values and select Load league history."
                 )
-            else:
+            elif _is_private_espn:
                 _lh, _load_error = _load_espn_history_with_status(
                     _lid,
                     int(_espn_season),
                     max_seasons=_history_limit,
                     private_credentials=_private_credentials,
+                )
+                _just_loaded = True
+            else:
+                _lh, _load_error = _load_yahoo_history_with_status(
+                    _lid,
+                    int(_yahoo_season),
+                    max_seasons=_history_limit,
+                    private_credentials=_private_credentials,
+                    game_key=_yahoo_game_key,
                 )
                 _just_loaded = True
         elif st.session_state.get("lh_history_ready_for") == _ready_key:
@@ -1216,6 +1510,13 @@ def render():
                     _lid,
                     int(_espn_season),
                     max_seasons=_history_limit,
+                )
+            elif _provider == "Yahoo":
+                _lh = _fetch_yahoo_history(
+                    _lid,
+                    int(_yahoo_season),
+                    max_seasons=_history_limit,
+                    game_key=_yahoo_game_key,
                 )
             else:
                 _lh = _fetch_sleeper_history(_lid, max_seasons=_history_limit)
@@ -1231,6 +1532,13 @@ def render():
                     int(_espn_season),
                     max_seasons=_history_limit,
                 )
+            elif _provider == "Yahoo":
+                _lh, _load_error = _load_yahoo_history_with_status(
+                    _lid,
+                    int(_yahoo_season),
+                    max_seasons=_history_limit,
+                    game_key=_yahoo_game_key,
+                )
             else:
                 _lh, _load_error = _load_history_with_status(
                     _lid,
@@ -1240,7 +1548,7 @@ def render():
             _just_loaded = True
 
         if _just_loaded and _load_error is None and _lh["seasons"]:
-            if _is_private_espn:
+            if _is_private_import:
                 st.session_state["lh_private_history"] = _lh
                 st.session_state["lh_private_history_ready_for"] = _ready_key
             else:
@@ -1249,7 +1557,11 @@ def render():
                 "league_history_loaded",
                 {
                     "provider": _provider.lower(),
-                    "access": _espn_access.lower() if _provider == "ESPN" else "public",
+                    "access": (
+                        _espn_access.lower() if _provider == "ESPN"
+                        else _yahoo_access.lower() if _provider == "Yahoo"
+                        else "public"
+                    ),
                     "season_count": len(_lh["seasons"]),
                     "history_depth": "recent_3" if _history_limit else "all",
                 },
@@ -1257,13 +1569,19 @@ def render():
             if _is_private_espn:
                 st.session_state["lh_clear_espn_credentials"] = True
                 st.rerun()
+            if _is_private_yahoo:
+                st.session_state["lh_clear_yahoo_credentials"] = True
+                st.rerun()
 
-        if _is_private_espn and _load_error and _private_credentials is not None:
+        if _is_private_import and _load_error and _private_credentials is not None:
             for _state_key in (
                 "lh_loaded_league_id",
                 "lh_loaded_provider",
                 "lh_loaded_espn_season",
                 "lh_loaded_espn_access",
+                "lh_loaded_yahoo_season",
+                "lh_loaded_yahoo_access",
+                "lh_loaded_yahoo_game_key",
                 "lh_loaded_history_limit",
             ):
                 st.session_state.pop(_state_key, None)
@@ -1282,7 +1600,7 @@ def render():
                 f"{'season' if len(_lh['seasons']) == 1 else 'seasons'}. "
                 + (
                     "Stored only in this browser session."
-                    if _is_private_espn else
+                    if _is_private_import else
                     "Cached for an hour."
                 )
             )
@@ -3367,7 +3685,7 @@ def render():
                 # navigable and the analytics stay independently testable.
                 import league_insights_view as _insights_mod
                 _insights_mod = page_common.reload_if_stale(_insights_mod)
-                if _provider == "ESPN":
+                if _provider in {"ESPN", "Yahoo"}:
                     _player_directory_loader = lambda: _lh.get("player_directory", {})
                     _transaction_loader = None
                 else:

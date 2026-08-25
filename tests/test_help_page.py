@@ -47,6 +47,14 @@ def test_help_renders_offline_clean(tmp_path):
     )
 
 
+def test_help_league_history_covers_yahoo(tmp_path):
+    at = _render(tmp_path)
+    md = " ".join(str(m.value) for m in at.markdown)
+    assert "Choose Sleeper, ESPN, or Yahoo" in md
+    assert "Y and T cookie" in md
+    assert "number after `/f1/`" in md
+
+
 def test_league_history_help_deep_links_to_current_walkthrough(tmp_path):
     harness = tmp_path / "h_help_navigation.py"
     harness.write_text(

@@ -125,7 +125,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
         st.markdown("""
 **Live 2026 (the current season)**
 
-- **Draft Board:** 180-player Model Proj, frozen until the early-September snapshot. Sleeper ADP (default) and ESPN ADP, plus Sleeper Proj, refresh daily.
+- **Draft Board:** 180-player Model Proj, frozen until the early-September snapshot. Sleeper ADP (default), ESPN ADP, and Yahoo ADP, plus Sleeper Proj, refresh daily.
 - **Rookie Board:** hit % and RB/WR/TE season-total projections for the 2024-2026 classes.
 - **Season Totals:** 32-team win projections. HIGH is the only certified pick.
 - **Weekly Predictions:** 2026 matchups are up. Picks lock Tuesday 9:00 ET. HIGH is the green 3-point Tuesday ticket.
@@ -141,7 +141,7 @@ Sharp money is professional bettors placing large, calculated bets. When they be
 
 **Not a prediction model**
 
-Talent Scores are descriptive context. League History is your Sleeper or ESPN league, not a forecast. Film Room is video.
+Talent Scores are descriptive context. League History is your Sleeper, ESPN, or Yahoo league, not a forecast. Film Room is video.
         """)
 
     with st.expander("How is the site organized?"):
@@ -189,7 +189,7 @@ On the **2025 demo** weeks, **Min Edge (pts)** at the top of Weekly Predictions 
 **2025 demo test** used the older Monday / Thursday / Sunday refresh. Those weeks are frozen as a walkthrough.
 
 During the offseason, 2026 matchups stay on Weekly Predictions with no picks until the Tuesday freeze. The pre-season **Draft Board** refreshes
-Sleeper ADP, ESPN ADP, and Sleeper projections daily for its fixed 180-player universe; draft-price
+Sleeper ADP, ESPN ADP, Yahoo ADP, and Sleeper projections daily for its fixed 180-player universe; draft-price
 ranks, Sleeper ranks, and both gap columns move with those updates. Model Proj points and
 ranks remain frozen until the dated early-September public-information snapshot.
         """)
@@ -233,7 +233,7 @@ How those files are built sits in **How weekly fantasy projections are built** b
         st.markdown("""
 A DraftKings NFL Classic lineup builder. Upload the salary CSV for the contest you want. The page uses a published direct-DK projection file when one exists, or a CSV you upload.
 
-Classic roster: 1 QB, 2 RB, 3 WR, 1 TE, 1 FLEX, 1 DST, $50,000 salary cap. OUT, IR, Doubtful, PUP, SUSP, and NFI players are excluded. Questionable players stay eligible. DST uses DraftKings average points until a labeled DST model ships.
+Classic roster: 1 QB, 2 RB, 3 WR, 1 TE, 1 FLEX, 1 DST, $50,000 salary cap. OUT, IR, Doubtful, PUP, SUSP, and NFI players are excluded. Questionable players stay eligible. DST uses opponent implied total when a game line exists, otherwise DraftKings average.
 
 This site does not generate DFS projections. Those files come from a private producer and have to pass the same release checks as the other products. No 2026 Week 1 projection file is published yet.
 
@@ -256,13 +256,13 @@ How the number is built sits in **How the Anytime TD demo works** below.
 
     with st.expander("What is the Draft Board page?"):
         st.markdown("""
-A **pre-season comparison table** for 2026, separate from Weekly Fantasy. The universe is fixed: 24 QBs, 60 RBs, 72 WRs, 24 TEs. Each row puts draft price and positional rank next to **Model Proj**. Use **Draft price** to switch Sleeper ADP (the default) and ESPN ADP for the same 180 players. Sleeper's current season projection is shown when the player record matches. Each projection also has a gap versus draft-price rank at that position.
+A **pre-season comparison table** for 2026, separate from Weekly Fantasy. The universe is fixed: 24 QBs, 60 RBs, 72 WRs, 24 TEs. Each row puts draft price and positional rank next to **Model Proj**. Use **Draft price** to switch Sleeper ADP (the default), ESPN ADP, and Yahoo ADP for the same 180 players. Sleeper's current season projection is shown when the player record matches. Each projection also has a gap versus draft-price rank at that position.
 
 **What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is arithmetic between two ranks on the same row, never a recommendation.
 
 **How good is the number?** On 2021-2025 Model Proj scored .7101 pairwise versus ADP's .6965, MAE 49.31 versus 51.75, and beat ADP ordering in 5 of 6 seasons (it lost 2020). That comparison is vs Sleeper ADP. It is **not live-validated**. The first live test is the 2026 season.
 
-Model Proj values are frozen until the planned dated early-September public-information snapshot. **Sleeper ADP, ESPN ADP, and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.**
+Model Proj values are frozen until the planned dated early-September public-information snapshot. **Sleeper ADP, ESPN ADP, Yahoo ADP, and Sleeper Proj refresh daily; their positional ranks, Sleeper Gap, and Model Gap recalculate from each successful pull.**
 
 The two talent columns are described further down this page. They are descriptive context and feed no other column.
 
@@ -289,13 +289,13 @@ Some older videos predate later validation work and make calls I wouldn't make t
 
     with st.expander("What is the League History page?"):
         st.markdown("""
-Choose Sleeper or ESPN, paste the league ID, and hit Load. Sleeper IDs come from `sleeper.com/leagues/{ID}/league`; ESPN also needs the most recent season shown in the league URL. Private ESPN leagues need the SWID and espn_s2 cookie values from a signed-in browser session. The page pulls standings, drafts, weekly scores, and a few chart-first views: Draft & Roster Insights, All-Time Leaderboard, Hall of Fame, Rivalries, Report Cards, and Consistency & Luck.
+Choose Sleeper, ESPN, or Yahoo, paste the league ID, and hit Load. Sleeper IDs come from `sleeper.com/leagues/{ID}/league`; ESPN also needs the most recent season shown in the league URL. Yahoo IDs are the number after `/f1/` and also need that season. Private ESPN leagues need the SWID and espn_s2 cookie values from a signed-in browser session. Private Yahoo leagues need the Y and T cookie values. The page pulls standings, drafts, weekly scores, and a few chart-first views: Draft & Roster Insights, All-Time Leaderboard, Hall of Fame, Rivalries, Report Cards, and Consistency & Luck.
 
-**Finding the ID:** In the Sleeper phone app, open league settings, choose **General**, and use **Copy League ID** at the bottom; on a computer, copy the number at the end of the league URL. In the ESPN Fantasy phone app, open **League → League Info**; on a computer, copy the digits after `leagueId=` in the league URL. Your League Manager must enable ESPN's **viewable to public** setting for public imports. ESPN keeps membership invite-only.
+**Finding the ID:** In the Sleeper phone app, open league settings, choose **General**, and use **Copy League ID** at the bottom; on a computer, copy the number at the end of the league URL. In the ESPN Fantasy phone app, open **League → League Info**; on a computer, copy the digits after `leagueId=` in the league URL. Your League Manager must enable ESPN's **viewable to public** setting for public imports. ESPN keeps membership invite-only. For Yahoo, copy the digits after `/f1/` in `football.fantasysports.yahoo.com`; a URL like `/2025/f1/123456` is season 2025 and league ID 123456. Ask the commissioner to make a Yahoo league publicly viewable for the public importer.
 
-**Private ESPN:** Get the League ID on either device, but retrieve `SWID` and `espn_s2` from a signed-in desktop browser. Chrome and Edge show them under **Developer Tools → Application → Storage → Cookies**; Firefox uses **Developer Tools → Storage → Cookies**. Normal iPhone and Android browser menus do not expose these values. Treat both like passwords and never paste them into chat.
+**Private ESPN or Yahoo:** Get the League ID on either device, but retrieve the session cookies from a signed-in desktop browser. Chrome and Edge show them under **Developer Tools → Application → Storage → Cookies**; Firefox uses **Developer Tools → Storage → Cookies**. Normal iPhone and Android browser menus do not expose these values. Treat them like passwords and never paste them into chat.
 
-First load is usually a few seconds per Sleeper season and 10-25 seconds per ESPN season. Public results are cached for an hour. Private ESPN results and normalized league data stay only in the current browser session; credential fields clear after a successful load and the cookie values are never logged or shared-cached. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
+First load is usually a few seconds per Sleeper season and 10-25 seconds per ESPN or Yahoo season. Public results are cached for an hour. Private ESPN and Yahoo results stay only in the current browser session; credential fields clear after a successful load and the cookie values are never logged or shared-cached. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
         """)
         film_room_page = nav_registry.PAGES.get("film-room")
         if film_room_page is not None:
@@ -457,7 +457,7 @@ Play-by-play and schedule data come from nflreadpy, going back far enough to bui
 
 Injury reports feed availability: Out and Doubtful players reduce a team's talent and lineup features. The All-Pro CSV (1997-2025) is a custom roster-talent file, updated manually each January.
 
-Posted win totals on Season Totals are a sportsbook snapshot with an as-of date on that page. Sleeper ADP, ESPN ADP, and Sleeper projections on the Draft Board refresh daily. DFS Optimizer projections are checked producer artifacts, not generated on this site. The LLM agent is paused (August 2026).
+Posted win totals on Season Totals are a sportsbook snapshot with an as-of date on that page. Sleeper ADP, ESPN ADP, Yahoo ADP, and Sleeper projections on the Draft Board refresh daily. DFS Optimizer projections are checked producer artifacts, not generated on this site. The LLM agent is paused (August 2026).
         """)
 
     with st.expander("Is this financial advice?"):

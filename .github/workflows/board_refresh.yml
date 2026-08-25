@@ -1,7 +1,7 @@
 name: Draft Board Market Refresh
 
-# Re-pulls live Sleeper ADP/projections and ESPN ADP for the 180-player 2026
-# Draft Board. Commits only the regenerable overlay CSVs.
+# Re-pulls live Sleeper ADP/projections, ESPN ADP, and Yahoo ADP for the
+# 180-player 2026 Draft Board. Commits only the regenerable overlay CSVs.
 
 on:
   schedule:
@@ -51,16 +51,24 @@ jobs:
           BOARD_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
         run: python fantasy/seasonal_projections/refresh_board_espn_adp.py
 
+      - name: Refresh board Yahoo ADP
+        id: yahoo
+        continue-on-error: true
+        env:
+          BOARD_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '' }}
+        run: python fantasy/seasonal_projections/refresh_board_yahoo_adp.py
+
       - name: Commit the refreshed overlays
         if: always()
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add fantasy/seasonal_projections/board_adp_live_2026.csv \
-                  fantasy/seasonal_projections/board_espn_adp_live_2026.csv
+                  fantasy/seasonal_projections/board_espn_adp_live_2026.csv \
+                  fantasy/seasonal_projections/board_yahoo_adp_live_2026.csv
           git diff --staged --quiet || git commit -m "Board market refresh $(date +'%Y-%m-%d')"
           git push
 
       - name: Fail if a market refresh failed
-        if: steps.sleeper.outcome == 'failure' || steps.espn.outcome == 'failure'
+        if: steps.sleeper.outcome == 'failure' || steps.espn.outcome == 'failure' || steps.yahoo.outcome == 'failure'
         run: exit 1

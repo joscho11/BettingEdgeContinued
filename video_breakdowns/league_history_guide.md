@@ -35,3 +35,9 @@ Use the season filter for one year or select all-time for the full record. The p
 ## 3. Read it as history, not a forecast
 
 League History describes what happened. It does not rank the best manager for you, predict the next season, or turn draft tendencies into recommendations. The value is having the full record in one place so those arguments can start from the same evidence.
+
+---
+
+## 4. Not in the video
+
+Yahoo import landed after this walkthrough. Same six tabs. Public leagues use the number after `/f1/` plus the season in the URL. Private leagues need the Y and T cookie values from a signed-in desktop browser, the same class as ESPN's SWID and espn_s2. Yahoo Best Values still has no FAAB or trade ledger.

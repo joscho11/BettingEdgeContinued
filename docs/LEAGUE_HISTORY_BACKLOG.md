@@ -64,3 +64,7 @@ Internal product notes. Not site copy.
 - Consistency scatter is scoring vs volatility only, steadier at the top. Luck stays on the bar chart and on hover.
 - Score Trends tab removed. Nothing from it moved.
 - Report Cards chart caption: All-time is season-by-season scoring vs league. One season switches to weekly.
+
+## Rejected 2026-08-24
+
+Season Recap tab (PNG cards), Leaderboard all-play power ranks, Insights Draft Grades, and a league-wide FAAB pts/$ table. Joseph: worse, do not add back. Same class as the 2026-08-19 player-count / draft-threat revert. Live page stays the original six tabs.

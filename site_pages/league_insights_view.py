@@ -1065,9 +1065,9 @@ def render(
         f"League-specific tendencies and manager history from {provider_name}'s completed drafts and weekly roster snapshots. "
         "Three drafts can reveal repeated habits, but every recommendation below keeps its sample visible."
     )
-    if provider_name == "ESPN" and view == "Best Values":
+    if provider_name in {"ESPN", "Yahoo"} and view == "Best Values":
         st.caption(
-            "ESPN imports do not yet include complete waiver-bid and trade history, so "
+            f"{provider_name} imports do not yet include complete waiver-bid and trade history, so "
             "in-season additions are identified from weekly roster changes without "
             "FAAB or trade-grade detail."
         )

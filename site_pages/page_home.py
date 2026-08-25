@@ -35,7 +35,7 @@ def render() -> None:
             with st.container(border=True, height="stretch"):
                 st.markdown("### Build a draft plan")
                 st.caption(
-                    "Compare the frozen independent projection with daily Sleeper or ESPN ADP "
+                    "Compare the frozen independent projection with daily Sleeper, ESPN, or Yahoo ADP "
                     "across the 180-player board."
                 )
                 _page_link("draft-board", "Open the Draft Board", ":material/list_alt:")

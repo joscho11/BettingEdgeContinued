@@ -209,7 +209,7 @@ production, draft capital, age, and leftover opportunity on the new roster. **AD
 the two Talent Scores are not inputs.**
 
 Points and positional ranks stay frozen until the dated early-September public-information
-snapshot. Sleeper ADP (the default) and ESPN ADP still refresh daily, as does Sleeper Proj;
+snapshot. Sleeper ADP (the default), ESPN ADP, and Yahoo ADP still refresh daily, as does Sleeper Proj;
 those live values rewrite the market ranks and both gap columns, not Model Proj. The 5-of-6
 ADP-ordering result is vs Sleeper ADP.
 
@@ -273,8 +273,10 @@ producer artifact or an upload with the same contract: direct DK points plus a s
 that names the product, scoring, season, week, and file hash. The solver is a reviewed
 vendored integer program: $50,000 cap, standard Classic slots, one FLEX from RB/WR/TE.
 
-DST is not a trained player model. It uses DraftKings average points, labeled on the
-page. Injured and unmatched skill players are dropped. Questionable stays in.
+DST is not a trained player model. It uses opponent implied total mapped to
+Classic points-allowed buckets plus a locked league-mean bonus. No line: DraftKings
+average, labeled on the page. Injured and unmatched skill players are dropped.
+Questionable stays in.
 
 No projection-edge claim. The 2026 Week 1 artifact is not published yet, so a
 salary-only upload cannot produce a lineup.

@@ -1,15 +1,15 @@
 # Seasonal projections on this site
 
-Status: checked against the Draft Board page and ADP refresh on 2026-08-21.
+Status: checked against the Draft Board page and ADP refresh on 2026-08-24.
 
 This public folder is the Draft Board's operational surface: the frozen 2014-2026
-season dataset the board keys on, the daily Sleeper and ESPN ADP overlays, and the
+season dataset the board keys on, the daily Sleeper, ESPN, and Yahoo ADP overlays, and the
 refresh scripts. Training and serialized models are private.
 
 ## What the page shows
 
 The Draft Board is a 180-player comparison table. For each player it places the
-market price (Sleeper ADP by default, ESPN ADP as an alternate) next to my season
+market price (Sleeper ADP by default, ESPN ADP or Yahoo ADP as an alternate) next to my season
 projection and Sleeper's projection, plus positional ranks, rank gaps, and two
 descriptive talent columns. It is not a buy/fade tool and it does not render a
 calibrated floor/ceiling band.
@@ -19,8 +19,9 @@ I do not retrain it in this repository.
 
 ## How the market columns update
 
-`refresh_board_adp.py` and `refresh_board_espn_adp.py` pull current ADP and rewrite
-only `board_adp_live_2026.csv` and `board_espn_adp_live_2026.csv`. They do not
+`refresh_board_adp.py`, `refresh_board_espn_adp.py`, and `refresh_board_yahoo_adp.py`
+pull current ADP and rewrite only `board_adp_live_2026.csv`,
+`board_espn_adp_live_2026.csv`, and `board_yahoo_adp_live_2026.csv`. They do not
 touch the frozen season dataset or the projection CSVs. After the 2026 season
 start date the scheduled refresh pauses unless forced.
 
@@ -34,9 +35,11 @@ board players is refused rather than publishing a stale overlay with today's dat
 | `season_dataset_2014_2026.csv` | Frozen board universe |
 | `board_adp_live_2026.csv` | Live Sleeper ADP overlay |
 | `board_espn_adp_live_2026.csv` | Live ESPN ADP overlay |
+| `board_yahoo_adp_live_2026.csv` | Live Yahoo ADP overlay |
 | `board_espn_ids_2026.csv` | ESPN player-id map |
-| `fetch_adp.py`, `fetch_espn_adp.py` | Market pulls |
-| `refresh_board_adp.py`, `refresh_board_espn_adp.py` | Overlay writers |
+| `board_yahoo_ids_2026.csv` | Yahoo player-id map |
+| `fetch_adp.py`, `fetch_espn_adp.py`, `fetch_yahoo_adp.py` | Market pulls |
+| `refresh_board_adp.py`, `refresh_board_espn_adp.py`, `refresh_board_yahoo_adp.py` | Overlay writers |
 | `apply_board_labels.py` | Shared name normalization |
 | `_utils.py` | Shared helpers |
 

@@ -22,6 +22,7 @@ sys.path.insert(0, str(_SITE_PAGES))
 import page_league_history
 import page_common
 import espn_league_history
+import yahoo_league_history
 from fantasy import league_intelligence as league_intel
 
 
@@ -413,6 +414,347 @@ def test_espn_season_normalizes_to_existing_history_schema():
     assert payload["roster_entries"][0]["players_points"]["101"] == 22.5
     assert payload["draft_picks"][0]["metadata"]["position"] == "RB"
     assert payload["draft_picks"][2]["metadata"]["full_name"] == "Cut Before Week One"
+    assert payload["league_settings"]["scoring_settings"] == {
+        "rec": 0.5, "pass_td": 4.0,
+    }
+    assert payload["league_settings"]["waiver_type"] == 2
+    assert players["202"]["position"] == "QB"
+
+
+def test_league_history_exposes_yahoo_provider_and_season(tmp_path):
+    at = _render_page(tmp_path, "page_league_history")
+    provider = next(w for w in at.segmented_control if w.key == "lh_provider")
+    provider.set_value("Yahoo")
+    at = at.run()
+    assert not at.exception, at.exception
+    assert next(w for w in at.number_input if w.key == "lh_yahoo_season")
+    league_input = next(w for w in at.text_input if w.key == "lh_league_id")
+    assert league_input.label == "Yahoo League ID"
+    info = " ".join(str(item.value) for item in at.info)
+    assert "public Yahoo league ID" in info
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "/f1/" in markdown
+    assert "publicly viewable" in markdown
+    access = next(w for w in at.segmented_control if w.key == "lh_yahoo_access")
+    assert access.value == "Public"
+    access.set_value("Private")
+    at = at.run()
+    private_inputs = {
+        widget.key: widget
+        for widget in at.text_input
+        if widget.key in {"lh_yahoo_y", "lh_yahoo_t"}
+    }
+    assert set(private_inputs) == {"lh_yahoo_y", "lh_yahoo_t"}
+    assert all(widget.value == "" for widget in private_inputs.values())
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "Do not paste them into chat" in captions
+    assert "never logs or shared-caches them" in captions
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert "normal iPhone and Android browser menus do not expose" in markdown
+    assert "Application → Storage → Cookies" in markdown
+    assert "Developer Tools → Storage → Cookies" in markdown
+    assert "clears both fields after a successful load" in markdown
+
+
+def test_private_yahoo_history_stays_in_session_and_clears_cookie_fields(tmp_path):
+    fixture = {
+        "league_name": "Private Yahoo League",
+        "provider": "Yahoo",
+        "player_directory": {},
+        "seasons": {"2025": {
+            "league_id": "123456",
+            "draft_id": "",
+            "status": "complete",
+            "champion": {"username": "Alice", "team_name": "A Team"},
+            "runner_up": {"username": "Bob", "team_name": "B Team"},
+            "toilet_champion": {"username": "Bob", "team_name": "B Team"},
+            "toilet_champions": [{"username": "Bob", "team_name": "B Team"}],
+            "toilet_finalists": ["Alice", "Bob"],
+            "toilet_bracket": ["Alice", "Bob"],
+            "standings": [
+                {
+                    "roster_id": 1, "owner_id": "owner-a", "username": "Alice",
+                    "team_name": "A Team", "wins": 1, "losses": 0,
+                    "fpts": 110.0, "fpts_against": 90.0, "playoff_finish": 1,
+                },
+                {
+                    "roster_id": 2, "owner_id": "owner-b", "username": "Bob",
+                    "team_name": "B Team", "wins": 0, "losses": 1,
+                    "fpts": 90.0, "fpts_against": 110.0, "playoff_finish": 2,
+                },
+            ],
+            "matchups": [{
+                "season": "2025", "week": 1, "is_playoff": False,
+                "rid_a": "1", "score_a": 110.0,
+                "rid_b": "2", "score_b": 90.0,
+            }],
+            "draft_picks": [],
+            "roster_entries": [],
+            "league_settings": {
+                "total_rosters": 2, "roster_positions": [],
+                "scoring_settings": {}, "waiver_type": 0, "waiver_budget": None,
+            },
+        }},
+    }
+    harness = tmp_path / "private_yahoo_loaded.py"
+    harness.write_text(
+        f"import sys\nsys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "import page_league_history as p\n"
+        "p._OFFLINE = False\n"
+        f"_fixture = {fixture!r}\n"
+        "def _load(league_id, season, max_seasons=None, private_credentials=None, game_key=None):\n"
+        "    assert league_id == '123456'\n"
+        "    assert private_credentials == ('yahoo-y-value', 'yahoo-t-value')\n"
+        "    return _fixture, None\n"
+        "p._load_yahoo_history_with_status = _load\n"
+        "p.render()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness), default_timeout=180).run()
+    next(w for w in at.segmented_control if w.key == "lh_provider").set_value("Yahoo")
+    at = at.run()
+    next(w for w in at.segmented_control if w.key == "lh_yahoo_access").set_value("Private")
+    at = at.run()
+    next(w for w in at.text_input if w.key == "lh_league_id").set_value("123456")
+    next(w for w in at.number_input if w.key == "lh_yahoo_season").set_value(2025)
+    next(w for w in at.text_input if w.key == "lh_yahoo_y").set_value("yahoo-y-value")
+    next(w for w in at.text_input if w.key == "lh_yahoo_t").set_value("yahoo-t-value")
+    next(b for b in at.button if b.label == "Load league history").click()
+    at = at.run()
+
+    assert not at.exception, at.exception
+    assert any(header.value == "Private Yahoo League" for header in at.header)
+    assert next(w for w in at.text_input if w.key == "lh_yahoo_y").value == ""
+    assert next(w for w in at.text_input if w.key == "lh_yahoo_t").value == ""
+    assert any(
+        "Stored only in this browser session" in str(caption.value)
+        for caption in at.caption
+    )
+
+
+def test_league_history_validates_yahoo_id_and_season():
+    assert page_league_history._league_request_error("Yahoo", "123456", yahoo_season=2025) is None
+    assert "digits only" in page_league_history._league_request_error("Yahoo", "abc", yahoo_season=2025)
+    assert "currently supports" in page_league_history._league_request_error(
+        "Yahoo", "123456", yahoo_season=2017,
+    )
+    assert "both the Y and T" in page_league_history._league_request_error(
+        "Yahoo", "123456", yahoo_season=2025, yahoo_access="Private", yahoo_y="", yahoo_t="",
+    )
+    assert page_league_history._league_request_error(
+        "Yahoo", "123456", yahoo_season=2025, yahoo_access="Private",
+        yahoo_y="y-value", yahoo_t="t-value",
+    ) is None
+    parsed_id, game_key, season = yahoo_league_history.parse_league_ref(
+        "https://football.fantasysports.yahoo.com/2025/f1/123456"
+    )
+    assert parsed_id == "123456"
+    assert season == 2025
+    parsed_id, game_key, season = yahoo_league_history.parse_league_ref("461.l.123456")
+    assert parsed_id == "123456"
+    assert game_key == "461"
+    assert season == 2025
+
+
+def test_private_yahoo_requests_are_credentialed_and_never_shared_cached(monkeypatch):
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"fantasy_content": {"league": [
+                {"league_id": "123456", "season": "2025", "name": "Private Yahoo",
+                 "league_key": "461.l.123456", "renew": ""},
+            ]}}
+
+    def fake_get(*args, **kwargs):
+        calls.append(kwargs)
+        return Response()
+
+    monkeypatch.setattr(yahoo_league_history.requests, "get", fake_get)
+    for _ in range(2):
+        payload = yahoo_league_history._yahoo_get_private(
+            "https://example.invalid/league",
+            "Y=session-y",
+            "T=session-t",
+        )
+        assert payload["fantasy_content"]["league"][0]["name"] == "Private Yahoo"
+
+    assert len(calls) == 2, "credentialed requests must bypass shared st.cache_data"
+    assert calls[0]["cookies"] == {"Y": "session-y", "T": "session-t"}
+    assert not hasattr(yahoo_league_history._yahoo_get_private, "clear")
+
+
+def test_private_yahoo_401_does_not_echo_cookie_values(monkeypatch):
+    class Response:
+        status_code = 401
+
+    monkeypatch.setattr(
+        yahoo_league_history.requests,
+        "get",
+        lambda *args, **kwargs: Response(),
+    )
+    with pytest.raises(yahoo_league_history.YahooLeagueError) as caught:
+        yahoo_league_history._yahoo_get_private(
+            "https://example.invalid/league", "sensitive-y-value", "sensitive-t-value",
+        )
+    message = str(caught.value)
+    assert "Recopy the Y and T" in message
+    assert "sensitive-y-value" not in message
+    assert "sensitive-t-value" not in message
+
+
+def test_yahoo_season_normalizes_to_existing_history_schema():
+    meta = {
+        "league_id": "123456",
+        "season": "2025",
+        "name": "Test Yahoo",
+        "num_teams": 2,
+        "start_week": "1",
+        "end_week": "1",
+        "current_week": "1",
+        "is_finished": 1,
+        "league_key": "461.l.123456",
+    }
+    extras = {
+        "settings": [{
+            "uses_faab": "1",
+            "roster_positions": [
+                {"roster_position": {"position": "QB", "count": 1, "is_starting_position": 1}},
+                {"roster_position": {"position": "BN", "count": 3, "is_starting_position": 0}},
+            ],
+            "stat_categories": {"stats": [
+                {"stat": {"stat_id": 11, "name": "Receptions"}},
+                {"stat": {"stat_id": 5, "name": "Passing Touchdowns"}},
+            ]},
+            "stat_modifiers": {"stats": [
+                {"stat": {"stat_id": 11, "value": "0.5"}},
+                {"stat": {"stat_id": 5, "value": "4"}},
+            ]},
+        }],
+        "standings": [{
+            "teams": {
+                "0": {"team": [
+                    [
+                        {"team_key": "461.l.123456.t.1"},
+                        {"team_id": "1"},
+                        {"name": "A Team"},
+                        {"draft_position": 1},
+                        {"managers": [{"manager": {
+                            "manager_id": "1", "nickname": "Alice", "guid": "guid-a",
+                        }}]},
+                    ],
+                    {"team_standings": {
+                        "rank": "1",
+                        "outcome_totals": {"wins": 1, "losses": 0, "ties": 0},
+                        "points_for": "110",
+                        "points_against": "90",
+                    }},
+                ]},
+                "1": {"team": [
+                    [
+                        {"team_key": "461.l.123456.t.2"},
+                        {"team_id": "2"},
+                        {"name": "B Team"},
+                        {"draft_position": 2},
+                        {"managers": [{"manager": {
+                            "manager_id": "2", "nickname": "Bob", "guid": "guid-b",
+                        }}]},
+                    ],
+                    {"team_standings": {
+                        "rank": "2",
+                        "outcome_totals": {"wins": 0, "losses": 1, "ties": 0},
+                        "points_for": "90",
+                        "points_against": "110",
+                    }},
+                ]},
+                "count": 2,
+            },
+        }],
+        "draft_results": {
+            "0": {"draft_result": {
+                "pick": 1, "round": 1,
+                "team_key": "461.l.123456.t.1", "player_key": "461.p.101",
+            }},
+            "1": {"draft_result": {
+                "pick": 2, "round": 1,
+                "team_key": "461.l.123456.t.2", "player_key": "461.p.202",
+            }},
+            "count": 2,
+        },
+    }
+    scoreboards = {1: {
+        "week": "1",
+        "0": {"matchups": {
+            "0": {"matchup": {
+                "week": "1",
+                "is_playoffs": "0",
+                "0": {"teams": {
+                    "0": {"team": [
+                        [{"team_key": "461.l.123456.t.1"}, {"team_id": "1"}],
+                        {"team_points": {"total": "110"}},
+                    ]},
+                    "1": {"team": [
+                        [{"team_key": "461.l.123456.t.2"}, {"team_id": "2"}],
+                        {"team_points": {"total": "90"}},
+                    ]},
+                    "count": 2,
+                }},
+            }},
+            "count": 1,
+        }},
+    }}
+    weekly = {1: {
+        "0": {"team": [
+            [{"team_key": "461.l.123456.t.1"}, {"team_id": "1"}],
+            {"roster": {"0": {"players": {
+                "0": {"player": [
+                    [
+                        {"player_key": "461.p.101"},
+                        {"player_id": "101"},
+                        {"name": {"full": "Runner One", "first": "Runner", "last": "One"}},
+                        {"primary_position": "RB"},
+                    ],
+                    {"selected_position": {"position": "RB"}},
+                    {"player_points": {"total": "22.5"}},
+                ]},
+                "count": 1,
+            }}}},
+        ]},
+        "1": {"team": [
+            [{"team_key": "461.l.123456.t.2"}, {"team_id": "2"}],
+            {"roster": {"0": {"players": {
+                "0": {"player": [
+                    [
+                        {"player_key": "461.p.202"},
+                        {"player_id": "202"},
+                        {"name": {"full": "Passer Two", "first": "Passer", "last": "Two"}},
+                        {"primary_position": "QB"},
+                    ],
+                    {"selected_position": {"position": "BN"}},
+                    {"player_points": {"total": "18"}},
+                ]},
+                "count": 1,
+            }}}},
+        ]},
+        "count": 2,
+    }}
+    payload, players = yahoo_league_history.normalize_season(
+        "123456", 2025, meta, extras, scoreboards, weekly,
+    )
+    assert payload["champion"]["username"] == "Alice"
+    assert payload["runner_up"]["username"] == "Bob"
+    assert payload["matchups"] == [{
+        "season": "2025", "week": 1, "is_playoff": False,
+        "rid_a": "1", "score_a": 110.0,
+        "rid_b": "2", "score_b": 90.0,
+    }]
+    assert payload["roster_entries"][0]["players_points"]["101"] == 22.5
+    assert payload["roster_entries"][0]["starters"] == ["101"]
+    assert payload["roster_entries"][1]["starters"] == []
+    assert payload["draft_picks"][0]["metadata"]["position"] == "RB"
     assert payload["league_settings"]["scoring_settings"] == {
         "rec": 0.5, "pass_td": 4.0,
     }
