@@ -192,4 +192,14 @@ VIDEOS = [
         "video_id": "7676271983297940766",
         "breakdown_file": "league_history_guide.md",
     },
+    {
+        "slug": "jameson-williams",
+        "title": "Jameson Williams Fantasy Outlook 2026",
+        "subtitle": "2026 · WR, Detroit",
+        "date": "2026-08-24",
+        "section": "player-breakdowns",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7677736351936105759",
+        "video_id": "7677736351936105759",
+        "breakdown_file": "jameson_williams.md",
+    },
 ]

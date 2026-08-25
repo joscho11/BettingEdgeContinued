@@ -99,12 +99,13 @@ def test_catalog_sections_and_archive_membership():
         "how-to-leverage-adp-guide",
     ]
     assert grouped["Player breakdowns"] == [
+        "jameson-williams",
         "jefferson-deep-dive",
         "bijan-robinson-jahmyr-gibbs",
         "makai-lemon",
     ]
     assert grouped["Archive"] == ["league-history", "brian-thomas-jr"]
-    assert newest_first[0]["slug"] == LATEST_LEAGUE_HISTORY_VIDEO_SLUG
+    assert newest_first[0]["slug"] == "jameson-williams"
 
 
 def test_every_episode_has_a_known_content_section():
@@ -163,11 +164,18 @@ def test_every_episode_has_a_breakdown_file():
         assert item["video_id"] in item["tiktok_url"]
 
 
-def test_latest_league_history_guide_is_newest():
+def test_latest_league_history_guide_constant_still_points_at_the_walkthrough():
+    item = next(v for v in VIDEOS if v["slug"] == LATEST_LEAGUE_HISTORY_VIDEO_SLUG)
+    assert item["video_id"] == "7676271983297940766"
+    assert item["date"] == "2026-08-20"
+    assert item["section"] == "site-walkthroughs"
+
+
+def test_newest_episode_is_jameson_williams():
     newest = _newest()
-    assert newest["slug"] == LATEST_LEAGUE_HISTORY_VIDEO_SLUG
-    assert newest["video_id"] == "7676271983297940766"
-    assert newest["date"] == "2026-08-20"
+    assert newest["slug"] == "jameson-williams"
+    assert newest["video_id"] == "7677736351936105759"
+    assert newest["date"] == "2026-08-24"
 
 
 def test_breakdowns_and_registry_do_not_disclose_sleeper_mix():
