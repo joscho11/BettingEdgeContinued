@@ -7,9 +7,8 @@ To add a video after posting it:
 The `video_id` is the number at the end of the TikTok URL (.../video/<id>).
 
 ORDER DOES NOT MATTER HERE. film_room.py sorts episodes by `date`, newest first
-(default selection). This list stays append-only. `date` is ISO (YYYY-MM-DD) and is the publish
-date shown on the player; an entry without one still renders, it just carries no date line and
-sorts to the end.
+within each section. Opening the tab loads DEFAULT_VIDEO_SLUG, not the newest
+episode. `date` is ISO (YYYY-MM-DD) and is the publish date shown on the player.
 """
 
 # Optional channel intro. None until a replacement is posted. The old Welcome video
@@ -22,44 +21,18 @@ INTRO_VIDEO = None
 # Help & Guide deep-links to the current walkthrough without owning a second copy.
 LATEST_LEAGUE_HISTORY_VIDEO_SLUG = "league-history-guide"
 
+# Film Room tab default. Shared ?video= still overrides when the slug is valid.
+DEFAULT_VIDEO_SLUG = "site-walkthrough"
+
 # Picker order is intentional; videos remain newest-first within each section.
-# Archived entries always render in Archive regardless of their original section.
 VIDEO_SECTIONS = (
     ("site-walkthroughs", "Site walkthroughs"),
     ("draft-strategy", "Draft strategy & research"),
     ("player-breakdowns", "Player breakdowns"),
-    ("archive", "Archive"),
 )
 
 # Analysis / walkthrough videos. Each gets an embed + click-to-open written context.
-# `archived: True` + `archive_note` adds a compact "📼 Archived: why?" pop-out.
-# `archive_link` can point to the current replacement or another relevant site page.
 VIDEOS = [
-    {
-        "slug": "brian-thomas-jr",
-        "title": "The Market Is Wrong About Brian Thomas Jr.",
-        "date": "2026-07-07",
-        "section": "player-breakdowns",
-        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7660252626046553374",
-        "video_id": "7660252626046553374",
-        "breakdown_file": "brian_thomas_jr.md",
-        "archived": True,
-        "archive_note": (
-            "📼 Archived. Posted July 7, 2026, before my validation work "
-            "finished. This video makes a call about one player using a model "
-            "I've since retired. When testing finished, what held up were "
-            "group-level patterns and calibrated ranges, never claims about "
-            "individual players, and this video doesn't reflect how I work now. "
-            "It stays up, "
-            "unedited, as part of the record. For what I publish today: the "
-            "Draft Board page."
-        ),
-        "archive_link": {
-            "page": "draft-board",
-            "label": "Open the Draft Board",
-            "icon": ":material/list_alt:",
-        },
-    },
     {
         "slug": "makai-lemon",
         "title": "Makai Lemon: Rookie Receiver Profile",
@@ -151,26 +124,14 @@ VIDEOS = [
         "breakdown_file": "qb_te_draft_timing.md",
     },
     {
-        "slug": "league-history",
-        "title": "Who's the best manager in your league?",
-        "subtitle": "2026 · Sleeper League History walkthrough",
+        "slug": "rb-wr-draft-strategy",
+        "title": "How many RBs should you draft early?",
+        "subtitle": "2018-2025 · 1,371 public Sleeper leagues · zero RB vs 2-3 RBs by round 6",
         "date": "2026-08-16",
-        "section": "site-walkthroughs",
+        "section": "draft-strategy",
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7674717547266133278",
         "video_id": "7674717547266133278",
-        "breakdown_file": "league_history.md",
-        "archived": True,
-        "archive_note": (
-            "Superseded by the August 20 walkthrough, which added ESPN. Yahoo import "
-            "landed later and is not in either video. This Sleeper-only version stays "
-            "available as part of the record."
-        ),
-        "archive_link": {
-            "page": "film-room",
-            "label": "Watch the current walkthrough",
-            "icon": ":material/play_circle:",
-            "query_params": {"video": LATEST_LEAGUE_HISTORY_VIDEO_SLUG},
-        },
+        "breakdown_file": "rb_wr_draft_strategy.md",
     },
     {
         "slug": "jefferson-deep-dive",
@@ -191,6 +152,16 @@ VIDEOS = [
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7676271983297940766",
         "video_id": "7676271983297940766",
         "breakdown_file": "league_history_guide.md",
+    },
+    {
+        "slug": "site-walkthrough",
+        "title": "A walk through the JoScho Analytics site",
+        "subtitle": "2026 · what each page is for",
+        "date": "2026-08-21",
+        "section": "site-walkthroughs",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7676601401342037279",
+        "video_id": "7676601401342037279",
+        "breakdown_file": "site_walkthrough.md",
     },
     {
         "slug": "jameson-williams",

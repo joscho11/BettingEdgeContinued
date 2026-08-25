@@ -2,9 +2,9 @@
 
 Kept out of app.py so adding a video is a data-only change (see video_content.py).
 
-Only the selected video mounts a TikTok iframe. Opening the page defaults to the
-newest episode. An optional INTRO_VIDEO in video_content.py (currently None) would
-reappear as a Start here control. VIDEOS stays append-only.
+Only the selected video mounts a TikTok iframe. Opening the page defaults to
+DEFAULT_VIDEO_SLUG (the site walkthrough). An optional INTRO_VIDEO in
+video_content.py (currently None) would reappear as a Start here control.
 """
 import os
 from datetime import date as _date
@@ -13,7 +13,7 @@ import streamlit as st
 
 import page_common
 import nav_registry
-from video_content import INTRO_VIDEO, VIDEO_SECTIONS, VIDEOS
+from video_content import DEFAULT_VIDEO_SLUG, INTRO_VIDEO, VIDEO_SECTIONS, VIDEOS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _BREAKDOWN_DIR = os.path.join(_HERE, "video_breakdowns")
@@ -109,7 +109,7 @@ def _sectioned_episodes(episodes: list) -> list[tuple[str, list]]:
     """Return configured sections, omitting empty ones and preserving episode order."""
     grouped = {key: [] for key, _label in VIDEO_SECTIONS}
     for item in episodes:
-        key = "archive" if item.get("archived") else item.get("section")
+        key = item.get("section")
         if key not in grouped:
             key = "player-breakdowns"
         grouped[key].append(item)
@@ -125,6 +125,9 @@ def _item_for(sel: str, intro: dict | None, episodes: list) -> dict | None:
         return intro
     for item in episodes:
         if item.get("slug") == sel:
+            return item
+    for item in episodes:
+        if item.get("slug") == DEFAULT_VIDEO_SLUG:
             return item
     if episodes:
         return episodes[0]
@@ -244,7 +247,11 @@ def render_film_room(*, show_header: bool = True) -> None:
     intro = _intro_item()
     episodes = _episodes()
     sections = _sectioned_episodes(episodes)
-    default = episodes[0]["slug"] if episodes else (_INTRO_KEY if intro else "")
+    default = (
+        DEFAULT_VIDEO_SLUG
+        if DEFAULT_VIDEO_SLUG in {item["slug"] for item in episodes}
+        else (episodes[0]["slug"] if episodes else (_INTRO_KEY if intro else ""))
+    )
     valid = {item["slug"] for item in episodes}
     if intro is not None:
         valid.add(_INTRO_KEY)
@@ -274,8 +281,6 @@ def render_film_room(*, show_header: bool = True) -> None:
                 st.caption(section_label)
                 for item in section_items:
                     label = item["title"]
-                    if item.get("archived"):
-                        label = f"📼 {label}"
                     _pick_button(label, item["slug"], selected)
 
     with player:

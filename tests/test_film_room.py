@@ -17,6 +17,7 @@ sys.path.insert(0, str(_HERE))
 
 from film_room import _embed_src, _sectioned_episodes  # noqa: E402
 from video_content import (  # noqa: E402
+    DEFAULT_VIDEO_SLUG,
     INTRO_VIDEO,
     LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
     VIDEO_SECTIONS,
@@ -41,6 +42,10 @@ def _newest():
     return sorted(VIDEOS, key=lambda v: v.get("date") or "", reverse=True)[0]
 
 
+def _default():
+    return next(v for v in VIDEOS if v["slug"] == DEFAULT_VIDEO_SLUG)
+
+
 def _md(at):
     return " ".join(str(m.value) for m in at.markdown)
 
@@ -51,15 +56,28 @@ def test_embed_uses_dark_player_not_white_card():
     assert "embed/v2" not in src
 
 
-def test_default_is_newest_episode(tmp_path):
+def test_catalog_has_fourteen_videos():
+    assert len(VIDEOS) == 14
+    slugs = {item["slug"] for item in VIDEOS}
+    assert "brian-thomas-jr" not in slugs
+    assert "league-history" not in slugs
+    assert DEFAULT_VIDEO_SLUG == "site-walkthrough"
+    assert DEFAULT_VIDEO_SLUG in slugs
+
+
+def test_default_is_site_walkthrough(tmp_path):
     at = _render(tmp_path)
+    default = _default()
     newest = _newest()
     md = _md(at)
-    assert newest["title"] in md
+    assert default["title"] in md
+    assert newest["slug"] == "jameson-williams"
+    assert newest["title"] not in md
     assert "Welcome to JoScho Analytics" not in md
     watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
     assert len(watch) == 1, "only the selected video should render a Watch link"
-    assert watch[0].url == newest["tiktok_url"]
+    assert watch[0].url == default["tiktok_url"]
+    assert default["video_id"] == "7676601401342037279"
 
 
 def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
@@ -68,19 +86,17 @@ def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
     assert not any("Start here" in lbl for lbl in labels)
     assert INTRO_VIDEO is None
     for item in VIDEOS:
-        if item.get("archived"):
-            assert any(item["title"] in lbl for lbl in labels)
-        else:
-            assert item["title"] in labels
+        assert item["title"] in labels
     breakdowns = [b for b in at.button if "Full breakdown" in str(b.label)
                   or "What is this?" in str(b.label)]
     assert len(breakdowns) == 1
     captions = {str(c.value) for c in at.caption}
     for _key, section_label in VIDEO_SECTIONS:
         assert section_label in captions
+    assert "Archive" not in captions
 
 
-def test_catalog_sections_and_archive_membership():
+def test_catalog_sections():
     newest_first = sorted(
         VIDEOS, key=lambda item: item.get("date") or "", reverse=True
     )
@@ -88,8 +104,12 @@ def test_catalog_sections_and_archive_membership():
         label: [item["slug"] for item in items]
         for label, items in _sectioned_episodes(newest_first)
     }
-    assert grouped["Site walkthroughs"] == [LATEST_LEAGUE_HISTORY_VIDEO_SLUG]
+    assert grouped["Site walkthroughs"] == [
+        "site-walkthrough",
+        LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
+    ]
     assert grouped["Draft strategy & research"] == [
+        "rb-wr-draft-strategy",
         "qb-te-draft-timing",
         "draft-order",
         "how-to-leverage-adp-wr",
@@ -104,31 +124,21 @@ def test_catalog_sections_and_archive_membership():
         "bijan-robinson-jahmyr-gibbs",
         "makai-lemon",
     ]
-    assert grouped["Archive"] == ["league-history", "brian-thomas-jr"]
+    assert "Archive" not in grouped
     assert newest_first[0]["slug"] == "jameson-williams"
 
 
 def test_every_episode_has_a_known_content_section():
-    active_sections = {key for key, _label in VIDEO_SECTIONS if key != "archive"}
+    active_sections = {key for key, _label in VIDEO_SECTIONS}
     for item in VIDEOS:
         assert item["section"] in active_sections, item["slug"]
-
-
-def test_superseded_league_history_links_to_current_walkthrough():
-    old = next(item for item in VIDEOS if item["slug"] == "league-history")
-    assert old["archived"] is True
-    assert old["archive_link"] == {
-        "page": "film-room",
-        "label": "Watch the current walkthrough",
-        "icon": ":material/play_circle:",
-        "query_params": {"video": LATEST_LEAGUE_HISTORY_VIDEO_SLUG},
-    }
+        assert not item.get("archived"), item["slug"]
 
 
 def test_switching_episode_swaps_the_embed(tmp_path):
     at = _render(tmp_path)
-    newest = _newest()
-    other = next(v for v in VIDEOS if v["slug"] != newest["slug"])
+    default = _default()
+    other = next(v for v in VIDEOS if v["slug"] != default["slug"])
     at.button(f"fr_pick_{other['slug']}").click()
     at.run()
     assert not at.exception, at.exception
@@ -136,11 +146,11 @@ def test_switching_episode_swaps_the_embed(tmp_path):
     watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
     assert len(watch) == 1
     assert watch[0].url == other["tiktok_url"]
-    assert watch[0].url != newest["tiktok_url"]
+    assert watch[0].url != default["tiktok_url"]
 
 
 def test_shared_video_url_selects_episode(tmp_path):
-    other = next(v for v in VIDEOS if v["slug"] != _newest()["slug"])
+    other = next(v for v in VIDEOS if v["slug"] != DEFAULT_VIDEO_SLUG)
     harness = tmp_path / "film_query.py"
     harness.write_text(
         f"import sys; sys.path[:0] = [r'{_HERE}', r'{_HERE / 'site_pages'}']\n"

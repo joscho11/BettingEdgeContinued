@@ -284,9 +284,7 @@ Collapsed lists of **college players who are not in this year's rookie class** u
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-Short analysis videos and site walkthroughs. The newest episode is already loaded. Pick another title to swap the player. **📖 Full breakdown** opens the context the short couldn't fit.
-
-Some older videos predate later validation work and make calls I wouldn't make today. Those carry a **📼 Archived: why?** pop-out. They stay up, unedited, as part of the record.
+Short analysis videos and site walkthroughs. The site walkthrough is already loaded. Pick another title to swap the player. **📖 Full breakdown** opens the context the short couldn't fit.
         """)
 
     with st.expander("What is the League History page?"):
