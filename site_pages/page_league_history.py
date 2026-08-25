@@ -569,6 +569,32 @@ Here, **Public** uses ESPN's **viewable to public** setting. Your League Manager
 """
 
 
+def _visual_history_payload(league_id: str | None = None) -> dict | None:
+    """Return a checked-in history payload when visual tests ask for one.
+
+    Production never sets JSA_VISUAL_LH_FIXTURE, so the live page still fails
+    closed offline and still fetches live leagues online. The payload only
+    applies when the typed league ID matches fixture_league_id, so other IDs
+    still hit the offline message.
+    """
+    raw = os.environ.get("JSA_VISUAL_LH_FIXTURE", "").strip()
+    if not raw:
+        return None
+    path = Path(raw)
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(payload, dict) or "seasons" not in payload:
+        return None
+    expected = str(payload.get("fixture_league_id") or "").strip()
+    if expected and league_id is not None and str(league_id).strip() != expected:
+        return None
+    return payload
+
+
 def _render_league_import_help(provider: str, access: str = "Public") -> None:
     with st.expander("Where to find your league details"):
         st.markdown(_league_import_help_markdown(provider, access))
@@ -658,6 +684,9 @@ def _fetch_league_weeks(league_id: str, resource: str) -> dict:
 @st.cache_data(ttl=86400, max_entries=1)
 def _fetch_player_directory() -> dict:
     """Sleeper asks consumers to cache the large NFL player directory."""
+    override = _visual_history_payload()
+    if override is not None:
+        return dict(override.get("player_directory") or {})
     payload = _sleeper_get("https://api.sleeper.app/v1/players/nfl")
     return payload if isinstance(payload, dict) else {}
 
@@ -858,6 +887,9 @@ def _fetch_one_season(league_id: str):
 @st.cache_data(ttl=3600, max_entries=_SEASON_CACHE_ENTRIES)
 def _fetch_season_transactions(league_id: str) -> list:
     """All complete-looking weekly transactions for one Sleeper season."""
+    override = _visual_history_payload(league_id)
+    if override is not None:
+        return list(override.get("transactions") or [])
     weeks = _fetch_league_weeks(league_id.strip(), "transactions")
     rows: list = []
     for week in range(1, 19):
@@ -1461,91 +1493,105 @@ def render():
                     "hour after that.  \n\n"
                     "Find the ID in your league URL: sleeper.com/leagues/{ID}/league"
                 )
-    elif _OFFLINE:
+    elif _OFFLINE and _visual_history_payload(_lid) is None:
         st.info(
             f"League history needs a live connection to {_provider} and is unavailable offline."
         )
     else:
-        _is_private_espn = _provider == "ESPN" and _espn_access == "Private"
-        _is_private_yahoo = _provider == "Yahoo" and _yahoo_access == "Private"
-        _is_private_import = _is_private_espn or _is_private_yahoo
-        _just_loaded = False
-        if (
-            _is_private_import
-            and st.session_state.get("lh_private_history_ready_for") == _ready_key
-        ):
-            _lh = st.session_state.get("lh_private_history") or {
-                "league_name": "League", "seasons": {}, "provider": _provider,
-            }
+        _visual_override = _visual_history_payload(_lid)
+        if _visual_override is not None:
+            _is_private_espn = False
+            _is_private_yahoo = False
+            _is_private_import = False
+            _private_credentials = None
+            _just_loaded = True
+            _lh = dict(_visual_override)
+            _lh.setdefault("provider", _provider)
             _load_error = None if _lh.get("seasons") else (
-                f"Private {_provider} history is no longer in this browser session. "
-                "Select Load league history again."
-            )
-        elif _is_private_import:
-            if _private_credentials is None:
-                _lh = {"league_name": "League", "seasons": {}, "provider": _provider}
-                _load_error = (
-                    f"Re-enter the {_provider} cookie values and select Load league history."
-                )
-            elif _is_private_espn:
-                _lh, _load_error = _load_espn_history_with_status(
-                    _lid,
-                    int(_espn_season),
-                    max_seasons=_history_limit,
-                    private_credentials=_private_credentials,
-                )
-                _just_loaded = True
-            else:
-                _lh, _load_error = _load_yahoo_history_with_status(
-                    _lid,
-                    int(_yahoo_season),
-                    max_seasons=_history_limit,
-                    private_credentials=_private_credentials,
-                    game_key=_yahoo_game_key,
-                )
-                _just_loaded = True
-        elif st.session_state.get("lh_history_ready_for") == _ready_key:
-            if _provider == "ESPN":
-                _lh = _fetch_espn_history(
-                    _lid,
-                    int(_espn_season),
-                    max_seasons=_history_limit,
-                )
-            elif _provider == "Yahoo":
-                _lh = _fetch_yahoo_history(
-                    _lid,
-                    int(_yahoo_season),
-                    max_seasons=_history_limit,
-                    game_key=_yahoo_game_key,
-                )
-            else:
-                _lh = _fetch_sleeper_history(_lid, max_seasons=_history_limit)
-                _lh["provider"] = "Sleeper"
-            _load_error = None if _lh["seasons"] else (
                 f"This {_provider} league exists, but no season history came back. "
                 "It may be too new or still empty."
             )
         else:
-            if _provider == "ESPN":
-                _lh, _load_error = _load_espn_history_with_status(
-                    _lid,
-                    int(_espn_season),
-                    max_seasons=_history_limit,
+            _is_private_espn = _provider == "ESPN" and _espn_access == "Private"
+            _is_private_yahoo = _provider == "Yahoo" and _yahoo_access == "Private"
+            _is_private_import = _is_private_espn or _is_private_yahoo
+            _just_loaded = False
+            if (
+                _is_private_import
+                and st.session_state.get("lh_private_history_ready_for") == _ready_key
+            ):
+                _lh = st.session_state.get("lh_private_history") or {
+                    "league_name": "League", "seasons": {}, "provider": _provider,
+                }
+                _load_error = None if _lh.get("seasons") else (
+                    f"Private {_provider} history is no longer in this browser session. "
+                    "Select Load league history again."
                 )
-            elif _provider == "Yahoo":
-                _lh, _load_error = _load_yahoo_history_with_status(
-                    _lid,
-                    int(_yahoo_season),
-                    max_seasons=_history_limit,
-                    game_key=_yahoo_game_key,
+            elif _is_private_import:
+                if _private_credentials is None:
+                    _lh = {"league_name": "League", "seasons": {}, "provider": _provider}
+                    _load_error = (
+                        f"Re-enter the {_provider} cookie values and select Load league history."
+                    )
+                elif _is_private_espn:
+                    _lh, _load_error = _load_espn_history_with_status(
+                        _lid,
+                        int(_espn_season),
+                        max_seasons=_history_limit,
+                        private_credentials=_private_credentials,
+                    )
+                    _just_loaded = True
+                else:
+                    _lh, _load_error = _load_yahoo_history_with_status(
+                        _lid,
+                        int(_yahoo_season),
+                        max_seasons=_history_limit,
+                        private_credentials=_private_credentials,
+                        game_key=_yahoo_game_key,
+                    )
+                    _just_loaded = True
+            elif st.session_state.get("lh_history_ready_for") == _ready_key:
+                if _provider == "ESPN":
+                    _lh = _fetch_espn_history(
+                        _lid,
+                        int(_espn_season),
+                        max_seasons=_history_limit,
+                    )
+                elif _provider == "Yahoo":
+                    _lh = _fetch_yahoo_history(
+                        _lid,
+                        int(_yahoo_season),
+                        max_seasons=_history_limit,
+                        game_key=_yahoo_game_key,
+                    )
+                else:
+                    _lh = _fetch_sleeper_history(_lid, max_seasons=_history_limit)
+                    _lh["provider"] = "Sleeper"
+                _load_error = None if _lh["seasons"] else (
+                    f"This {_provider} league exists, but no season history came back. "
+                    "It may be too new or still empty."
                 )
             else:
-                _lh, _load_error = _load_history_with_status(
-                    _lid,
-                    max_seasons=_history_limit,
-                )
-                _lh["provider"] = "Sleeper"
-            _just_loaded = True
+                if _provider == "ESPN":
+                    _lh, _load_error = _load_espn_history_with_status(
+                        _lid,
+                        int(_espn_season),
+                        max_seasons=_history_limit,
+                    )
+                elif _provider == "Yahoo":
+                    _lh, _load_error = _load_yahoo_history_with_status(
+                        _lid,
+                        int(_yahoo_season),
+                        max_seasons=_history_limit,
+                        game_key=_yahoo_game_key,
+                    )
+                else:
+                    _lh, _load_error = _load_history_with_status(
+                        _lid,
+                        max_seasons=_history_limit,
+                    )
+                    _lh["provider"] = "Sleeper"
+                _just_loaded = True
 
         if _just_loaded and _load_error is None and _lh["seasons"]:
             if _is_private_import:

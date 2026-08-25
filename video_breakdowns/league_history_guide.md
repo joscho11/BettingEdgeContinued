@@ -2,13 +2,13 @@
 
 *2026 · Sleeper and ESPN League History walkthrough*
 
-**The one-liner:** Load a Sleeper or ESPN league once, then explore its drafts, transactions, standings, titles, rivalries, scoring, and luck across every available season.
+**The one-liner:** Load a Sleeper or ESPN league once, then explore its drafts, transactions, standings, titles, rivalries, scoring, and luck across every available season. The live page also imports Yahoo; this video does not show it.
 
 ---
 
 ## 1. Open the page
 
-On the site, choose **More → League History**. Select Sleeper or ESPN, enter the league ID, then choose **Load league history**.
+On the site, choose **More → League History**. The video selects Sleeper or ESPN, enters the league ID, then **Load league history**. The live page also has Yahoo.
 
 - **Sleeper:** Copy the long number from `sleeper.com/leagues/{ID}/league`, or use **League settings → General → Copy League ID** in the phone app.
 - **ESPN:** Copy the digits after `leagueId=` and enter the latest season shown in the league URL. A private league also needs the `SWID` and `espn_s2` values from a signed-in desktop browser.
@@ -40,4 +40,4 @@ League History describes what happened. It does not rank the best manager for yo
 
 ## 4. Not in the video
 
-Yahoo import landed after this walkthrough. Same six tabs. Public leagues use the number after `/f1/` plus the season in the URL. Private leagues need the Y and T cookie values from a signed-in desktop browser, the same class as ESPN's SWID and espn_s2. Yahoo Best Values still has no FAAB or trade ledger.
+Yahoo import landed after this walkthrough. Same six tabs. Public leagues use the number after `/f1/` plus the season in the URL. Private leagues need the Y and T cookie values from a signed-in desktop browser, the same class as ESPN's SWID and espn_s2. Yahoo Best Values still has no FAAB or trade ledger. A brand-new 2026 league can load with empty tabs until it has a draft or scored weeks. Yahoo ADP lives on the Draft Board, not here.

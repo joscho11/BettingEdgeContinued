@@ -266,6 +266,8 @@ Model Proj values are frozen until the planned dated early-September public-info
 
 The two talent columns are described further down this page. They are descriptive context and feed no other column.
 
+Yahoo does not price every one of the 180 players. Those ADP cells stay blank and sort to the bottom. They are never filled from Sleeper or ESPN.
+
 Use **Draft price**, **Position**, **Player search**, **Sort by**, and **Order**. No-data rows always sort to the bottom. **Show projection and talent detail** is on by default. On a phone the board shows player, position, ADP, rank, both gaps, and NFL Talent Score. The CSV download always contains all thirteen columns.
         """)
 
@@ -295,7 +297,7 @@ Choose Sleeper, ESPN, or Yahoo, paste the league ID, and hit Load. Sleeper IDs c
 
 **Private ESPN or Yahoo:** Get the League ID on either device, but retrieve the session cookies from a signed-in desktop browser. Chrome and Edge show them under **Developer Tools → Application → Storage → Cookies**; Firefox uses **Developer Tools → Storage → Cookies**. Normal iPhone and Android browser menus do not expose these values. Treat them like passwords and never paste them into chat.
 
-First load is usually a few seconds per Sleeper season and 10-25 seconds per ESPN or Yahoo season. Public results are cached for an hour. Private ESPN and Yahoo results stay only in the current browser session; credential fields clear after a successful load and the cookie values are never logged or shared-cached. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
+First load is usually a few seconds per Sleeper season and 10-25 seconds per ESPN or Yahoo season. Public results are cached for an hour. Private ESPN and Yahoo results stay only in the current browser session; credential fields clear after a successful load and the cookie values are never logged or shared-cached. A brand-new 2026 league can load successfully with empty tabs until it has a draft or scored weeks. The Film Room walkthrough shows Sleeper and ESPN; Yahoo is on the live page and is not in that video. Filter by season or view all-time. Info icons on the cards explain each statistic. This page is your league's history, not a prediction model.
         """)
         film_room_page = nav_registry.PAGES.get("film-room")
         if film_room_page is not None:

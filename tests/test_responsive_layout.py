@@ -25,6 +25,8 @@ either is missing, so CI and a plain ``pytest tests`` stay green without them::
     pip install playwright && playwright install chromium
     pytest tests/test_responsive_layout.py -v
 
+Page-level screenshots for every route live in tests/test_visual_regression.py.
+
 ``test_check_exemptions_are_narrow`` takes no fixtures and always runs — it pins the
 assertion logic itself, so the rules stay covered in CI where no browser is installed.
 The interpreter running pytest must also have `streamlit` — `app_url` launches the real

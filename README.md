@@ -63,7 +63,7 @@ Live spread and weekly-fantasy producers submit candidate files to this reposito
 | `fantasy/` | Published weekly, draft, rookie, and talent CSVs. |
 | `futures/` | Published season-win projections and their evidence file. |
 | `film_room.py`, `video_content.py`, `video_breakdowns/` | Video registry and written breakdowns. |
-| `tests/` | Unit, contract, offline page-render, responsive, publication, and public-boundary tests. |
+| `tests/` | Unit, contract, offline page-render, responsive, visual, publication, and public-boundary tests. |
 | `.github/workflows/` | CI, release grading, and board market refreshes. |
 
 Read [AGENTS.md](AGENTS.md) before changing production data paths. It documents the active sources, frozen files, and test contracts.
@@ -95,7 +95,7 @@ pip install -r requirements-test.txt
 python -m pytest tests/test_public_boundary.py tests/test_site_nav.py -q
 ```
 
-Set `APP_OFFLINE=1` when running page tests without network access. CI uses the same offline path for dashboard coverage.
+Set `APP_OFFLINE=1` when running page tests without network access. CI uses the same offline path for dashboard coverage. The Playwright job screenshots every major route at phone, tablet, and desktop widths (`pytest tests/test_visual_regression.py`). Refresh committed baselines with `--update-visual`.
 
 ## Guides
 

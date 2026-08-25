@@ -33,8 +33,17 @@ streamlit run app.py
 ```bash
 pip install -r requirements-test.txt
 set APP_OFFLINE=1
-python -m pytest tests/test_public_boundary.py tests/test_site_nav.py tests/test_publishing_pipeline.py -q
+python -m pytest tests/test_public_boundary.py tests/test_site_nav.py tests/test_publishing_pipeline.py tests/test_visual_regression.py -m "not visual" -q
 python -m publishing.cli status
+```
+
+Page screenshots (Playwright + Chromium). Copy and overflow checks run everywhere.
+Committed PNGs are Linux Chromium only. Refresh them only for an intentional visual
+change, from ubuntu-latest (or WSL with the same Playwright 1.62 Chromium):
+
+```bash
+python -m playwright install chromium
+pytest tests/test_visual_regression.py --update-visual
 ```
 
 ## Layout
@@ -60,3 +69,4 @@ python -m publishing.cli status
 - Retracted in-repo HIGH was 129/238 (54.20%). Live 2026 HIGH is 192/336.
 - Draft Board copy must not name the 75/25 Sleeper mix.
 - After any page change, run AppTest on the affected pages with `APP_OFFLINE=1`.
+- After a layout or copy change on a public page, run `pytest tests/test_visual_regression.py`. Use `--update-visual` only for an intentional screenshot change.

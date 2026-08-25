@@ -47,4 +47,5 @@ board players is refused rather than publishing a stale overlay with today's dat
 
 - Do not name the 75/25 Sleeper mix on the board or in Help.
 - Talent scores are descriptive context, not a prediction.
+- Yahoo unmatched rows stay blank. Never fill them from Sleeper or ESPN.
 - Do not restore training scripts, notebooks, or `.pkl` files here.

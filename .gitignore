@@ -51,3 +51,4 @@ fantasy/rookie/PREREG*.md
 memory/
 tests/test_college_qb_score.py
 tests/test_nfl_qb_score.py
+tests/visual/artifacts/

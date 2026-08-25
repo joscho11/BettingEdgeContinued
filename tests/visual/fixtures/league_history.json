@@ -1,0 +1,115 @@
+{
+  "fixture_league_id": "1255197436951932928",
+  "league_name": "Test League",
+  "provider": "Sleeper",
+  "player_directory": {
+    "p1": {"full_name": "Draft Hit", "first_name": "Draft", "last_name": "Hit", "position": "QB", "team": "KC"},
+    "p3": {"full_name": "Waiver Add", "first_name": "Waiver", "last_name": "Add", "position": "WR", "team": "BUF"},
+    "p4": {"full_name": "Trade Piece", "first_name": "Trade", "last_name": "Piece", "position": "RB", "team": "SF"},
+    "p5": {"full_name": "Depth Chart", "first_name": "Depth", "last_name": "Chart", "position": "TE", "team": "DET"},
+    "p99": {"full_name": "Zero Point", "first_name": "Zero", "last_name": "Point", "position": "WR", "team": "NYJ"}
+  },
+  "transactions": [
+    {"type": "waiver", "status": "complete", "leg": 2, "settings": {"waiver_bid": 1}, "adds": {"p3": 1}},
+    {"type": "waiver", "status": "complete", "leg": 4, "settings": {"waiver_bid": 18}, "adds": {"p1": 1}},
+    {"type": "waiver", "status": "complete", "leg": 3, "settings": {"waiver_bid": 22}, "adds": {"p99": 1}},
+    {
+      "type": "trade", "status": "complete", "leg": 2, "transaction_id": "t1",
+      "roster_ids": [1, 2], "adds": {"p4": 1, "p5": 2}, "drops": {"p4": 2, "p5": 1}
+    }
+  ],
+  "seasons": {
+    "2025": {
+      "league_id": "1255197436951932928",
+      "draft_id": "draft-2025",
+      "status": "complete",
+      "champion": {"username": "Alice", "team_name": "A Team"},
+      "runner_up": {"username": "Bob", "team_name": "B Team"},
+      "toilet_champion": {"username": "Bob", "team_name": "B Team"},
+      "toilet_champions": [{"username": "Bob", "team_name": "B Team"}],
+      "toilet_finalists": ["Alice", "Bob"],
+      "toilet_bracket": ["Alice", "Bob"],
+      "standings": [
+        {
+          "rank": 1, "roster_id": 1, "owner_id": "u1",
+          "username": "Alice", "team_name": "A Team", "wins": 1,
+          "losses": 0, "ties": 0, "fpts": 120.0,
+          "fpts_against": 80.0, "playoff_finish": 1
+        },
+        {
+          "rank": 2, "roster_id": 2, "owner_id": "u2",
+          "username": "Bob", "team_name": "B Team", "wins": 0,
+          "losses": 1, "ties": 0, "fpts": 80.0,
+          "fpts_against": 120.0, "playoff_finish": 2
+        }
+      ],
+      "matchups": [
+        {
+          "season": "2025", "week": 1, "is_playoff": false,
+          "rid_a": "1", "rid_b": "2", "score_a": 120.0, "score_b": 80.0
+        }
+      ],
+      "draft_picks": [
+        {
+          "pick_no": 1, "round": 1, "pick_in_round": 1, "draft_slot": 1,
+          "picked_by": "u1", "player_id": "p1",
+          "metadata": {"first_name": "Draft", "last_name": "Hit", "position": "QB"}
+        },
+        {
+          "pick_no": 2, "round": 1, "pick_in_round": 2, "draft_slot": 2,
+          "picked_by": "u2", "player_id": "p4",
+          "metadata": {"first_name": "Trade", "last_name": "Piece", "position": "RB"}
+        }
+      ],
+      "roster_entries": [
+        {
+          "season": "2025", "week": 1, "roster_id": 1, "matchup_id": 1,
+          "players": ["p1", "p3", "p5"], "starters": ["p1"],
+          "players_points": {"p1": 10, "p3": 8, "p5": 4}
+        },
+        {
+          "season": "2025", "week": 2, "roster_id": 1, "matchup_id": 1,
+          "players": ["p1", "p3", "p5"], "starters": ["p1"],
+          "players_points": {"p1": 10, "p3": 8, "p5": 4}
+        },
+        {
+          "season": "2025", "week": 3, "roster_id": 1, "matchup_id": 1,
+          "players": ["p1", "p3", "p4"], "starters": ["p1", "p4"],
+          "players_points": {"p1": 10, "p3": 8, "p4": 15}
+        },
+        {
+          "season": "2025", "week": 4, "roster_id": 1, "matchup_id": 1,
+          "players": ["p1", "p3", "p4"], "starters": ["p1", "p4"],
+          "players_points": {"p1": 10, "p3": 8, "p4": 15}
+        },
+        {
+          "season": "2025", "week": 1, "roster_id": 2, "matchup_id": 1,
+          "players": ["p4"], "starters": ["p4"],
+          "players_points": {"p4": 5}
+        },
+        {
+          "season": "2025", "week": 2, "roster_id": 2, "matchup_id": 1,
+          "players": ["p4"], "starters": ["p4"],
+          "players_points": {"p4": 5}
+        },
+        {
+          "season": "2025", "week": 3, "roster_id": 2, "matchup_id": 1,
+          "players": ["p5"], "starters": ["p5"],
+          "players_points": {"p5": 7}
+        },
+        {
+          "season": "2025", "week": 4, "roster_id": 2, "matchup_id": 1,
+          "players": ["p5"], "starters": ["p5"],
+          "players_points": {"p5": 7}
+        }
+      ],
+      "league_settings": {
+        "total_rosters": 2,
+        "roster_positions": [],
+        "scoring_settings": {},
+        "waiver_type": 2,
+        "waiver_budget": 100
+      }
+    }
+  }
+}

@@ -161,9 +161,9 @@ VIDEOS = [
         "breakdown_file": "league_history.md",
         "archived": True,
         "archive_note": (
-            "Superseded by the August 20 walkthrough, which covers both Sleeper and "
-            "ESPN and matches the current League History page. This Sleeper-only "
-            "version stays available as part of the record."
+            "Superseded by the August 20 walkthrough, which added ESPN. Yahoo import "
+            "landed later and is not in either video. This Sleeper-only version stays "
+            "available as part of the record."
         ),
         "archive_link": {
             "page": "film-room",

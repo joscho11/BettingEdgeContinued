@@ -35,4 +35,4 @@ First load walks standings, drafts, and weekly scores for each linked year. A 3-
 
 ## 4. Not in the video
 
-The leaderboard now has eight cards, not the five named in the walkthrough. Added: Most Toilet Bowl Titles (winner of that year's consolation championship, which is last place), Most Toilet Bracket Finals Appearances (consolation championship game, champ or runner-up), and Lowest Scoring Team (regular-season points per game, All Time needs more than 2 seasons). Yahoo import is also later than this video.
+The leaderboard now has eight cards, not the five named in the walkthrough. Added: Most Toilet Bowl Titles (winner of that year's consolation championship, which is last place), Most Toilet Bracket Finals Appearances (consolation championship game, champ or runner-up), and Lowest Scoring Team (regular-season points per game, All Time needs more than 2 seasons). ESPN and Yahoo import, and Yahoo ADP on the Draft Board, are later than this video.

@@ -1,11 +1,9 @@
 """Stable, season-aware landing page for JoScho Analytics."""
 
-from datetime import date
-
 import streamlit as st
 
 import nav_registry
-from seasonal_config import board_refresh_season_start
+from seasonal_config import app_today, board_refresh_season_start
 
 
 def _page_link(slug: str, label: str, icon: str) -> None:
@@ -70,7 +68,7 @@ def render() -> None:
                 _page_link("anytime-tds", "Open Anytime TDs", ":material/sports_score:")
 
     season_start = board_refresh_season_start()
-    if date.today() < season_start:
+    if app_today() < season_start:
         st.info(
             "The site is in preseason mode. The Draft Board and Week 1 matchups are live. "
             "Weekly fantasy rankings and DFS projections publish when those files land. "

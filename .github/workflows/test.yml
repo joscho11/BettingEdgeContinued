@@ -37,7 +37,7 @@ jobs:
         env:
           APP_OFFLINE: '1'
         run: >-
-          pytest -v
+          pytest -v -m "not visual"
           tests/test_public_boundary.py
           tests/test_dashboard_utils.py
           tests/test_calibration.py
@@ -66,10 +66,12 @@ jobs:
           tests/test_board_refresh.py
           tests/test_board_refresh_coverage.py
           tests/test_publishing_pipeline.py
+          tests/test_visual_regression.py
 
   responsive:
-    name: Responsive layout (real browser)
+    name: Responsive layout + visual
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -79,16 +81,23 @@ jobs:
         run: |
           pip install -r requirements-test.txt
           python -m playwright install --with-deps chromium
-      - name: Run responsive suite and REQUIRE zero skips
+      - name: Run responsive and visual suites and REQUIRE zero skips
         env:
           APP_OFFLINE: '1'
         run: |
           set -o pipefail
-          pytest -v tests/test_responsive_layout.py -rs | tee /tmp/resp.log
+          pytest -v tests/test_responsive_layout.py tests/test_visual_regression.py -rs | tee /tmp/resp.log
           if grep -qE "^SKIPPED|[0-9]+ skipped" /tmp/resp.log; then
             echo "::error::responsive cases skipped -- the browser guard is not actually running"
             exit 1
           fi
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: tests/visual/artifacts/
+          if-no-files-found: ignore
 
   deploy-parity:
     name: deploy parity (py3.12 + requirements.txt, as the cloud installs)
@@ -112,7 +121,7 @@ jobs:
         env:
           APP_OFFLINE: '1'
         run: >-
-          pytest -v
+          pytest -v -m "not visual"
           tests/test_public_boundary.py
           tests/test_dashboard_utils.py
           tests/test_app_draft_board.py
@@ -136,3 +145,4 @@ jobs:
           tests/test_weekly_fantasy_source.py
           tests/test_espn_adp.py
           tests/test_yahoo_adp.py
+          tests/test_visual_regression.py

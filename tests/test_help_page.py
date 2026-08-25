@@ -53,6 +53,10 @@ def test_help_league_history_covers_yahoo(tmp_path):
     assert "Choose Sleeper, ESPN, or Yahoo" in md
     assert "Y and T cookie" in md
     assert "number after `/f1/`" in md
+    assert "Yahoo ADP" in md
+    assert "Yahoo does not price every one of the 180 players" in md
+    assert "empty tabs until it has a draft or scored weeks" in md
+    assert "Yahoo is on the live page and is not in that video" in md
 
 
 def test_league_history_help_deep_links_to_current_walkthrough(tmp_path):

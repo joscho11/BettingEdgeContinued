@@ -133,7 +133,7 @@ Recomputing the same filter from the manifest definition against the current sna
 
 The stable parts across both versions are the ones the video actually argues: **six tight ends, no quarterbacks at all**, and a receiver-heavy board. The exact count and the membership near the three-spot line move with every ADP pull.
 
-**So the 45 names are deliberately not republished here.** A name list that cannot be regenerated is not evidence, and reprinting it on a page that outlives the snapshot would present a superseded board as a current one. If you want a live view of where the market and the projections disagree, the Draft Board page is refreshed daily and is the maintained surface.
+**So the 45 names are deliberately not republished here.** A name list that cannot be regenerated is not evidence, and reprinting it on a page that outlives the snapshot would present a superseded board as a current one. If you want a live view of where the market and the projections disagree, the Draft Board page is the maintained surface. Draft price switches Sleeper ADP (default), ESPN ADP, and Yahoo ADP daily. Yahoo does not price every board player; those cells stay blank.
 
 Two things that are true of either version. **Every row is a current disagreement with no outcome**, carrying none of the historical rate. And at least one name on the below-ADP side reflects an injury-year projection collapse rather than a read on the market, which is a reason it belongs in a complete list and nowhere else.
 
