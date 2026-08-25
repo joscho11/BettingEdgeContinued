@@ -167,6 +167,34 @@ def test_nonselected_pages_are_lazy_imported():
     assert eager_imports == set()
 
 
+def test_cloud_refresh_reloads_seasonal_config_before_pages():
+    src = Path(ENTRY).read_text(encoding="utf-8")
+    assert src.index('"seasonal_config"') < src.index("site_pages = "), (
+        "Cloud must reload seasonal_config before site_pages or Home "
+        "ImportErrors on app_today"
+    )
+
+
+def test_stale_seasonal_config_reload_restores_app_today():
+    import page_common
+    import seasonal_config
+
+    seasonal_config.__joscho_source_mtime_ns__ = 0
+    del seasonal_config.app_today
+    try:
+        refreshed = page_common.reload_if_stale(sys.modules["seasonal_config"])
+        sys.modules["seasonal_config"] = refreshed
+        assert callable(refreshed.app_today)
+        import page_draft_board
+        page_draft_board.__joscho_source_mtime_ns__ = 0
+        page_common.reload_if_stale(sys.modules["page_draft_board"])
+    finally:
+        import importlib
+        sys.modules["seasonal_config"] = importlib.reload(
+            sys.modules["seasonal_config"]
+        )
+
+
 def test_every_page_renders_offline_clean(tmp_path):
     for module in PAGE_MODULES:
         harness = tmp_path / f"h_{module}.py"

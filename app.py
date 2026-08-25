@@ -29,7 +29,14 @@ def _refresh_cloud_synced_modules() -> None:
     """
     page_common = importlib.import_module("page_common")
 
-    for name in ("fantasy.league_intelligence", "league_insights_view"):
+    # Root helpers first. Pages import names from them; a live Cloud copy
+    # that reloads page_draft_board before seasonal_config raises ImportError
+    # on app_today while Home is still the selected page.
+    for name in (
+        "seasonal_config",
+        "fantasy.league_intelligence",
+        "league_insights_view",
+    ):
         loaded = sys.modules.get(name)
         if loaded is not None:
             sys.modules[name] = page_common.reload_if_stale(loaded)
