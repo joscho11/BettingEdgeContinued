@@ -256,7 +256,7 @@ How the number is built sits in **How the Anytime TD demo works** below.
 
     with st.expander("What is the Draft Board page?"):
         st.markdown("""
-A **pre-season comparison table** for 2026, separate from Weekly Fantasy. The universe is fixed: 24 QBs, 60 RBs, 72 WRs, 24 TEs. Each row puts draft price and positional rank next to **Model Proj**. Use **Draft price** to switch Sleeper ADP (the default), ESPN ADP, and Yahoo ADP for the same 180 players. Sleeper's current season projection is shown when the player record matches. Each projection also has a gap versus draft-price rank at that position.
+A **pre-season comparison table** for 2026, separate from Weekly Fantasy. The universe is fixed: 24 QBs, 60 RBs, 72 WRs, 24 TEs. Each row puts draft price and positional rank next to **Model Proj**. Use **Draft price** to switch Sleeper ADP (the default), ESPN ADP, Yahoo ADP, or **Model Draft Rank** for the same 180 players. Sleeper's current season projection is shown when the player record matches. Each projection also has a gap versus draft-price rank at that position. **Model Draft Rank** fills the draft-price column with Model Proj after subtracting a replacement starter at each position (QB14, RB30, WR36, TE14), shown as 1.0, 2.0, and so on. Position Rank and both gaps stay on Sleeper ADP.
 
 **What the gap is.** Position Rank minus that projection's position rank. Positive means the projection ranks him above his draft cost; negative means below. It is arithmetic between two ranks on the same row, never a recommendation.
 

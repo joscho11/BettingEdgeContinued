@@ -209,6 +209,9 @@ def test_apply_board_market_reprices_and_recomputes_gaps():
     assert sleeper["model_proj_pos_rank"].astype("Int64").equals(
         yahoo["model_proj_pos_rank"].astype("Int64")
     )
+    assert sleeper["model_draft_rank"].astype("Int64").equals(
+        yahoo["model_draft_rank"].astype("Int64")
+    )
     gadsden = "Oronde Gadsden"
     s = sleeper.set_index("player").loc[gadsden]
     y = yahoo.set_index("player").loc[gadsden]
@@ -237,6 +240,11 @@ def test_sort_keys_swap_only_the_adp_label():
     assert "Sleeper ADP" not in yahoo
     assert "ESPN ADP" not in yahoo
     assert set(sleeper.values()) == set(espn.values()) == set(yahoo.values())
+    draft = board.sort_keys_for(board.MODEL_DRAFT_MARKET)
+    assert list(draft)[0] == board.MODEL_DRAFT_MARKET
+    assert draft[board.MODEL_DRAFT_MARKET] == "adp_half_ppr"
+    assert "Sleeper ADP" not in draft
+    assert "model_draft_rank" not in draft.values()
 
 
 def test_committed_yahoo_overlay_is_the_exact_180():

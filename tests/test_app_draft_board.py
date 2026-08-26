@@ -18,8 +18,8 @@ def test_board_sort_is_numeric_and_sentinels_sink():
 
     df = board._load_board_2026()
     assert list(board.SORT_KEYS)[0] == "Sleeper ADP", "default sort column must be Sleeper ADP"
-    assert len(board.SORT_KEYS) == 10, \
-        "expected 10 sortable columns (2026-07-22 projection-table rebuild)"
+    assert len(board.SORT_KEYS) == 11, \
+        "expected 11 sortable columns (2026-08-25 Model Draft Rank)"
 
     for label, key in board.SORT_KEYS.items():
         for asc in (True, False):

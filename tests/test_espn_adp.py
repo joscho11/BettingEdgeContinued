@@ -197,6 +197,9 @@ def test_apply_board_market_reprices_and_recomputes_gaps():
     assert sleeper["model_proj_pos_rank"].astype("Int64").equals(
         espn["model_proj_pos_rank"].astype("Int64")
     )
+    assert sleeper["model_draft_rank"].astype("Int64").equals(
+        espn["model_draft_rank"].astype("Int64")
+    )
     gadsden = "Oronde Gadsden"
     s = sleeper.set_index("player").loc[gadsden]
     e = espn.set_index("player").loc[gadsden]
@@ -218,6 +221,11 @@ def test_sort_keys_swap_only_the_adp_label():
     assert "Sleeper ADP" not in espn
     assert "ESPN ADP" not in sleeper
     assert set(sleeper.values()) == set(espn.values())
+    draft = board.sort_keys_for(board.MODEL_DRAFT_MARKET)
+    assert list(draft)[0] == board.MODEL_DRAFT_MARKET
+    assert draft[board.MODEL_DRAFT_MARKET] == "adp_half_ppr"
+    assert "Sleeper ADP" not in draft
+    assert "model_draft_rank" not in draft.values()
 
 
 def test_committed_espn_overlay_is_the_exact_180():

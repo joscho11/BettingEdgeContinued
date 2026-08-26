@@ -25,7 +25,7 @@ A page should load CSV or JSON. If a change needs a `.pkl`, it belongs in a priv
 | Page | What it covers |
 |---|---|
 | **Home** | Site status, release timing, and links to the main products. |
-| **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper, ESPN, or Yahoo ADP, positional ranks, rank gaps, and talent context. |
+| **Draft Board** | A 180-player 2026 board with independent season projections, Sleeper, ESPN, or Yahoo ADP, or Model Draft Rank order, plus positional ranks, rank gaps, and talent context. |
 | **Rookie Board** | Rookie hit probabilities, season projections, college production, and athletic context. |
 | **Weekly Fantasy** | Half-PPR and stat projections for QB, RB, WR, and TE. Actual results appear after games finish. |
 | **DFS Optimizer** | DraftKings NFL Classic lineup builder. Upload a salary CSV plus a checked direct-DK projection file. Not a performance claim. |

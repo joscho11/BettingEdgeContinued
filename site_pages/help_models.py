@@ -206,7 +206,10 @@ def _draft_board():
 **Model Proj** is the published season-total half-PPR number for the 180-player board
 (24 QB, 60 RB, 72 WR, 24 TE). It is a machine-learning forecast from last year's
 production, draft capital, age, and leftover opportunity on the new roster. **ADP and
-the two Talent Scores are not inputs.**
+the two Talent Scores are not inputs.** **Model Draft Rank** is that same Model Proj
+turned into an overall snake-draft order by subtracting a replacement starter at each
+position (QB14, RB30, WR36, TE14). It is a Draft price toggle: the draft-price column
+shows that overall rank (1.0 = first). Not a separate forecast.
 
 Points and positional ranks stay frozen until the dated early-September public-information
 snapshot. Sleeper ADP (the default), ESPN ADP, and Yahoo ADP still refresh daily, as does Sleeper Proj;

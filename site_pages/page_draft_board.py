@@ -16,8 +16,8 @@ ORIENTATION = ("I build machine-learning models for NFL betting and fantasy, run
                "live, and show my work — the numbers, the honest track record, and the "
                "code on my GitHub.")
 PURPOSE = ("My pre-season draft board: the independent model's exact 180-player 2026 "
-           "projection universe. Sleeper ADP (default), ESPN ADP, or Yahoo ADP, Sleeper "
-           "projections, "
+           "projection universe. Sleeper ADP (default), ESPN ADP, Yahoo ADP, or Model "
+           "Draft Rank, Sleeper projections, "
            "and both rank gaps refresh daily; Model Proj points and ranks stay frozen until "
            "the planned early-September snapshot.")
 

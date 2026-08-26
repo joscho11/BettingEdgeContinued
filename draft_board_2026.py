@@ -403,7 +403,7 @@ def _load_board_2026_cached(source_fingerprint):
                        .rank(method="min", ascending=False).astype("Int64")
     df["sleeper_gap"] = (df["pos_rank"] - df["sleeper_proj_pos_rank"]).astype("Int64")
     df["model_gap"] = (df["pos_rank"] - df["model_proj_pos_rank"]).astype("Int64")
-    return df
+    return _attach_model_draft_rank(df)
 
 
 def _board_source_fingerprint():
@@ -465,6 +465,32 @@ def _load_adjustment_disclosure():
         .sort_values(["Position", "Player"], kind="stable")
         .reset_index(drop=True)
     )
+
+
+# Same cutoffs as the in-house VOR board (phase0_benchmark / model_rankings CSV).
+MODEL_DRAFT_REPLACEMENT = {"QB": 14, "RB": 30, "WR": 36, "TE": 14}
+
+
+def _attach_model_draft_rank(df: pd.DataFrame) -> pd.DataFrame:
+    """Overall snake-draft order from Model Proj minus a replacement starter.
+
+    Rank 1 is the largest points-over-replacement. Frozen with Model Proj; ADP
+    is not an input. Ties keep source order.
+    """
+    out = df.copy()
+    pts = pd.to_numeric(out["model_proj"], errors="raise")
+    repl = {}
+    for pos, n in MODEL_DRAFT_REPLACEMENT.items():
+        pool = pts[out["position"].eq(pos)].nlargest(n)
+        if len(pool) < n:
+            raise ValueError(f"{pos} board has {len(pool)} projections, need {n}")
+        repl[pos] = float(pool.iloc[-1])
+    vor = pts - out["position"].map(repl)
+    order = vor.sort_values(ascending=False, kind="mergesort")
+    out["model_draft_rank"] = pd.Series(
+        range(1, len(out) + 1), index=order.index,
+    ).astype("Int64")
+    return out
 
 
 def _load_board_2026():
@@ -647,6 +673,18 @@ def _yahoo_refresh_date():
 
 
 def _adp_caption(market: str = "Sleeper ADP"):
+    if market == MODEL_DRAFT_MARKET:
+        iso = _refresh_date()
+        if not iso:
+            return ("The draft-price column is Model Draft Rank (1.0 = first). "
+                    "Position Rank, Sleeper Gap, and Model Gap stay on Sleeper ADP. "
+                    "Model Proj is frozen. Live Sleeper ADP will appear after the next "
+                    "successful daily market pull.")
+        pretty = _pretty_iso_date(iso)
+        return (f"The draft-price column is Model Draft Rank (1.0 = first). "
+                f"Position Rank, Sleeper Gap, and Model Gap stay on Sleeper ADP "
+                f"(live refresh {pretty}). Model Proj points and ranks remain frozen until "
+                "the early-September snapshot.")
     if market == ESPN_ADP_MARKET:
         iso = _espn_refresh_date()
         if not iso:
@@ -690,6 +728,7 @@ SORT_KEYS = {
     "Sleeper Proj Position Rank": "sleeper_proj_pos_rank",
     "Sleeper Gap": "sleeper_gap",
     "Model Proj Position Rank": "model_proj_pos_rank",
+    "Model Draft Rank": "model_draft_rank",
     "Model Gap": "model_gap",
     "Sleeper Proj": "sleeper_proj",
     "Model Proj": "model_proj",
@@ -701,6 +740,8 @@ ADP_MARKETS = ("Sleeper ADP", "ESPN ADP", "Yahoo ADP")
 DEFAULT_ADP_MARKET = "Sleeper ADP"
 ESPN_ADP_MARKET = "ESPN ADP"
 YAHOO_ADP_MARKET = "Yahoo ADP"
+MODEL_DRAFT_MARKET = "Model Draft Rank"
+BOARD_VIEWS = ADP_MARKETS + (MODEL_DRAFT_MARKET,)
 _MARKET_PRICE_COLS = {
     ESPN_ADP_MARKET: ("espn_adp", "espn_pos_rank"),
     YAHOO_ADP_MARKET: ("yahoo_adp", "yahoo_pos_rank"),
@@ -708,24 +749,33 @@ _MARKET_PRICE_COLS = {
 
 
 def sort_keys_for(market: str) -> dict:
-    """Sort labels for the selected draft-price source. ADP is first, so it is the default."""
-    if market not in ADP_MARKETS:
+    """Sort labels for the selected board view. The view's own order is first."""
+    if market not in BOARD_VIEWS:
         market = DEFAULT_ADP_MARKET
     keys = {market: "adp_half_ppr"}
     for label, column in SORT_KEYS.items():
-        if label != "Sleeper ADP":
-            keys[label] = column
+        if label == "Sleeper ADP" or label == market:
+            continue
+        keys[label] = column
     return keys
 
 
 def apply_board_market(df: pd.DataFrame, market: str) -> pd.DataFrame:
-    """Reprice the 180 from the selected ADP source. Model Proj ranks stay frozen.
+    """Reprice the 180 from the selected ADP source. Model Proj ranks and
+    Model Draft Rank stay frozen.
 
     Sleeper remains the stored default. ESPN and Yahoo copy their overlay price
     and position rank onto the displayed columns and recompute both gaps.
     Unmatched rows stay blank. Sleeper prices are never used as a fill.
+    Model Draft Rank fills the draft-price column with the overall order
+    (1.0 = first). Position Rank and both gaps stay on Sleeper ADP.
     """
     out = df.copy()
+    if market == MODEL_DRAFT_MARKET:
+        out["adp_half_ppr"] = pd.to_numeric(
+            out["model_draft_rank"], errors="raise"
+        ).astype(float)
+        return out
     spec = _MARKET_PRICE_COLS.get(market)
     if spec is None:
         return out
@@ -881,6 +931,11 @@ _ADP_COLUMN_HELP = {
         "half-PPR-specific ranking. Players Yahoo has not priced stay blank. "
         "Lower = earlier."
     ),
+    MODEL_DRAFT_MARKET: (
+        "Overall snake-draft order from Model Proj after subtracting a "
+        "replacement starter at each position. 1.0 = first. One decimal, same "
+        "as ADP. Not a market price."
+    ),
 }
 
 
@@ -995,6 +1050,8 @@ def _phone_column_config(active_sort_key: str | None = None, ascending: bool = T
     for key in _PHONE_COLS:
         _kind, label, help_, extra = meta[key][1], meta[key][2], meta[key][3], dict(meta[key][4])
         label = _PHONE_LABELS.get(key, label)
+        if market == MODEL_DRAFT_MARKET and key == "adp_half_ppr":
+            label = "Drft"
         if key == active_sort_key:
             arrow = "↑" if ascending else "↓"
             label = f"{arrow} {label}"
@@ -1237,13 +1294,15 @@ def render():
             "24 QB, 60 RB, 72 WR and 24 TE. For each, it shows the current draft "
             "price and **Model Proj**, plus Sleeper's projection when its record "
             "matches. Use **Draft price** to switch Sleeper ADP (the default), ESPN ADP, "
-            "or Yahoo ADP for the same 180 players. Sleeper ADP, ESPN ADP, Yahoo ADP, "
+            "Yahoo ADP, or **Model Draft Rank** for the same 180 players. Sleeper ADP, ESPN ADP, Yahoo ADP, "
             "Sleeper Proj, and both gap "
             "columns refresh daily; Model Proj points and ranks stay frozen. For each "
             "available projection, the gap between his draft-price rank and his projected "
             "rank at his position.\n\n"
-            "- **Sleeper ADP / ESPN ADP / Yahoo ADP** is his average draft position from the selected "
-            "source; **Position Rank** turns that into his rank at his position "
+            "- **Sleeper ADP / ESPN ADP / Yahoo ADP / Model Draft Rank** fills the draft-price "
+            "column. The three ADP sources are average draft position; Model Draft Rank is "
+            "the model's overall order (1.0 = first). **Position Rank** is his rank at his "
+            "position by Sleeper, ESPN, or Yahoo draft price "
             "(1 = first off the board there).\n"
             "- **Sleeper Proj** and **Model Proj** are two estimates of his "
             "season-total half-PPR points. Sleeper's is shown only when its record can be "
@@ -1254,6 +1313,9 @@ def render():
             "projection's position rank: positive means the projection ranks him higher than "
             "his draft cost, negative means lower. They are descriptive differences, not "
             "recommendations.\n"
+            "- **Model Draft Rank** (on Draft price) puts that overall order in the "
+            "draft-price column (1.0 = first). Position Rank and both gaps stay on "
+            "Sleeper ADP. It is not a recommendation.\n"
             "- **NFL Talent Score** and **College Talent Score** are descriptive context on "
             "different scales (NFL players vs. 2026 rookies). Neither feeds any other "
             "column.\n\n"
@@ -1263,7 +1325,7 @@ def render():
         for _key, _kind, _label, _help, _extra in COLUMN_META:
             _detail = " *(hidden in the compact view)*" if _key in _DETAIL_ONLY else ""
             if _key == "adp_half_ppr":
-                _label = "Sleeper ADP / ESPN ADP / Yahoo ADP"
+                _label = "Sleeper ADP / ESPN ADP / Yahoo ADP / Model Draft Rank"
             st.markdown(f"- **{_label}**{_detail} — {_help}")
         st.caption("The board opens on the full view. Turn off **Show projection and talent "
                    "detail** for a compact comparison view that drops the raw Sleeper and model "
@@ -1282,22 +1344,27 @@ def render():
     # numeric path with sentinels pinned to the bottom. Default: Sleeper ADP, ascending.
     with st.container(border=True, key="jsa-filter-bar-draft"):
         page_common.seed_widget_from_query(
-            "db26_adp_src", "db26_adp_src", ADP_MARKETS,
+            "db26_adp_src", "db26_adp_src", BOARD_VIEWS,
         )
         if "db26_adp_src" not in st.session_state:
             st.session_state["db26_adp_src"] = DEFAULT_ADP_MARKET
         market = st.segmented_control(
-            "Draft price", list(ADP_MARKETS), key="db26_adp_src", required=True,
+            "Draft price", list(BOARD_VIEWS), key="db26_adp_src", required=True,
             help="Sleeper ADP is the default market this board was built against. "
                  "ESPN ADP and Yahoo ADP are each platform's published average draft "
-                 "position for the same 180 players.",
+                 "position for the same 180 players. Model Draft Rank fills the "
+                 "draft-price column with the model's overall order (1.0 = first).",
         )
-        if market not in ADP_MARKETS:
+        if market not in BOARD_VIEWS:
             market = DEFAULT_ADP_MARKET
         sort_keys = sort_keys_for(market)
-        if st.session_state.get("db26_sortby") not in sort_keys:
-            prev = st.session_state.get("db26_sortby")
-            if prev in ADP_MARKETS:
+        prev_sort = st.session_state.get("db26_sortby")
+        if market == MODEL_DRAFT_MARKET and prev_sort in ADP_MARKETS:
+            st.session_state["db26_sortby"] = MODEL_DRAFT_MARKET
+        elif prev_sort == MODEL_DRAFT_MARKET and market in ADP_MARKETS:
+            st.session_state["db26_sortby"] = market
+        elif prev_sort not in sort_keys:
+            if prev_sort in ADP_MARKETS:
                 st.session_state["db26_sortby"] = market
         fc1, fc2, fc3, fc4 = st.columns([1.4, 1.3, 1.6, 1.15])
         with fc1:
@@ -1373,7 +1440,13 @@ def render():
                       "applied but its values are off-screen; turn the detail toggle back on to "
                       "see them.")
     st.caption(sort_note)
-    if market == DEFAULT_ADP_MARKET:
+    if market == MODEL_DRAFT_MARKET:
+        st.caption("Model Proj and Model Gap are the published season-total projection "
+                   "for this board. ADP is not a "
+                   "model input. Backtested on 2021-2025 and not live-validated. On that "
+                   "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
+                   "scenario overlay is applied.")
+    elif market == DEFAULT_ADP_MARKET:
         st.caption("Model Proj and Model Gap are the published season-total projection "
                    "for this board. ADP is not a "
                    "model input. Backtested on 2021-2025 and not live-validated. On that "
@@ -1412,7 +1485,7 @@ def render():
         data=view[_DISPLAY_COLS].rename(columns=export_names_for(market))
                        .to_csv(index=False).encode("utf-8"),
         file_name={
-            DEFAULT_ADP_MARKET: "draft_board_2026.csv",
+            MODEL_DRAFT_MARKET: "draft_board_2026_model_rank.csv",
             ESPN_ADP_MARKET: "draft_board_2026_espn.csv",
             YAHOO_ADP_MARKET: "draft_board_2026_yahoo.csv",
         }.get(market, "draft_board_2026.csv"), mime="text/csv",

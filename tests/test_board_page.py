@@ -348,8 +348,66 @@ def test_ranks_gaps_and_download_use_frozen_v2_and_live_market_overlay():
 
     export = df[board._DISPLAY_COLS].rename(columns=board._EXPORT_NAMES)
     assert "Model Proj" in export.columns
+    assert "Model Draft Rank" not in export.columns
     assert not {"model_proj_raw", "Raw model"}.intersection(export.columns)
     assert len(export) == 180
+
+
+def test_model_draft_rank_is_scarcity_order_not_raw_points():
+    """Overall rank is points over replacement, not raw season points."""
+    import draft_board_2026 as board
+
+    df = board._load_board_2026()
+    ranks = df["model_draft_rank"].astype(int)
+    assert set(ranks) == set(range(1, 181))
+    top = df.loc[ranks.eq(1)].iloc[0]
+    assert top.position == "RB"
+    raw_first = df.sort_values("model_proj", ascending=False).iloc[0]
+    assert raw_first.position == "QB"
+    allen = int(df.loc[df.player.eq("Josh Allen"), "model_draft_rank"].iloc[0])
+    assert allen > 10
+    espn = board.apply_board_market(df, board.ESPN_ADP_MARKET)
+    yahoo = board.apply_board_market(df, board.YAHOO_ADP_MARKET)
+    draft = board.apply_board_market(df, board.MODEL_DRAFT_MARKET)
+    assert espn["model_draft_rank"].astype(int).equals(ranks)
+    assert yahoo["model_draft_rank"].astype(int).equals(ranks)
+    assert draft["adp_half_ppr"].astype(float).equals(ranks.astype(float))
+    assert not draft["adp_half_ppr"].equals(df["adp_half_ppr"])
+    assert "model_draft_rank" not in board._DISPLAY_COLS
+    labels = [m[2] for m in board.column_meta_for(board.MODEL_DRAFT_MARKET)]
+    assert "Model Draft Rank" in labels
+    assert "Sleeper ADP" not in labels
+    assert board.MODEL_DRAFT_MARKET in board.BOARD_VIEWS
+    assert list(board.sort_keys_for(board.MODEL_DRAFT_MARKET))[0] == board.MODEL_DRAFT_MARKET
+    assert board.sort_keys_for(board.MODEL_DRAFT_MARKET)[board.MODEL_DRAFT_MARKET] == "adp_half_ppr"
+    assert list(board.SORT_KEYS)[0] == "Sleeper ADP"
+    assert board.SORT_KEYS["Model Draft Rank"] == "model_draft_rank"
+    phone = board._phone_column_config(market=board.MODEL_DRAFT_MARKET)
+    assert phone["adp_half_ppr"]["label"] == "Drft"
+
+
+def test_model_draft_rank_toggle_orders_the_board_without_a_column():
+    import draft_board_2026 as board
+
+    at = _run()
+    control = _adp_control(at)
+    assert control.value == "Sleeper ADP"
+    at = control.set_value(board.MODEL_DRAFT_MARKET).run()
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    view = _board_df(at)
+    assert view is not None and view.shape[0] == 180
+    assert "model_draft_rank" not in view.columns
+    expected = board._load_board_2026().sort_values(
+        "model_draft_rank", kind="stable"
+    )
+    assert view.iloc[0]["player"] == expected.iloc[0]["player"]
+    assert view.iloc[0]["position"] == "RB"
+    assert float(view.iloc[0]["adp_half_ppr"]) == 1.0
+    captions = " ".join(str(c.value) for c in at.caption)
+    assert "draft-price column is Model Draft Rank" in captions
+    assert "1.0 = first" in captions
+    assert _adp_control(at).value == board.MODEL_DRAFT_MARKET
 
 
 def test_fernando_mendoza_team_override_is_identity_only():
@@ -481,6 +539,7 @@ def test_exact_column_labels_present():
                  "Model Proj Position Rank", "Model Gap", "Sleeper Proj", "Model Proj",
                  "NFL Talent Score", "College Talent Score"):
         assert want in labels, f"missing exact column label: {want!r}"
+    assert "Model Draft Rank" not in labels
 
 
 def test_talent_score_columns_right_align():
@@ -1053,7 +1112,9 @@ if __name__ == "__main__":
     test_full_board_245_default_adp_ascending_rookie_qbs_kept()
     test_compact_view_keeps_numeric_sort_and_the_full_csv()
     test_final_analyst_overlays_apply_and_preserve_raw_model_values()
-    test_ranks_gaps_and_download_use_the_adjusted_projection()
+    test_ranks_gaps_and_download_use_frozen_v2_and_live_market_overlay()
+    test_model_draft_rank_is_scarcity_order_not_raw_points()
+    test_model_draft_rank_toggle_orders_the_board_without_a_column()
     test_overlay_audit_helper_and_caption_disclosure()
     test_overlay_participates_in_the_board_cache_fingerprint()
     test_exact_column_labels_present()
