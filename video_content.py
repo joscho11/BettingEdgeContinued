@@ -173,4 +173,14 @@ VIDEOS = [
         "video_id": "7677736351936105759",
         "breakdown_file": "jameson_williams.md",
     },
+    {
+        "slug": "ladd-mcconkey",
+        "title": "Ladd McConkey Fantasy Outlook 2026",
+        "subtitle": "2026 · WR, Los Angeles Chargers",
+        "date": "2026-08-25",
+        "section": "player-breakdowns",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7678111126541929759",
+        "video_id": "7678111126541929759",
+        "breakdown_file": "ladd_mcconkey.md",
+    },
 ]
