@@ -183,4 +183,14 @@ VIDEOS = [
         "video_id": "7678111126541929759",
         "breakdown_file": "ladd_mcconkey.md",
     },
+    {
+        "slug": "wandale-robinson",
+        "title": "Wan'Dale Robinson Fantasy Outlook 2026",
+        "subtitle": "2026 · WR, Tennessee Titans",
+        "date": "2026-08-26",
+        "section": "player-breakdowns",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7678489111807708446",
+        "video_id": "7678489111807708446",
+        "breakdown_file": "wandale_robinson.md",
+    },
 ]

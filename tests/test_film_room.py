@@ -56,12 +56,13 @@ def test_embed_uses_dark_player_not_white_card():
     assert "embed/v2" not in src
 
 
-def test_catalog_has_fifteen_videos():
-    assert len(VIDEOS) == 15
+def test_catalog_has_sixteen_videos():
+    assert len(VIDEOS) == 16
     slugs = {item["slug"] for item in VIDEOS}
     assert "brian-thomas-jr" not in slugs
     assert "league-history" not in slugs
     assert "ladd-mcconkey" in slugs
+    assert "wandale-robinson" in slugs
     assert DEFAULT_VIDEO_SLUG == "site-walkthrough"
     assert DEFAULT_VIDEO_SLUG in slugs
 
@@ -72,7 +73,7 @@ def test_default_is_site_walkthrough(tmp_path):
     newest = _newest()
     md = _md(at)
     assert default["title"] in md
-    assert newest["slug"] == "ladd-mcconkey"
+    assert newest["slug"] == "wandale-robinson"
     assert newest["title"] not in md
     assert "Welcome to JoScho Analytics" not in md
     watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
@@ -120,6 +121,7 @@ def test_catalog_sections():
         "how-to-leverage-adp-guide",
     ]
     assert grouped["Player breakdowns"] == [
+        "wandale-robinson",
         "ladd-mcconkey",
         "jameson-williams",
         "jefferson-deep-dive",
@@ -127,7 +129,7 @@ def test_catalog_sections():
         "makai-lemon",
     ]
     assert "Archive" not in grouped
-    assert newest_first[0]["slug"] == "ladd-mcconkey"
+    assert newest_first[0]["slug"] == "wandale-robinson"
 
 
 def test_every_episode_has_a_known_content_section():
@@ -183,11 +185,11 @@ def test_latest_league_history_guide_constant_still_points_at_the_walkthrough():
     assert item["section"] == "site-walkthroughs"
 
 
-def test_newest_episode_is_ladd_mcconkey():
+def test_newest_episode_is_wandale_robinson():
     newest = _newest()
-    assert newest["slug"] == "ladd-mcconkey"
-    assert newest["video_id"] == "7678111126541929759"
-    assert newest["date"] == "2026-08-25"
+    assert newest["slug"] == "wandale-robinson"
+    assert newest["video_id"] == "7678489111807708446"
+    assert newest["date"] == "2026-08-26"
 
 
 def test_breakdowns_and_registry_do_not_disclose_sleeper_mix():
