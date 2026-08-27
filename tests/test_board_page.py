@@ -739,12 +739,13 @@ def test_outside_market_is_disjoint_from_the_board_and_fully_projected():
 def test_dontayvion_wicks_anchor_row():
     """One fully-verified anchor row, exact in every rendered field.
 
-    Rank note: WR100. The explorer starts from `_load_projections()`, so the disclosed
+    Rank note: WR99. The explorer starts from `_load_projections()`, so the disclosed
     analyst overlay is applied before ranking. This rank was WR101 until 2026-08-22, when
     Jayden Higgins's row was cut to 0.0 for a season-ending ACL tear. Ricky Pearsall was
-    already at 0.0 (2026-08-03). Those two overlays both cross DOWN past Wicks' 47.6.
-    Chris Brazzell still crosses UP (raw 23.6, board 55.6). Net: adjusted rank is one
-    better than the raw-column rank (100 vs 101).
+    already at 0.0 (2026-08-03). Tyreek Hill was cut to 0.0 on 2026-08-27 (unsigned).
+    Those three overlays all cross DOWN past Wicks' 47.6. Chris Brazzell still crosses
+    UP (raw 23.6, board 55.6). Net: adjusted rank is two better than the raw-column
+    rank (99 vs 101).
 
     Pin the exact crossings so a future overlay edit fails loudly here rather than
     silently shifting the anchor.
@@ -759,7 +760,7 @@ def test_dontayvion_wicks_anchor_row():
     assert wicks["position"] == "WR"
     assert wicks["team"] == "PHI"
     assert float(wicks["model_proj"]) == 47.6
-    assert int(wicks["model_proj_pos_rank_full"]) == 100
+    assert int(wicks["model_proj_pos_rank_full"]) == 99
     assert float(wicks["nfl_talent"]) == 67.9
     assert float(wicks["college_talent"]) == 61.4
 
@@ -770,7 +771,7 @@ def test_dontayvion_wicks_anchor_row():
     up = wr[(wr["model_projection_raw"] <= 47.6) & (wr["projection"] > 47.6)]
     down = wr[(wr["model_projection_raw"] > 47.6) & (wr["projection"] <= 47.6)]
     assert up["player"].tolist() == ["Chris Brazzell"]
-    assert set(down["player"]) == {"Ricky Pearsall", "Jayden Higgins"}
+    assert set(down["player"]) == {"Ricky Pearsall", "Jayden Higgins", "Tyreek Hill"}
 
 
 def test_outside_market_rank_is_taken_against_the_full_projection_pool():

@@ -6,6 +6,8 @@ train, re-score, or alter it.
 
 - Published universe: 180 rows (24 QB, 60 RB, 72 WR, 24 TE).
 - 2026-08-22: Jayden Higgins removed (torn ACL, season-ending IR). Calvin Ridley is the replacement WR72.
+- 2026-08-27: Trey Benson removed (waived/injured, season-ending IR). Sean Tucker is the replacement RB60.
+- 2026-08-27: Tyreek Hill removed (unsigned free agent). Ja'Kobi Lane is the replacement WR72.
 - Model Proj points and ranks stay on this board until the dated early-September
   2026 public-information snapshot, except for explicit season-ending roster cuts.
 - The dashboard separately refreshes Sleeper ADP and Sleeper projection points
