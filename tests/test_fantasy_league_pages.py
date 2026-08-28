@@ -23,6 +23,7 @@ import page_league_history
 import page_common
 import espn_league_history
 import yahoo_league_history
+import cbs_league_history
 from fantasy import league_intelligence as league_intel
 
 
@@ -743,6 +744,291 @@ def test_yahoo_season_normalizes_to_existing_history_schema():
     }}
     payload, players = yahoo_league_history.normalize_season(
         "123456", 2025, meta, extras, scoreboards, weekly,
+    )
+    assert payload["champion"]["username"] == "Alice"
+    assert payload["runner_up"]["username"] == "Bob"
+    assert payload["matchups"] == [{
+        "season": "2025", "week": 1, "is_playoff": False,
+        "rid_a": "1", "score_a": 110.0,
+        "rid_b": "2", "score_b": 90.0,
+    }]
+    assert payload["roster_entries"][0]["players_points"]["101"] == 22.5
+    assert payload["roster_entries"][0]["starters"] == ["101"]
+    assert payload["roster_entries"][1]["starters"] == []
+    assert payload["draft_picks"][0]["metadata"]["position"] == "RB"
+    assert payload["league_settings"]["scoring_settings"] == {
+        "rec": 0.5, "pass_td": 4.0,
+    }
+    assert payload["league_settings"]["waiver_type"] == 2
+    assert players["202"]["position"] == "QB"
+
+
+def test_league_history_exposes_cbs_provider_and_season(tmp_path):
+    assert page_league_history._LEAGUE_PROVIDERS == ("Sleeper", "ESPN", "Yahoo", "CBS")
+    at = _render_page(tmp_path, "page_league_history")
+    provider = next(w for w in at.segmented_control if w.key == "lh_provider")
+    provider.set_value("CBS")
+    at = at.run()
+    assert not at.exception, at.exception
+    assert next(w for w in at.number_input if w.key == "lh_cbs_season")
+    league_input = next(w for w in at.text_input if w.key == "lh_league_id")
+    assert league_input.label == "CBS League ID"
+    info = " ".join(str(item.value) for item in at.info)
+    assert "CBS league ID" in info
+    assert "access token" in info
+    markdown = " ".join(str(item.value) for item in at.markdown)
+    assert ".football.cbssports.com" in markdown
+    assert "not publicly viewable" in markdown
+    token = next(w for w in at.text_input if w.key == "lh_cbs_token")
+    assert token.value == ""
+    captions = " ".join(str(item.value) for item in at.caption)
+    assert "Do not paste it into chat" in captions
+    assert "never logs or shared-caches it" in captions
+    assert "no public-view importer" in captions
+    assert "do not expose this value" in markdown
+    assert "Authorization" in markdown
+    assert "clears the field after a successful load" in markdown
+
+
+def test_private_cbs_history_stays_in_session_and_clears_token(tmp_path):
+    fixture = {
+        "league_name": "Private CBS League",
+        "provider": "CBS",
+        "player_directory": {},
+        "seasons": {"2025": {
+            "league_id": "cbshelp",
+            "draft_id": "",
+            "status": "complete",
+            "champion": {"username": "Alice", "team_name": "A Team"},
+            "runner_up": {"username": "Bob", "team_name": "B Team"},
+            "toilet_champion": {"username": "Bob", "team_name": "B Team"},
+            "toilet_champions": [{"username": "Bob", "team_name": "B Team"}],
+            "toilet_finalists": ["Alice", "Bob"],
+            "toilet_bracket": ["Alice", "Bob"],
+            "standings": [
+                {
+                    "roster_id": 1, "owner_id": "owner-a", "username": "Alice",
+                    "team_name": "A Team", "wins": 1, "losses": 0,
+                    "fpts": 110.0, "fpts_against": 90.0, "playoff_finish": 1,
+                },
+                {
+                    "roster_id": 2, "owner_id": "owner-b", "username": "Bob",
+                    "team_name": "B Team", "wins": 0, "losses": 1,
+                    "fpts": 90.0, "fpts_against": 110.0, "playoff_finish": 2,
+                },
+            ],
+            "matchups": [{
+                "season": "2025", "week": 1, "is_playoff": False,
+                "rid_a": "1", "score_a": 110.0,
+                "rid_b": "2", "score_b": 90.0,
+            }],
+            "draft_picks": [],
+            "roster_entries": [],
+            "league_settings": {
+                "total_rosters": 2, "roster_positions": [],
+                "scoring_settings": {}, "waiver_type": 0, "waiver_budget": None,
+            },
+        }},
+    }
+    harness = tmp_path / "private_cbs_loaded.py"
+    harness.write_text(
+        f"import sys\nsys.path[:0] = [r'{_HERE}', r'{_SITE_PAGES}']\n"
+        "import page_league_history as p\n"
+        "p._OFFLINE = False\n"
+        f"_fixture = {fixture!r}\n"
+        "def _load(league_id, season, max_seasons=None, access_token=''):\n"
+        "    assert league_id == 'cbshelp'\n"
+        "    assert access_token == 'cbs-token-value'\n"
+        "    return _fixture, None\n"
+        "p._load_cbs_history_with_status = _load\n"
+        "p.render()\n",
+        encoding="utf-8",
+    )
+    at = AppTest.from_file(str(harness), default_timeout=180).run()
+    next(w for w in at.segmented_control if w.key == "lh_provider").set_value("CBS")
+    at = at.run()
+    next(w for w in at.text_input if w.key == "lh_league_id").set_value("cbshelp")
+    next(w for w in at.number_input if w.key == "lh_cbs_season").set_value(2025)
+    next(w for w in at.text_input if w.key == "lh_cbs_token").set_value("cbs-token-value")
+    next(b for b in at.button if b.label == "Load league history").click()
+    at = at.run()
+
+    assert not at.exception, at.exception
+    assert any(header.value == "Private CBS League" for header in at.header)
+    assert next(w for w in at.text_input if w.key == "lh_cbs_token").value == ""
+    assert any(
+        "Stored only in this browser session" in str(caption.value)
+        for caption in at.caption
+    )
+
+
+def test_league_history_validates_cbs_id_and_season():
+    assert page_league_history._league_request_error(
+        "CBS", "cbshelp", cbs_season=2025, cbs_token="token-value",
+    ) is None
+    assert "subdomain" in page_league_history._league_request_error(
+        "CBS", "not a league", cbs_season=2025, cbs_token="token-value",
+    )
+    assert "does not look like" in page_league_history._league_request_error(
+        "CBS", "www", cbs_season=2025, cbs_token="token-value",
+    )
+    assert "currently supports" in page_league_history._league_request_error(
+        "CBS", "cbshelp", cbs_season=2017, cbs_token="token-value",
+    )
+    assert "access token" in page_league_history._league_request_error(
+        "CBS", "cbshelp", cbs_season=2025, cbs_token="",
+    )
+    assert cbs_league_history.parse_league_ref(
+        "https://cbshelp.football.cbssports.com/stats"
+    ) == "cbshelp"
+
+
+def test_private_cbs_requests_are_credentialed_and_never_shared_cached(monkeypatch):
+    calls = []
+
+    class Response:
+        status_code = 200
+        headers = {"content-type": "application/json"}
+        text = '{"statusCode": 200}'
+
+        @staticmethod
+        def json():
+            return {"statusCode": 200, "body": {"league_details": {"name": "Private CBS"}}}
+
+    def fake_get(*args, **kwargs):
+        calls.append(kwargs)
+        return Response()
+
+    monkeypatch.setattr(cbs_league_history.requests, "get", fake_get)
+    for _ in range(2):
+        payload = cbs_league_history._cbs_get_private(
+            "cbshelp", 2025, "/league/details", "Authorization=Bearer session-token",
+        )
+        assert payload["body"]["league_details"]["name"] == "Private CBS"
+
+    assert len(calls) == 2, "credentialed requests must bypass shared st.cache_data"
+    assert calls[0]["headers"]["Authorization"] == "session-token"
+    assert not hasattr(cbs_league_history._cbs_get_private, "clear")
+
+
+def test_private_cbs_401_does_not_echo_token_values(monkeypatch):
+    class Response:
+        status_code = 401
+        headers = {"content-type": "application/json"}
+        text = ""
+
+    monkeypatch.setattr(
+        cbs_league_history.requests,
+        "get",
+        lambda *args, **kwargs: Response(),
+    )
+    with pytest.raises(cbs_league_history.CbsLeagueError) as caught:
+        cbs_league_history._cbs_get_private(
+            "cbshelp", 2025, "/league/details", "sensitive-cbs-token",
+        )
+    message = str(caught.value)
+    assert "Recopy the access token" in message
+    assert "sensitive-cbs-token" not in message
+
+
+def test_cbs_html_login_wall_is_treated_as_denied_access(monkeypatch):
+    class Response:
+        status_code = 200
+        headers = {"content-type": "text/html; charset=utf-8"}
+        text = "<!DOCTYPE html><html><body>login</body></html>"
+
+        @staticmethod
+        def json():
+            raise ValueError("not json")
+
+    monkeypatch.setattr(
+        cbs_league_history.requests,
+        "get",
+        lambda *args, **kwargs: Response(),
+    )
+    with pytest.raises(cbs_league_history.CbsLeagueError) as caught:
+        cbs_league_history._cbs_get_private(
+            "cbshelp", 2025, "/league/details", "session-token",
+        )
+    assert "Recopy the access token" in str(caught.value)
+
+
+def test_cbs_season_normalizes_to_existing_history_schema():
+    details = {
+        "name": "Test CBS",
+        "num_teams": 2,
+        "current_period": 1,
+        "regular_season_periods": 1,
+        "playoff_periods": 0,
+        "season_status": "postseason",
+    }
+    rules = {
+        "transactions": {"add_drop_faab_starting_budget": {"value": "100"}},
+        "roster": {
+            "positions": [
+                {"abbr": "QB", "max_active": 1},
+                {"abbr": "RB", "max_active": 1},
+            ],
+            "statuses": [{"description": "Reserve Players", "max": 3}],
+        },
+        "scoring": {"categories": [
+            {"abbr": "REC", "points": "0.5"},
+            {"abbr": "PTD", "points": "4"},
+        ]},
+    }
+    teams = [
+        {"id": "1", "name": "A Team", "owners": [{"id": "owner-a", "name": "Alice"}]},
+        {"id": "2", "name": "B Team", "owners": [{"id": "owner-b", "name": "Bob"}]},
+    ]
+    standings_teams = [
+        {"id": "1", "wins": 1, "losses": 0, "points_scored": 110, "points_against": 90, "order": 1},
+        {"id": "2", "wins": 0, "losses": 1, "points_scored": 90, "points_against": 110, "order": 2},
+    ]
+    schedule_periods = [{
+        "id": "1", "label": "Week 1", "type": "Regular Season",
+        "matchups": [{
+            "id": 10, "type": "regular", "championship": 0,
+            "home_team": {"id": "1", "points": "110", "result": "W"},
+            "away_team": {"id": "2", "points": "90", "result": "L"},
+        }],
+    }]
+    draft_picks_raw = [
+        {
+            "overall_pick": 1, "round": 1, "round_pick": 1,
+            "player": {
+                "id": "101", "fullname": "Runner One", "firstname": "Runner",
+                "lastname": "One", "position": "RB",
+            },
+            "team": {"id": "1", "name": "A Team"},
+        },
+        {
+            "overall_pick": 2, "round": 1, "round_pick": 2,
+            "player": {
+                "id": "202", "fullname": "Passer Two", "firstname": "Passer",
+                "lastname": "Two", "position": "QB",
+            },
+            "team": {"id": "2", "name": "B Team"},
+        },
+    ]
+    weekly = {1: {"body": {"rosters": {"teams": [
+        {"id": "1", "players": [{
+            "id": "101", "firstname": "Runner", "lastname": "One",
+            "fullname": "Runner One", "position": "RB",
+            "roster_status": "A", "roster_pos": "RB",
+        }]},
+        {"id": "2", "players": [{
+            "id": "202", "firstname": "Passer", "lastname": "Two",
+            "fullname": "Passer Two", "position": "QB",
+            "roster_status": "RS", "roster_pos": "BN",
+        }]},
+    ]}}}}
+    scoring = {"body": {"weekly_scoring": {"players": [
+        {"id": "101", "periods": [{"period": 1, "score": "22.5"}]},
+        {"id": "202", "periods": [{"period": 1, "score": "18"}]},
+    ]}}}
+    payload, players = cbs_league_history.normalize_season(
+        "cbshelp", 2025, details, rules, teams, standings_teams,
+        schedule_periods, draft_picks_raw, weekly, scoring,
     )
     assert payload["champion"]["username"] == "Alice"
     assert payload["runner_up"]["username"] == "Bob"

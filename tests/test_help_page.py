@@ -50,13 +50,15 @@ def test_help_renders_offline_clean(tmp_path):
 def test_help_league_history_covers_yahoo(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
-    assert "Choose Sleeper, ESPN, or Yahoo" in md
+    assert "Choose Sleeper, ESPN, Yahoo, or CBS" in md
     assert "Y and T cookie" in md
     assert "number after `/f1/`" in md
+    assert "CBS IDs are the subdomain" in md
+    assert "CBS leagues always need the signed-in access token" in md
     assert "Yahoo ADP" in md
     assert "Yahoo does not price every one of the 180 players" in md
     assert "empty tabs until it has a draft or scored weeks" in md
-    assert "Yahoo is on the live page and is not in that video" in md
+    assert "Yahoo and CBS are on the live page and are not in that video" in md
 
 
 def test_league_history_help_deep_links_to_current_walkthrough(tmp_path):
