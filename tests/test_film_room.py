@@ -56,13 +56,17 @@ def test_embed_uses_dark_player_not_white_card():
     assert "embed/v2" not in src
 
 
-def test_catalog_has_sixteen_videos():
-    assert len(VIDEOS) == 16
+def test_catalog_has_twenty_videos():
+    assert len(VIDEOS) == 20
     slugs = {item["slug"] for item in VIDEOS}
     assert "brian-thomas-jr" not in slugs
     assert "league-history" not in slugs
     assert "ladd-mcconkey" in slugs
     assert "wandale-robinson" in slugs
+    assert "jonathan-taylor" in slugs
+    assert "jacory-croskey-merritt" in slugs
+    assert "derrick-henry" in slugs
+    assert "harrison-vs-wilson" in slugs
     assert DEFAULT_VIDEO_SLUG == "site-walkthrough"
     assert DEFAULT_VIDEO_SLUG in slugs
 
@@ -73,7 +77,7 @@ def test_default_is_site_walkthrough(tmp_path):
     newest = _newest()
     md = _md(at)
     assert default["title"] in md
-    assert newest["slug"] == "wandale-robinson"
+    assert newest["slug"] == "harrison-vs-wilson"
     assert newest["title"] not in md
     assert "Welcome to JoScho Analytics" not in md
     watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
@@ -121,6 +125,10 @@ def test_catalog_sections():
         "how-to-leverage-adp-guide",
     ]
     assert grouped["Player breakdowns"] == [
+        "harrison-vs-wilson",
+        "derrick-henry",
+        "jacory-croskey-merritt",
+        "jonathan-taylor",
         "wandale-robinson",
         "ladd-mcconkey",
         "jameson-williams",
@@ -129,7 +137,7 @@ def test_catalog_sections():
         "makai-lemon",
     ]
     assert "Archive" not in grouped
-    assert newest_first[0]["slug"] == "wandale-robinson"
+    assert newest_first[0]["slug"] == "harrison-vs-wilson"
 
 
 def test_every_episode_has_a_known_content_section():
@@ -185,11 +193,11 @@ def test_latest_league_history_guide_constant_still_points_at_the_walkthrough():
     assert item["section"] == "site-walkthroughs"
 
 
-def test_newest_episode_is_wandale_robinson():
+def test_newest_episode_is_harrison_vs_wilson():
     newest = _newest()
-    assert newest["slug"] == "wandale-robinson"
-    assert newest["video_id"] == "7678489111807708446"
-    assert newest["date"] == "2026-08-26"
+    assert newest["slug"] == "harrison-vs-wilson"
+    assert newest["video_id"] == "7680312276817087774"
+    assert newest["date"] == "2026-08-31"
 
 
 def test_breakdowns_and_registry_do_not_disclose_sleeper_mix():
