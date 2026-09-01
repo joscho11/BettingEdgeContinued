@@ -3,7 +3,7 @@
 Kept out of app.py so adding a video is a data-only change (see video_content.py).
 
 Only the selected video mounts a TikTok iframe. Opening the page defaults to
-DEFAULT_VIDEO_SLUG (the site walkthrough). An optional INTRO_VIDEO in
+DEFAULT_VIDEO_SLUG (League History walkthrough). An optional INTRO_VIDEO in
 video_content.py (currently None) would reappear as a Start here control.
 """
 import os

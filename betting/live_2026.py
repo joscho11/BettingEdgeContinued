@@ -16,13 +16,19 @@ HIGH_GAP = 3.0
 LAST_REG_WEEK = 18
 SLATE_NAME = "slate_2026.csv"
 
-# spread_v3_beta NB04 skip-HIGH book vs the Tuesday line, 2021-2025.
-# One-sided 95% Wilson. All-bets 706/1292 Wilson 0.5236 is diagnostic, not this claim.
-LIVE_HIGH_WINS = 192
-LIVE_HIGH_N = 336
+# spread_v3_prod Tuesday HIGH book vs the Tuesday line, 2021-2025, last REG
+# week skipped. Injury reports as-of Tuesday 9:00 ET (legal_injury_reports).
+# One-sided 95% Wilson. Interval is below 52.4%. All-bets is diagnostic.
+# Withdrawn: 192/336 = 57.14%, Wilson 0.5266 used same-week injury reports
+# that postdate Tuesday. See spread_v3_prod/LEAKAGE_AUDIT.md.
+LIVE_HIGH_WINS = 155
+LIVE_HIGH_N = 290
 LIVE_HIGH_ATS = LIVE_HIGH_WINS / LIVE_HIGH_N
 LIVE_HIGH_WILSON_Z = 1.64485
-LIVE_HIGH_WILSON_LOWER = 0.5266
+LIVE_HIGH_WILSON_LOWER = 0.4862
+LIVE_HIGH_WILSON_CLEARS = False
+LIVE_ALL_BETS_WINS = 662
+LIVE_ALL_BETS_N = 1292
 BREAKEVEN = 0.524
 TRACKER_2025_MD5 = "88d526ca46e8cbb9f1eea77a3d96fa08"
 

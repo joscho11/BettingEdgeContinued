@@ -1,5 +1,8 @@
 # A walk through the JoScho Analytics site
 
+**Taken down 2026-09-01.** Off TikTok and Film Room. The HIGH numbers in this
+write-up were withdrawn. Source kept for a later recut.
+
 *2026 · page-by-page tour of joschoanalytics.streamlit.app*
 
 **The one-liner:** Each tab has one job. Draft Board compares Model Proj to ADP. Weekly Fantasy is player-week projections. Weekly Predictions is the betting page, and HIGH is a 3-point disagreement with the Tuesday 9am line that still holds. Track Record and Season Totals post the sample and the confidence-interval floor next to the headline. Film Room, League History, and Help sit under More.
@@ -28,7 +31,9 @@ The 2026 weekly model was scored on a 2025 holdout of **3,060** player-weeks. It
 
 Every game gets a pick. HIGH means the model disagrees with the Tuesday 9:00 AM EST line by **3 or more** points, and the live line still holds that gap. If the gap falls under 3, HIGH comes off. Picks freeze Tuesday 9:00 AM EST.
 
-Tuesday HIGH, 2021-2025: **192/336**, 57.14% ATS. The conservative end of a 95% interval on that sample is **52.66%**, just over the **52.4%** break-even at -110. That claim is Tuesday line value, not closing-line value.
+Tuesday HIGH, 2021-2025, injury reports as-of Tuesday 9:00 ET: **155/290**, 53.45% ATS. The conservative end of a 95% interval on that sample is **48.62%**, below the **52.4%** break-even at -110. This book does not show an edge over break-even. That is Tuesday line value, not closing-line value.
+
+The posted walkthrough still speaks **192/336** and a **52.66%** floor. Those numbers used same-week injury reports that postdate Tuesday and are withdrawn.
 
 ---
 
@@ -49,7 +54,7 @@ The site URL in the video is joschoanalytics.streamlit.app. Code is on GitHub.
 ## 6. What this does not prove
 
 - **That Model Proj will beat ADP in 2026.** Five of six is the historical ordering record.
-- **That HIGH is a lock.** 192/336 is the sample. The floor is 52.66%.
+- **That HIGH is a lock.** 155/290 is the sample. The floor is 48.62%, below 52.4%.
 - **That Season Totals HIGH beats the posted number.** The interval floor is 51.35%.
 - **Closing-line value.** Track Record is the Tuesday freeze.
 - **Yahoo League History.** That importer is on the live page and is not in this video.

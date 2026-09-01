@@ -22,7 +22,8 @@ INTRO_VIDEO = None
 LATEST_LEAGUE_HISTORY_VIDEO_SLUG = "league-history-guide"
 
 # Film Room tab default. Shared ?video= still overrides when the slug is valid.
-DEFAULT_VIDEO_SLUG = "site-walkthrough"
+# site-walkthrough taken down 2026-09-01 (withdrawn HIGH claim). Source kept.
+DEFAULT_VIDEO_SLUG = "league-history-guide"
 
 # Picker order is intentional; videos remain newest-first within each section.
 VIDEO_SECTIONS = (
@@ -152,16 +153,6 @@ VIDEOS = [
         "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7676271983297940766",
         "video_id": "7676271983297940766",
         "breakdown_file": "league_history_guide.md",
-    },
-    {
-        "slug": "site-walkthrough",
-        "title": "A walk through the JoScho Analytics site",
-        "subtitle": "2026 · what each page is for",
-        "date": "2026-08-21",
-        "section": "site-walkthroughs",
-        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7676601401342037279",
-        "video_id": "7676601401342037279",
-        "breakdown_file": "site_walkthrough.md",
     },
     {
         "slug": "jameson-williams",

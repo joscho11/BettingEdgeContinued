@@ -56,10 +56,11 @@ def test_embed_uses_dark_player_not_white_card():
     assert "embed/v2" not in src
 
 
-def test_catalog_has_twenty_videos():
-    assert len(VIDEOS) == 20
+def test_catalog_has_nineteen_videos():
+    assert len(VIDEOS) == 19
     slugs = {item["slug"] for item in VIDEOS}
     assert "brian-thomas-jr" not in slugs
+    assert "site-walkthrough" not in slugs
     assert "league-history" not in slugs
     assert "ladd-mcconkey" in slugs
     assert "wandale-robinson" in slugs
@@ -67,11 +68,11 @@ def test_catalog_has_twenty_videos():
     assert "jacory-croskey-merritt" in slugs
     assert "derrick-henry" in slugs
     assert "harrison-vs-wilson" in slugs
-    assert DEFAULT_VIDEO_SLUG == "site-walkthrough"
+    assert DEFAULT_VIDEO_SLUG == "league-history-guide"
     assert DEFAULT_VIDEO_SLUG in slugs
 
 
-def test_default_is_site_walkthrough(tmp_path):
+def test_default_is_league_history_guide(tmp_path):
     at = _render(tmp_path)
     default = _default()
     newest = _newest()
@@ -80,10 +81,11 @@ def test_default_is_site_walkthrough(tmp_path):
     assert newest["slug"] == "harrison-vs-wilson"
     assert newest["title"] not in md
     assert "Welcome to JoScho Analytics" not in md
+    assert "A walk through the JoScho Analytics site" not in md
     watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]
     assert len(watch) == 1, "only the selected video should render a Watch link"
     assert watch[0].url == default["tiktok_url"]
-    assert default["video_id"] == "7676601401342037279"
+    assert default["video_id"] == "7676271983297940766"
 
 
 def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
@@ -111,7 +113,6 @@ def test_catalog_sections():
         for label, items in _sectioned_episodes(newest_first)
     }
     assert grouped["Site walkthroughs"] == [
-        "site-walkthrough",
         LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
     ]
     assert grouped["Draft strategy & research"] == [

@@ -102,7 +102,7 @@ The model predicts the margin, then asks which side of the posted number is more
         st.markdown(f"""
 Standard sportsbook odds are about 110 to win 100. You need about **52.4%** of bets to break even. Most casual bettors don't hit that.
 
-The **2026 live book** is Tuesday HIGH: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%** ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward 2021-2025. That interval is above 52.4%. All-bets is not the claim. No 2026 games are graded yet.
+The **2026 live book** is Tuesday HIGH: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%** ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward 2021-2025. That interval is below 52.4%. This book does not show an edge over break-even. All-bets is not the claim. No 2026 games are graded yet.
 
 The **2025 demo test** on this site (weeks 10-17) is **{_overall_pct}% ATS** ({_overall_correct}/{_overall_total}){_hc_line}. {_be_comment} That walkthrough is the old three-model consensus, not the 2026 live book. Past performance doesn't guarantee anything going forward. There will be bad weeks.
 
@@ -284,7 +284,7 @@ Collapsed lists of **college players who are not in this year's rookie class** u
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-Short analysis videos and site walkthroughs. The site walkthrough is already loaded. Pick another title to swap the player. **📖 Full breakdown** opens the context the short couldn't fit.
+Short analysis videos and the League History walkthrough. Pick a title to load a short. **📖 Full breakdown** opens the context the short couldn't fit.
         """)
 
     with st.expander("What is the League History page?"):

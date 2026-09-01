@@ -72,7 +72,7 @@ Read [AGENTS.md](AGENTS.md) before changing production data paths. It documents 
 
 Sportsbooks charge enough margin that a bettor needs about a 52.4% win rate at standard `-110` odds to break even. Backtests can overstate performance, so the site labels backtested, demo, experimental, and live results as separate evidence.
 
-I retracted the old 64.2% spread-model claim after finding a pregame feature leak. I measured the corrected historical HIGH tier at 129/238, or 54.2017%, with a 47.8551% Wilson lower bound. That result does not demonstrate an edge over break-even. The live 2026 claim is the Tuesday HIGH book: 192/336 = 57.14% ATS, Wilson lower bound 52.66%. The Track Record page shows the graded evidence used for current decisions.
+I retracted the old 64.2% spread-model claim after finding a pregame feature leak. The archived in-repo HIGH book is 129/238, or 54.2017%, Wilson lower bound 47.8551%. That result does not demonstrate an edge over break-even. The 2026 Tuesday HIGH book, scored with injury reports legal as of Tuesday 9:00 ET, is 155/290 = 53.45% ATS, Wilson lower bound 48.62%. That interval is below 52.4%. The earlier 192/336 = 57.14% figure used same-week injury reports that postdate Tuesday and is withdrawn. The Track Record page shows the graded evidence used for current decisions.
 
 The site provides research and published outputs, not paid picks or financial advice. Sports betting involves risk.
 

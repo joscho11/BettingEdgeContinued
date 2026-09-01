@@ -98,10 +98,10 @@ does. If the line moves and that gap falls under 3, HIGH is dropped. A later lin
 cannot create HIGH. There is no medium tier. The last regular-season week is skipped
 for HIGH. Totals are not on the 2026 week page.
 
-**The live claim** is that HIGH slice: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%**
+**The live book** is that HIGH slice: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%**
 ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward
-2021-2025. That interval is above 52.4%. Betting every game does not clear and is not
-the claim. No 2026 games are graded yet.
+2021-2025. That interval is below 52.4%. This book does not show an edge over
+break-even. Betting every game is not the claim. No 2026 games are graded yet.
 
 Picks lock Tuesday 9:00 ET. Matchups for weeks 1-18 are on Weekly Predictions now.
         """)
@@ -116,9 +116,8 @@ Picks lock Tuesday 9:00 ET. Matchups for weeks 1-18 are on Weekly Predictions no
             hline_text="Break even (52.4%)",
         )
         st.caption(
-            "HIGH cover rate by season on the 2021-2025 walk-forward book. 2021 carries "
-            "the Wilson interval. 2022 is a coin flip. This does not prove 2026 will look "
-            "like any one of those years."
+            "HIGH cover rate by season on the 2021-2025 as-of walk-forward book. "
+            "This does not prove 2026 will look like any one of those years."
         )
 
 

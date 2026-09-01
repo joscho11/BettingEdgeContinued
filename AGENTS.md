@@ -65,8 +65,8 @@ pytest tests/test_visual_regression.py --update-visual
 - Site pages read CSV/JSON artifacts. They do not load `.pkl` files.
 - Do not restore `archive/`, notebooks, training scripts, or DFS projection-generation source.
 - Keep the public DFS page on the reviewed vendored runtime and direct-DK CSV contract.
-- Keep HIGH at a 3-point Tuesday leftover. Do not claim CLV. Do not cite the retracted 64.2% as current.
-- Retracted in-repo HIGH was 129/238 (54.20%). Live 2026 HIGH is 192/336.
+- Keep HIGH at a 3-point Tuesday leftover. Do not claim CLV. Do not cite 64.2% or 192/336 as current.
+- Retracted in-repo HIGH was 129/238 (54.20%). Live 2026 HIGH is 155/290 = 53.45% ATS, Wilson 48.62%, below 52.4%.
 - Draft Board copy must not name the 75/25 Sleeper mix.
 - After any page change, run AppTest on the affected pages with `APP_OFFLINE=1`.
 - After a layout or copy change on a public page, run `pytest tests/test_visual_regression.py`. Use `--update-visual` only for an intentional screenshot change.

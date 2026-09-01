@@ -43,10 +43,10 @@ def _live_notice():
         "**HIGH** (green) is a 3+ point disagreement with the Tuesday 9am line. "
         "If the line moves and that gap falls under 3, HIGH is dropped. "
         "No medium tier. No totals on this season. "
-        f"HIGH clears break-even on a one-sided 95% Wilson interval "
-        f"({LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_WINS / LIVE_HIGH_N * 100:.2f}%, "
-        f"lower bound {LIVE_HIGH_WILSON_LOWER * 100:.2f}%, 2021-2025 walk-forward, "
-        f"last regular-season week skipped). Picks lock Tuesday 9:00 ET."
+        f"HIGH walk-forward is {LIVE_HIGH_WINS}/{LIVE_HIGH_N} = "
+        f"{LIVE_HIGH_WINS / LIVE_HIGH_N * 100:.2f}% ATS, one-sided 95% Wilson "
+        f"lower {LIVE_HIGH_WILSON_LOWER * 100:.2f}%, 2021-2025, last regular-season "
+        f"week skipped. That interval is below 52.4%. Picks lock Tuesday 9:00 ET."
     )
 
 

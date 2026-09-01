@@ -1,6 +1,6 @@
 # Betting models
 
-Status: checked against the current code and release contract on 2026-08-21.
+Status: checked against the current code and release contract on 2026-09-01.
 
 The betting area contains the 2026 spread product, a frozen 2025 demo, and an experimental totals model. These systems do not share the same claim or lifecycle.
 
@@ -10,14 +10,14 @@ The live spread producer is `spread_v3_prod`, a separate private repository. It 
 
 The 2026 display logic lives in `live_2026.py`:
 
-- The model predicts home margin from information available by Tuesday at 9:00 p.m. ET.
+- The model predicts home margin from information available by Tuesday at 9:00 a.m. ET.
 - A game is marked `HIGH` when the model differs from the Tuesday spread by at least three points.
 - A later line can remove a `HIGH` label, but cannot create one.
 - The final regular-season week is excluded from `HIGH` labels.
 - There is no `MEDIUM` tier and no all-bets performance claim.
 - Every game remains visible, including `PASS` games.
 
-The locked historical evaluation contains 336 qualifying picks from 2021 through 2025. It went 192-144 ATS, or 57.14%. The one-sided lower confidence bound is 52.66%, just above the declared 52.4% break-even threshold. That supports launching a tracked 2026 test; it is not a substitute for graded 2026 results. No 2026 games have been graded yet.
+The locked historical evaluation contains 290 qualifying picks from 2021 through 2025. It went 155-135 ATS, or 53.45%. The one-sided lower confidence bound is 48.62%, below the declared 52.4% break-even threshold. This book does not show an edge over break-even. It is not a substitute for graded 2026 results. No 2026 games have been graded yet. The withdrawn 192/336 = 57.14% figure used same-week injury reports that postdate Tuesday.
 
 ## What appears on the site
 
@@ -29,12 +29,12 @@ The frozen 2025 demo remains available for reproducibility. It used a three-vote
 
 | System | Evaluation | Result | Current interpretation |
 |---|---:|---:|---|
-| 2026 spread product | 2021-2025 locked historical evaluation | 192/336, 57.14% ATS | Cleared its launch threshold; awaiting a true 2026 live test |
+| 2026 spread product | 2021-2025 locked historical evaluation | 155/290, 53.45% ATS | Wilson lower 48.62%, below 52.4%; no demonstrated edge |
 | Archived in-repo spread model | Corrected 2018-2025 audit | 129/238, 54.20% ATS | No demonstrated edge; 95% Wilson lower bound is 47.86% |
 | Totals model | Walk-forward cross-validation | 55.7% UNDER accuracy, n=575 | Research result, not a deployed performance claim |
 | Totals model | 2025 live tracking, Weeks 10-17 | 52.2%, n=46 | Too small and too close to chance for an edge claim |
 
-The archived spread model once showed an apparent 64.2% result. That number was retracted after a pregame feature leak and player-identity errors were found. The corrected result is 129/238. The live 2026 claim is the Tuesday HIGH book, 192/336.
+The archived spread model once showed an apparent 64.2% result. That number was retracted after a pregame feature leak and player-identity errors were found. The corrected result is 129/238. A later 192/336 = 57.14% Tuesday HIGH figure was withdrawn after the same-week injury join was found to postdate the Tuesday slot. The current 2026 book is 155/290.
 
 ## Totals model
 
