@@ -16,7 +16,7 @@ import streamlit as st
 import dashboard_data
 import page_common
 from dashboard_utils import get_confidence, _md_to_html
-from live_2026 import is_live_season, row_display_high
+from live_2026 import HIGH_GAP, is_live_season, row_display_high
 from page_common import load_agent_analysis, _MODE_BADGE_COLORS
 
 _HERE = Path(__file__).resolve().parents[1]
@@ -127,7 +127,7 @@ def render():
         with st.container(horizontal=True, key="jsa-metric-even-tr-ats"):
             if live:
                 _record_metric("Season ATS", total_correct, total_games, total_pct)
-                _record_metric("HIGH (Tuesday 3+ points)", he_correct, he_total, he_pct)
+                _record_metric(f"HIGH (Tuesday {HIGH_GAP:g}+ points)", he_correct, he_total, he_pct)
                 _record_metric("Other picks", re_correct, re_total, re_pct)
             else:
                 _record_metric("Season ATS", total_correct, total_games, total_pct)
@@ -257,7 +257,7 @@ def render():
         if live:
             st.subheader("HIGH vs other picks")
             edge_data = pd.DataFrame([
-                {'Tier': 'HIGH (Tue 3+ pts)', 'Correct': he_correct, 'Total': he_total, 'Pct': he_pct},
+                {'Tier': f'HIGH (Tue {HIGH_GAP:g}+ pts)', 'Correct': he_correct, 'Total': he_total, 'Pct': he_pct},
                 {'Tier': 'Other picks', 'Correct': re_correct, 'Total': re_total, 'Pct': re_pct},
             ])
             _edge_colors = ['#00c853', '#888888']

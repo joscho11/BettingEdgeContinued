@@ -14,7 +14,7 @@ if str(_BETTING) not in sys.path:
     sys.path.insert(0, str(_BETTING))
 
 import model_explanations as me
-from live_2026 import LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS
+from live_2026 import HIGH_GAP, LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS, live_high_bar_sentence
 
 BREAKEVEN = 52.4
 ACCENT = "#8abcf5"
@@ -87,21 +87,22 @@ def _spread_2026():
     with st.expander("How the 2026 spread model works"):
         st.markdown(f"""
 Each week the model guesses the **margin leftover versus the Tuesday 9:00 ET spread**.
-It is 75% a tree model (XGBoost) and 25% a linear model (Ridge). Both see the same
-55 inputs. The Tuesday line is one of those inputs. The rest are how the two teams
-have been playing, who is available, quarterback and coaching changes, rest, weather,
-and venue.
+It is a Ridge regression on 49 inputs. The Tuesday line is one of those inputs. The
+rest are how the two teams have been playing, who is available, quarterback and
+coaching changes, rest, and venue.
 
 **Every game still gets a pick.** **HIGH** (green) is the only highlighted slice: the
-model disagrees with the Tuesday line by 3 or more points, and the live line still
-does. If the line moves and that gap falls under 3, HIGH is dropped. A later line
+model disagrees with the Tuesday line by {HIGH_GAP:g} or more points, and the live line still
+does. If the line moves and that gap falls under {HIGH_GAP:g}, HIGH is dropped. A later line
 cannot create HIGH. There is no medium tier. The last regular-season week is skipped
 for HIGH. Totals are not on the 2026 week page.
 
-**The live book** is that HIGH slice: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%**
+**The live book** is that HIGH slice scored at the best US Tuesday number:
+**{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%**
 ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward
-2021-2025. That interval is below 52.4%. This book does not show an edge over
-break-even. Betting every game is not the claim. No 2026 games are graded yet.
+2021-2025. {live_high_bar_sentence()} HIGH still flags off the Tuesday median.
+Take the best number. Betting every game is not the claim. No 2026 games are graded yet.
+This is Tuesday line value, not closing-line value.
 
 Picks lock Tuesday 9:00 ET. Matchups for weeks 1-18 are on Weekly Predictions now.
         """)
@@ -116,7 +117,8 @@ Picks lock Tuesday 9:00 ET. Matchups for weeks 1-18 are on Weekly Predictions no
             hline_text="Break even (52.4%)",
         )
         st.caption(
-            "HIGH cover rate by season on the 2021-2025 as-of walk-forward book. "
+            "HIGH cover rate by season on the 2021-2025 as-of walk-forward book, "
+            "scored at the best US Tuesday number. "
             "This does not prove 2026 will look like any one of those years."
         )
 
@@ -248,9 +250,17 @@ half-PPR: 0.5 per reception, yards and touchdowns as usual. Demo weeks also carr
 stat columns (pass/rush/rec yards, receptions) from eight smaller models. Those extras
 will not appear on a 2026 live week unless that file has them.
 
-The 2026 live weekly model is a single points model across positions. It looks at recent
-usage, expected fantasy points, opponent, and the implied team total. It is not the
-2025 demo files.
+**2026 live model** (Week 1 onward, once published). One LightGBM across QB, RB, WR,
+and TE. It predicts this week's half-PPR points. Form is the last four played games,
+most recent weighted 40/25/20/15. Early in the year it blends prior-season games.
+Missed games are skipped, not zeroed. This week it can use the closing line, opponent,
+and injury or practice status as of **that game's kickoff**. Sleeper's weekly
+projection is the benchmark, not an input.
+
+On the 2025 holdout (train 2021-2024, n=3,060 Sleeper-covered top-180 player-weeks):
+MAE **4.999** vs Sleeper **5.188**. Rank correlation **0.395** vs Sleeper **0.402**.
+Walk-forward rank 2023-2025: **0.394**. Point error is a bit better. Ordering is a
+bit worse. That is not a claim it beats Sleeper.
         """)
         points = me.weekly_point_cards()
         if points:

@@ -17,10 +17,12 @@ import dashboard_data
 import page_common
 from dashboard_utils import get_confidence, _md_to_html
 from live_2026 import (
+    HIGH_GAP,
     LIVE_HIGH_N,
     LIVE_HIGH_WILSON_LOWER,
     LIVE_HIGH_WINS,
     has_pick,
+    live_high_bar_sentence,
     is_live_season,
     row_display_high,
     row_high_dropped,
@@ -40,13 +42,14 @@ def _demo_2025_notice():
 def _live_notice():
     st.success(
         "**Live 2026. Tuesday model.** Every game gets a pick. "
-        "**HIGH** (green) is a 3+ point disagreement with the Tuesday 9am line. "
-        "If the line moves and that gap falls under 3, HIGH is dropped. "
+        f"**HIGH** (green) is a {HIGH_GAP:g}+ point disagreement with the Tuesday 9am line. "
+        f"If the line moves and that gap falls under {HIGH_GAP:g}, HIGH is dropped. "
         "No medium tier. No totals on this season. "
         f"HIGH walk-forward is {LIVE_HIGH_WINS}/{LIVE_HIGH_N} = "
         f"{LIVE_HIGH_WINS / LIVE_HIGH_N * 100:.2f}% ATS, one-sided 95% Wilson "
         f"lower {LIVE_HIGH_WILSON_LOWER * 100:.2f}%, 2021-2025, last regular-season "
-        f"week skipped. That interval is below 52.4%. Picks lock Tuesday 9:00 ET."
+        f"week skipped, scored at the best US Tuesday number. "
+        f"{live_high_bar_sentence()} Picks lock Tuesday 9:00 ET."
     )
 
 
@@ -182,7 +185,7 @@ def render():
         if live:
             _n_high = int(week_df.apply(row_display_high, axis=1).sum()) if not week_df.empty else 0
             st.metric(
-                "HIGH picks", _n_high, "3+ points vs Tuesday",
+                "HIGH picks", _n_high, f"{HIGH_GAP:g}+ points vs Tuesday",
                 delta_color="green", delta_arrow="off", border=True,
             )
         else:
@@ -231,12 +234,12 @@ def render():
 
     _has_consensus_col = (not live) and 'consensus_tier' in week_df.columns and week_df['consensus_tier'].notna().any()
     if live:
-        st.markdown("""
+        st.markdown(f"""
             <div class='jsa-legend' style='display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap;'>
                 <span style='font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;'>Tuesday HIGH</span>
                 <span style='font-size:12px;background:#1a3a1a;border:1px solid #00c853;
                             border-radius:4px;padding:2px 8px;color:#00c853;'>HIGH</span>
-                <span style='font-size:11px;color:#93A0B1;'>Green card = 3+ points vs the Tuesday 9am line, and the live line still 3+. Every other game still shows a pick. No medium tier. A line move can drop HIGH. It cannot create HIGH.</span>
+                <span style='font-size:11px;color:#93A0B1;'>Green card = {HIGH_GAP:g}+ points vs the Tuesday 9am line, and the live line still {HIGH_GAP:g}+. Every other game still shows a pick. No medium tier. A line move can drop HIGH. It cannot create HIGH.</span>
             </div>
         """, unsafe_allow_html=True)
     elif _has_consensus_col:

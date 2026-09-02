@@ -1,9 +1,10 @@
 """2026 live Tuesday-model display rules. Not the 2025 3-voter demo.
 
-Production lives in the private leftover ensemble (`spread_v3_prod`), scored vs
-the Tuesday 9:00 ET line. HIGH is |predicted home margin - Tuesday spread| >= 3,
-last REG week skipped. A later line can drop HIGH. It cannot create HIGH.
-No MEDIUM tier. All-bets stays off the claim.
+Production lives in the private leftover Ridge (`spread_v3_prod`). HIGH flags
+|predicted home margin - Tuesday US-median| >= 2.5, last REG week skipped.
+A later line can drop HIGH. It cannot create HIGH. No MEDIUM tier.
+The live HIGH book is scored at the best US Tuesday number (line shop),
+Joseph 2026-09-01. All-bets stays off the claim.
 """
 from __future__ import annotations
 
@@ -12,25 +13,39 @@ from pathlib import Path
 import pandas as pd
 
 LIVE_SEASON = 2026
-HIGH_GAP = 3.0
+HIGH_GAP = 2.5
 LAST_REG_WEEK = 18
 SLATE_NAME = "slate_2026.csv"
 
-# spread_v3_prod Tuesday HIGH book vs the Tuesday line, 2021-2025, last REG
-# week skipped. Injury reports as-of Tuesday 9:00 ET (legal_injury_reports).
-# One-sided 95% Wilson. Interval is below 52.4%. All-bets is diagnostic.
-# Withdrawn: 192/336 = 57.14%, Wilson 0.5266 used same-week injury reports
-# that postdate Tuesday. See spread_v3_prod/LEAKAGE_AUDIT.md.
-LIVE_HIGH_WINS = 155
-LIVE_HIGH_N = 290
+# spread_v3_prod Tuesday HIGH book, 2021-2025, last REG week skipped.
+# Injury reports as-of Tuesday 9:00 ET (legal_injury_reports).
+# Clean Ridge, 49 columns, seed 7. HIGH flags vs the Tuesday US-median.
+# Live book scores those tickets at the best US Tuesday number.
+# One-sided 95% Wilson 0.5290 clears 52.4%. All-bets is diagnostic.
+# Median on the same tickets: 299/538, Wilson 0.5203.
+# Withdrawn: 192/336 used same-week injury reports that postdate Tuesday.
+# Prior as-of 75/25 was 155/290. See spread_v3_prod/LEAKAGE_AUDIT.md.
+LIVE_HIGH_WINS = 302
+LIVE_HIGH_N = 535
 LIVE_HIGH_ATS = LIVE_HIGH_WINS / LIVE_HIGH_N
 LIVE_HIGH_WILSON_Z = 1.64485
-LIVE_HIGH_WILSON_LOWER = 0.4862
-LIVE_HIGH_WILSON_CLEARS = False
-LIVE_ALL_BETS_WINS = 662
+LIVE_HIGH_WILSON_LOWER = 0.5290
+LIVE_HIGH_WILSON_CLEARS = True
+LIVE_ALL_BETS_WINS = 669
 LIVE_ALL_BETS_N = 1292
 BREAKEVEN = 0.524
 TRACKER_2025_MD5 = "88d526ca46e8cbb9f1eea77a3d96fa08"
+
+
+def live_high_bar_sentence() -> str:
+    """Interval vs 52.4%. Interpolate this. Do not hardcode above/below."""
+    bar = f"{BREAKEVEN * 100:.1f}%"
+    if LIVE_HIGH_WILSON_CLEARS:
+        return f"That interval is above {bar}."
+    return (
+        f"That interval is below {bar}. "
+        "This book does not show an edge over break-even."
+    )
 
 
 def leftover_to_home_margin(leftover, sportsbook_spread) -> float:
@@ -90,7 +105,7 @@ def display_high(pred, tuesday_spread, live_spread=None, *, season=LIVE_SEASON, 
 
 
 def high_dropped(pred, tuesday_spread, live_spread, *, season=LIVE_SEASON, week=1, game_type="REG") -> bool:
-    """Tuesday ticket was HIGH; live line shrank it under 3."""
+    """Tuesday ticket was HIGH; live line shrank it under HIGH_GAP."""
     if is_finale_week(season, week, game_type):
         return False
     if not tuesday_high(pred, tuesday_spread):

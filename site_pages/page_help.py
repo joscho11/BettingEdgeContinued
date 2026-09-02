@@ -12,7 +12,7 @@ import dashboard_data
 import help_models
 import nav_registry
 from dashboard_utils import breakeven_verdict
-from live_2026 import LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS
+from live_2026 import HIGH_GAP, LIVE_HIGH_ATS, LIVE_HIGH_N, LIVE_HIGH_WILSON_LOWER, LIVE_HIGH_WINS, live_high_bar_sentence
 from video_content import LATEST_LEAGUE_HISTORY_VIDEO_SLUG
 
 
@@ -76,12 +76,12 @@ That movement is where a model can find a gap: the number on the board is a mark
         """)
 
     with st.expander("What is edge and why does it matter?"):
-        st.markdown("""
+        st.markdown(f"""
 Edge is the gap between what the model predicts and the posted spread.
 
 If the model has the Chiefs by 10 and the spread is 7.5, that is 2.5 points on the Chiefs. Games under 1 point of disagreement are coin flips in the model's eyes.
 
-On **2026**, every game still shows. HIGH is the green highlight (3 or more points off the Tuesday line, and still 3 off the live line). On the **2025 demo** weeks, use the **Min Edge (pts)** slider to hide the coin flips.
+On **2026**, every game still shows. HIGH is the green highlight ({HIGH_GAP:g} or more points off the Tuesday line, and still {HIGH_GAP:g} off the live line). On the **2025 demo** weeks, use the **Min Edge (pts)** slider to hide the coin flips.
         """)
 
     with st.expander("What does it mean to cover?"):
@@ -102,7 +102,7 @@ The model predicts the margin, then asks which side of the posted number is more
         st.markdown(f"""
 Standard sportsbook odds are about 110 to win 100. You need about **52.4%** of bets to break even. Most casual bettors don't hit that.
 
-The **2026 live book** is Tuesday HIGH: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%** ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward 2021-2025. That interval is below 52.4%. This book does not show an edge over break-even. All-bets is not the claim. No 2026 games are graded yet.
+The **2026 live book** is Tuesday HIGH scored at the best US Tuesday number: **{LIVE_HIGH_WINS}/{LIVE_HIGH_N} = {LIVE_HIGH_ATS * 100:.2f}%** ATS, one-sided 95% Wilson lower bound **{LIVE_HIGH_WILSON_LOWER * 100:.2f}%**, walk-forward 2021-2025. {live_high_bar_sentence()} HIGH still flags off the Tuesday median. Take the best number. All-bets is not the claim. No 2026 games are graded yet. This is Tuesday line value, not closing-line value.
 
 The **2025 demo test** on this site (weeks 10-17) is **{_overall_pct}% ATS** ({_overall_correct}/{_overall_total}){_hc_line}. {_be_comment} That walkthrough is the old three-model consensus, not the 2026 live book. Past performance doesn't guarantee anything going forward. There will be bad weeks.
 
@@ -122,13 +122,13 @@ Sharp money is professional bettors placing large, calculated bets. When they be
     st.subheader("🖥️ How to Use This Website")
 
     with st.expander("What is live vs demo on this site?"):
-        st.markdown("""
+        st.markdown(f"""
 **Live 2026 (the current season)**
 
 - **Draft Board:** 180-player Model Proj, frozen until the early-September snapshot. Sleeper ADP (default), ESPN ADP, and Yahoo ADP, plus Sleeper Proj, refresh daily.
 - **Rookie Board:** hit % and RB/WR/TE season-total projections for the 2024-2026 classes.
 - **Season Totals:** 32-team win projections. HIGH is the only certified pick.
-- **Weekly Predictions:** 2026 matchups are up. Picks lock Tuesday 9:00 ET. HIGH is the green 3-point Tuesday ticket.
+- **Weekly Predictions:** 2026 matchups are up. Picks lock Tuesday 9:00 ET. HIGH is the green {HIGH_GAP:g}-point Tuesday ticket.
 - **Weekly Fantasy:** 2026 Week 1 rankings land once that file is published. Until then the page opens on the latest published file (the 2025 Week 17 demo in the 2026 layout).
 - **DFS Optimizer:** DraftKings Classic lineup builder. Upload a salary CSV. Uses a published direct-DK file when one exists; otherwise upload your own. No 2026 Week 1 projection file is published yet. Not a performance claim.
 
@@ -157,7 +157,7 @@ The site opens on **Home** every time. There is no sidebar. Each product page ca
         """)
 
     with st.expander("How do I read the game cards?"):
-        st.markdown("""
+        st.markdown(f"""
 Each card is one matchup.
 
 **SPREAD** is the Vegas line. Negative means that team is favored.
@@ -168,7 +168,7 @@ Each card is one matchup.
 
 **BET X** is the recommended side. The bold name is who the model likes.
 
-**2026 live:** every game gets a pick. **HIGH** (green) is a 3+ point disagreement with the Tuesday 9am line, and the live line still 3+. If the line moves and that gap falls under 3, HIGH is dropped. It cannot be created mid-week. No medium tier. No totals on the 2026 week page.
+**2026 live:** every game gets a pick. **HIGH** (green) is a {HIGH_GAP:g}+ point disagreement with the Tuesday 9am line, and the live line still {HIGH_GAP:g}+. If the line moves and that gap falls under {HIGH_GAP:g}, HIGH is dropped. It cannot be created mid-week. No medium tier. No totals on the 2026 week page.
 
 **2025 demo test:** weeks 10 through the end of that season still use HIGH / MED / PASS consensus badges. Those weeks are unchanged.
 
@@ -183,8 +183,8 @@ On the **2025 demo** weeks, **Min Edge (pts)** at the top of Weekly Predictions 
         """)
 
     with st.expander("How often does the site update?"):
-        st.markdown("""
-**2026 live.** Picks lock Tuesday 9:00 ET off the frozen line. After that, the only change on the week page is dropping HIGH if the live line shrinks the gap under 3 points. A later line cannot promote a game into HIGH. Totals stay off this season's week page.
+        st.markdown(f"""
+**2026 live.** Picks lock Tuesday 9:00 ET off the frozen line. After that, the only change on the week page is dropping HIGH if the live line shrinks the gap under {HIGH_GAP:g} points. A later line cannot promote a game into HIGH. Totals stay off this season's week page.
 
 **2025 demo test** used the older Monday / Thursday / Sunday refresh. Those weeks are frozen as a walkthrough.
 
@@ -195,12 +195,12 @@ ranks remain frozen until the dated early-September public-information snapshot.
         """)
 
     with st.expander("What is the Track Record page?"):
-        st.markdown("""
+        st.markdown(f"""
 Season-long ATS, not one week.
 
 Week-by-week bars, a cumulative line, and a breakdown of HIGH versus the rest. Best and worst weeks, a season table, and (on the 2025 demo) a separate Over/Under section.
 
-2026 Track Record grades HIGH by the Tuesday 3-point rule. There is no medium bucket. 2026 Track Record does not include totals.
+2026 Track Record grades HIGH by the Tuesday {HIGH_GAP:g}-point rule. There is no medium bucket. 2026 Track Record does not include totals.
         """)
 
     with st.expander("What is the Season Totals page?"):
@@ -284,7 +284,7 @@ Collapsed lists of **college players who are not in this year's rookie class** u
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-Short analysis videos and the League History walkthrough. Pick a title to load a short. **📖 Full breakdown** opens the context the short couldn't fit.
+Short analysis videos, the site walkthrough, and the League History walkthrough. Pick a title to load a short. **📖 Full breakdown** opens the context the short couldn't fit.
         """)
 
     with st.expander("What is the League History page?"):
@@ -308,7 +308,7 @@ First load is usually a few seconds per Sleeper season and 10-25 seconds per ESP
             )
 
     with st.expander("What is the LLM agent and what does it do?"):
-        st.markdown("""
+        st.markdown(f"""
 The agent sat on top of the prediction models using LlamaIndex and Anthropic's Claude API.
 
 **Paused as of August 2026.** The agent's line-movement tool was never connected to
@@ -319,7 +319,7 @@ render any market claim that can't prove where it came from.
 
 The colored High / Medium / Skip buttons are not on the game cards right now. What you see
 on **2026** Weekly Predictions is **Tuesday HIGH**: a green highlight when the model
-disagrees with the Tuesday 9am line by 3+ points and the live line still does. The
+disagrees with the Tuesday 9am line by {HIGH_GAP:g}+ points and the live line still does. The
 **2025 demo** weeks still show **Model Consensus** (HIGH / MED / PASS).
 
 When an approved agent artifact is present again, High means the model edge is strong and outside signals lined up, Medium means mixed signals, and Skip means pass.
@@ -337,7 +337,7 @@ The Weekly Fantasy page uses a separate system from the betting model. The DFS O
 
 **2025 demo (weeks 10-17 on this page).** Four per-position XGBoost models trained on 2020-2024, with 2025 held out. Walkthrough only. Not the 2026 live weekly model.
 
-**2026 live, starting Week 1.** One half-PPR points model. Same scoring: 0.5 per reception, yards and touchdowns as usual. The first live week is 2026 Week 1.
+**2026 live, starting Week 1.** One LightGBM for all four positions. Same scoring: 0.5 per reception, yards and touchdowns as usual. Last four played games plus this week's closing line, opponent, and injury report as of that game's kickoff. The first live week is 2026 Week 1.
 
 The models are rebuilt in the offseason as more data lands.
         """)
@@ -355,7 +355,7 @@ The models are rebuilt in the offseason as more data lands.
 
 MAE is the average number of points the projection was off by. For WR, about 3.9 points. Any individual week can be much higher or lower. Treat the numbers as a ranking tool, not a precise point forecast.
 
-**2026 live.** First live week is Week 1. That run uses the new weekly model, not the 2025 demo files.
+**2026 live holdout** (train 2021-2024, grade Sleeper's top 180 each week, n=3,060). MAE **4.999** vs Sleeper **5.188**. Rank correlation **0.395** vs Sleeper **0.402**. Walk-forward rank 2023-2025: **0.394**. Point error is a bit better. Ordering is a bit worse. That is not a claim it beats Sleeper. No 2026 week has been graded yet.
         """)
 
     with st.expander("What are the prop stat columns?"):
@@ -410,9 +410,9 @@ League average hovers near 0. Above +0.10 is strong, below -0.10 is poor. Player
 
     with st.expander("How often do fantasy projections update?"):
         st.markdown("""
-Fantasy projections are generated separately from the weekly betting GitHub Action. That job only papermills the spread and totals notebooks. Weekly fantasy is not on that Tuesday cron yet.
+Fantasy projections are generated separately from the weekly betting GitHub Action. That job only papermills the spread and totals notebooks. Weekly fantasy is not on that Tuesday cron.
 
-The projection file for each week is saved once and does not change after that. It reflects the injury and depth-chart data available at the time it was run. Actual stats fill in after each game, pulling live from nflreadpy and caching for 1 hour.
+A 2026 live file locks at **that game's kickoff**, not Tuesday 9:00. Thursday, Sunday, and Monday games are different clocks. The saved week file does not change after it is published. Actual stats fill in after each game, pulling live from nflreadpy and caching for 1 hour.
 
 If you're looking at a past week, the actuals shown are the real NFL stats for that game.
         """)

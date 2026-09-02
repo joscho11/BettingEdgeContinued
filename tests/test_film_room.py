@@ -57,10 +57,10 @@ def test_embed_uses_dark_player_not_white_card():
 
 
 def test_catalog_has_nineteen_videos():
-    assert len(VIDEOS) == 19
+    assert len(VIDEOS) == 20
     slugs = {item["slug"] for item in VIDEOS}
     assert "brian-thomas-jr" not in slugs
-    assert "site-walkthrough" not in slugs
+    assert "site-walkthrough" in slugs
     assert "league-history" not in slugs
     assert "ladd-mcconkey" in slugs
     assert "wandale-robinson" in slugs
@@ -113,6 +113,7 @@ def test_catalog_sections():
         for label, items in _sectioned_episodes(newest_first)
     }
     assert grouped["Site walkthroughs"] == [
+        "site-walkthrough",
         LATEST_LEAGUE_HISTORY_VIDEO_SLUG,
     ]
     assert grouped["Draft strategy & research"] == [
@@ -185,6 +186,16 @@ def test_every_episode_has_a_breakdown_file():
         assert path.is_file(), item["slug"]
         assert item["video_id"]
         assert item["video_id"] in item["tiktok_url"]
+
+
+def test_site_walkthrough_is_the_posted_tiktok():
+    item = next(v for v in VIDEOS if v["slug"] == "site-walkthrough")
+    assert item["video_id"] == "7676601401342037279"
+    assert item["date"] == "2026-08-21"
+    assert item["section"] == "site-walkthroughs"
+    assert item["tiktok_url"] == (
+        "https://www.tiktok.com/@joschoanalytics/video/7676601401342037279"
+    )
 
 
 def test_latest_league_history_guide_constant_still_points_at_the_walkthrough():

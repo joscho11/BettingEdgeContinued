@@ -29,11 +29,11 @@ VETERAN_CALIBRATION_AUDIT = [
 # render time. Tests lock the load-bearing totals against futures/published/evidence.json
 # and the HIGH season splits against LIVE_HIGH_WINS / LIVE_HIGH_N.
 SPREAD_HIGH_BY_SEASON = [
-    {"season": 2021, "wins": 59, "n": 105},
-    {"season": 2022, "wins": 38, "n": 78},
-    {"season": 2023, "wins": 22, "n": 43},
-    {"season": 2024, "wins": 18, "n": 35},
-    {"season": 2025, "wins": 18, "n": 29},
+    {"season": 2021, "wins": 94, "n": 156},
+    {"season": 2022, "wins": 64, "n": 115},
+    {"season": 2023, "wins": 63, "n": 119},
+    {"season": 2024, "wins": 40, "n": 74},
+    {"season": 2025, "wins": 41, "n": 71},
 ]
 
 # Absolute ridge coefficients from season_totals_v2_prod artifacts/prod_card.json

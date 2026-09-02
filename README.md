@@ -43,7 +43,7 @@ The site covers five published product families:
 
 - **NFL spreads:** an independent margin estimate compared with the sportsbook line. The site separates the live 2026 record from the 2025 demo.
 - **Game and season totals:** a 2025 experimental game-total demo plus a separate 32-team season-win product.
-- **Weekly fantasy:** player-level half-PPR and stat projections with postgame grading.
+- **Weekly fantasy:** 2026 live model is one half-PPR LightGBM that locks at each game's kickoff. 2025 weeks 10-17 on the page are a prior-model demo. Week 1 rankings land when that file is published.
 - **DFS optimizer:** DraftKings Classic lineups from checked direct-DK projection files. No published projection edge.
 - **Anytime TDs:** a 2025 demo of rushing and receiving TD chances next to the book. For fun. Not a proven edge.
 - **Draft and rookie analysis:** season projections, market ranks, rookie hit probabilities, and descriptive NFL and college talent scores.
@@ -72,7 +72,7 @@ Read [AGENTS.md](AGENTS.md) before changing production data paths. It documents 
 
 Sportsbooks charge enough margin that a bettor needs about a 52.4% win rate at standard `-110` odds to break even. Backtests can overstate performance, so the site labels backtested, demo, experimental, and live results as separate evidence.
 
-I retracted the old 64.2% spread-model claim after finding a pregame feature leak. The archived in-repo HIGH book is 129/238, or 54.2017%, Wilson lower bound 47.8551%. That result does not demonstrate an edge over break-even. The 2026 Tuesday HIGH book, scored with injury reports legal as of Tuesday 9:00 ET, is 155/290 = 53.45% ATS, Wilson lower bound 48.62%. That interval is below 52.4%. The earlier 192/336 = 57.14% figure used same-week injury reports that postdate Tuesday and is withdrawn. The Track Record page shows the graded evidence used for current decisions.
+I retracted the old 64.2% spread-model claim after finding a pregame feature leak. The archived in-repo HIGH book is 129/238, or 54.2017%, Wilson lower bound 47.8551%. That result does not demonstrate an edge over break-even. The 2026 Tuesday HIGH book, scored with injury reports legal as of Tuesday 9:00 ET at the best US Tuesday number, is 302/535 = 56.45% ATS, Wilson lower bound 52.90%. HIGH is a 2.5 point leftover cut. That interval is above 52.4%. HIGH still flags off the Tuesday median. The median on those tickets was 299/538 = 55.58%, Wilson 52.03%. The prior named cut of 3 was 246/442 = 55.66%, Wilson 51.75%. This is Tuesday line value, not closing-line value. The earlier 192/336 = 57.14% figure used same-week injury reports that postdate Tuesday and is withdrawn. The prior as-of 75/25 book was 155/290. The Track Record page shows the graded evidence used for current decisions.
 
 The site provides research and published outputs, not paid picks or financial advice. Sports betting involves risk.
 

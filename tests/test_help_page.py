@@ -106,10 +106,11 @@ def test_help_site_org_and_paused_copy(tmp_path):
 def test_help_states_live_high_wilson_claim(tmp_path):
     at = _render(tmp_path)
     md = " ".join(str(m.value) for m in at.markdown)
-    assert "155/290" in md
-    assert "53.45%" in md
-    assert "48.62%" in md
-    assert "below 52.4%" in md
+    assert "302/535" in md
+    assert "56.45%" in md
+    assert "52.90%" in md
+    assert "above 52.4%" in md
+    assert "best US Tuesday" in md
     assert "192/336" not in md
     assert "57.14%" not in md
     assert "201/349" not in md
@@ -164,6 +165,10 @@ def test_help_covers_live_model_rundowns(tmp_path):
     md = " ".join(str(m.value) for m in at.markdown)
     assert "mean absolute Tree SHAP" in md or "XGBoost gain" in md
     assert "absolute ridge coefficient" in md
+    assert "4.999" in md
+    assert "0.395" in md
+    assert "that game's kickoff" in md
+    assert "not a claim it beats Sleeper" in md
 
 
 if __name__ == "__main__":

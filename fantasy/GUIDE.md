@@ -1,12 +1,12 @@
 # Weekly fantasy projections
 
-Status: checked against the current producer card, site code, and release contract on 2026-08-21.
+Status: checked against the as-of rebuild (`asof_rebuild.json`, 2026-09-01), site code, and release contract. The on-disk `prod_card.json` is the pre-fix leaky lock and is no longer the public number.
 
 The current weekly fantasy product is built in `weekly_projections_v2_prod`, a separate private repository. This public repository owns candidate validation, immutable releases, the website, and the frozen 2025 demo.
 
 ## Current 2026 system
 
-The production recipe is `l1_wipe_prior_share_ranks`. It uses a gradient-boosted tree with 95 features covering prior usage, opportunity, recent production, team context, opponent context, availability, and position-specific rates. It produces the top 180 player projections for each released week.
+The production recipe is `l1_wipe_prior_share_ranks`. One LightGBM, 95 features: last-four usage and opportunity, team and opponent context, availability, and role ranks. It predicts this week's half-PPR points. Injury and practice status lock at that game's kickoff. It produces the top 180 player projections for each released week.
 
 Sleeper projections are an evaluation benchmark, not a model feature. The producer can publish without Sleeper data. Benchmark coverage is reported separately so a missing market snapshot cannot change the model inputs.
 
@@ -16,13 +16,13 @@ No 2026 fantasy week has been graded yet. The manifest remains on the frozen 202
 
 ## Locked evaluation
 
-The production card scores a 2025 holdout with training restricted to 2021 through 2024. The comparison below uses the 3,060 top-180 player-weeks that also had Sleeper coverage.
+The 2026-09-01 as-of rebuild scores a 2025 holdout with training restricted to 2021 through 2024. Injury rows are kept only if `date_modified` is strictly before that game's kickoff. The comparison below uses the 3,060 top-180 player-weeks that also had Sleeper coverage. Walk-forward rank 2023-2025 is 0.394.
 
 | Metric | JoScho model | Sleeper | Difference |
 |---|---:|---:|---:|
-| Mean absolute error | 5.003 | 5.188 | Model lower by 0.185 points |
-| Within-position, within-week Spearman | 0.397 | 0.402 | Model lower by 0.005 |
-| Historical lineup points | 2,016.00 | 2,080.72 | Model lower by 64.72 points |
+| Mean absolute error | 4.999 | 5.188 | Model lower by 0.189 points |
+| Within-position, within-week Spearman | 0.395 | 0.402 | Model lower by 0.007 |
+| Historical lineup points | 2,035.58 | 2,080.72 | Model lower by 45.14 points |
 
 The model has a modest point-error advantage on the matched sample. It does not beat Sleeper on player ordering or the lineup simulation, so the current evidence does not support a broad superiority claim.
 
@@ -30,12 +30,12 @@ Position results show where the average error improvement comes from:
 
 | Position | Player-weeks | Model MAE | Sleeper MAE | Model rank correlation | Sleeper rank correlation |
 |---|---:|---:|---:|---:|---:|
-| QB | 408 | 6.373 | 7.081 | 0.294 | 0.266 |
-| RB | 1,020 | 4.980 | 4.966 | 0.580 | 0.625 |
-| WR | 1,224 | 4.748 | 4.953 | 0.402 | 0.422 |
-| TE | 408 | 4.452 | 4.552 | 0.312 | 0.298 |
+| QB | 408 | 6.382 | 7.081 | 0.281 | 0.266 |
+| RB | 1,020 | 4.966 | 4.966 | 0.584 | 0.625 |
+| WR | 1,224 | 4.749 | 4.953 | 0.411 | 0.422 |
+| TE | 408 | 4.446 | 4.552 | 0.306 | 0.298 |
 
-QB, WR, and TE lower mean absolute error in this holdout. RB does not. Rank correlation is better for QB and TE, and worse for RB and WR. These are historical holdout results, not live 2026 performance.
+QB, WR, and TE lower mean absolute error in this holdout. RB is a wash on MAE. Rank correlation is better for QB and TE, and worse for RB and WR. These are historical holdout results, not live 2026 performance.
 
 ## Frozen 2025 demo
 

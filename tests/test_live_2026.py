@@ -86,6 +86,8 @@ def test_attach_slate_skips_already_logged_2026_row(tmp_path):
 
 
 def test_display_high_demote_only():
+    assert tuesday_high(10, 7.5)
+    assert not tuesday_high(10, 7.6)
     assert tuesday_high(10, 7)
     assert display_high(10, 7, None)
     assert display_high(10, 7, 6.5)
@@ -120,11 +122,11 @@ def test_row_helpers_and_live_season():
 
 
 def test_one_sided_wilson_claim_matches_locked_book():
-    assert LIVE_HIGH_WINS == 155
-    assert LIVE_HIGH_N == 290
+    assert LIVE_HIGH_WINS == 302
+    assert LIVE_HIGH_N == 535
     lo = _wilson_one_sided_lower(LIVE_HIGH_WINS, LIVE_HIGH_N, LIVE_HIGH_WILSON_Z)
     assert round(lo, 4) == LIVE_HIGH_WILSON_LOWER
-    assert lo < 0.524
+    assert lo > 0.524
 
 
 def test_leftover_converts_to_site_home_margin():
