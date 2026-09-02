@@ -233,4 +233,14 @@ VIDEOS = [
         "video_id": "7680312276817087774",
         "breakdown_file": "harrison_vs_wilson.md",
     },
+    {
+        "slug": "chase-brown",
+        "title": "Chase Brown Fantasy Outlook 2026",
+        "subtitle": "2026 · RB, Cincinnati Bengals",
+        "date": "2026-09-01",
+        "section": "player-breakdowns",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7680698160385101087",
+        "video_id": "7680698160385101087",
+        "breakdown_file": "chase_brown.md",
+    },
 ]
