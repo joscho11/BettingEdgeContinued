@@ -62,6 +62,7 @@ SKILL = set(SKILL_POSITIONS)
 # WAS797326 is Mike Washington Jr. (nflverse 00-0040878, ESPN 4686658).
 BOARD_ESPN_ID_ALIASES = {
     "WAS797326": "4686658",
+    "LAN311008": "4870847",  # Ja'Kobi Lane, nflverse placeholder gsis
 }
 
 

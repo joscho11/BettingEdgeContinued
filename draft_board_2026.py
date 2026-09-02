@@ -38,6 +38,7 @@ TEAM_OVERRIDES_2026 = {
     "MEN516487": "LV",   # Fernando Mendoza, Raiders, 2026-08-12
     "00-0035719": "SF",  # Deebo Samuel, re-signed, live Ourlads RWR1
     "00-0030279": "IND", # Keenan Allen, Colts one-year, 2026-08-17
+    "00-0040142": "GB",  # Kaleb Johnson, Packers trade 2026-08-30
 }
 
 
@@ -252,15 +253,20 @@ def _load_board_2026_cached(source_fingerprint):
             if not overlay["_name_position"].duplicated().any():
                 overlay = overlay.set_index("_name_position")
                 df["_name_position"] = _name_position_key(df)
-                if df["_name_position"].isin(overlay.index).all():
-                    df["adp_half_ppr"] = df["_name_position"].map(overlay["adp_half_ppr"])
-                    df["pos_rank"] = pd.to_numeric(
-                        df["_name_position"].map(overlay["adp_pos_rank"]), errors="raise"
-                    ).astype("Int64")
-                    df["sleeper_proj"] = pd.to_numeric(
-                        df["_name_position"].map(overlay["sleeper_pts_half_ppr"]), errors="coerce"
+                matched = df["_name_position"].isin(overlay.index)
+                if matched.any():
+                    df.loc[matched, "adp_half_ppr"] = df.loc[matched, "_name_position"].map(
+                        overlay["adp_half_ppr"]
                     )
-                    live_market_loaded = True
+                    df.loc[matched, "pos_rank"] = pd.to_numeric(
+                        df.loc[matched, "_name_position"].map(overlay["adp_pos_rank"]),
+                        errors="raise",
+                    ).astype("Int64")
+                    df.loc[matched, "sleeper_proj"] = pd.to_numeric(
+                        df.loc[matched, "_name_position"].map(overlay["sleeper_pts_half_ppr"]),
+                        errors="coerce",
+                    )
+                    live_market_loaded = bool(matched.all())
                 df = df.drop(columns="_name_position")
 
     df["espn_adp"] = pd.NA
@@ -273,12 +279,13 @@ def _load_board_2026_cached(source_fingerprint):
             if not espn["player_id"].duplicated().any():
                 espn_idx = espn.set_index("player_id")
                 ids = df["player_id"].astype("string")
-                if ids.isin(espn_idx.index).all():
-                    df["espn_adp"] = pd.to_numeric(
-                        ids.map(espn_idx["espn_adp"]), errors="coerce"
+                hit = ids.isin(espn_idx.index)
+                if hit.any():
+                    df.loc[hit.to_numpy(), "espn_adp"] = pd.to_numeric(
+                        ids[hit].map(espn_idx["espn_adp"]), errors="coerce"
                     )
-                    df["espn_pos_rank"] = pd.to_numeric(
-                        ids.map(espn_idx["espn_pos_rank"]), errors="coerce"
+                    df.loc[hit.to_numpy(), "espn_pos_rank"] = pd.to_numeric(
+                        ids[hit].map(espn_idx["espn_pos_rank"]), errors="coerce"
                     ).astype("Int64")
 
     df["yahoo_adp"] = pd.NA
@@ -291,12 +298,13 @@ def _load_board_2026_cached(source_fingerprint):
             if not yahoo["player_id"].duplicated().any():
                 yahoo_idx = yahoo.set_index("player_id")
                 ids = df["player_id"].astype("string")
-                if ids.isin(yahoo_idx.index).all():
-                    df["yahoo_adp"] = pd.to_numeric(
-                        ids.map(yahoo_idx["yahoo_adp"]), errors="coerce"
+                hit = ids.isin(yahoo_idx.index)
+                if hit.any():
+                    df.loc[hit.to_numpy(), "yahoo_adp"] = pd.to_numeric(
+                        ids[hit].map(yahoo_idx["yahoo_adp"]), errors="coerce"
                     )
-                    df["yahoo_pos_rank"] = pd.to_numeric(
-                        ids.map(yahoo_idx["yahoo_pos_rank"]), errors="coerce"
+                    df.loc[hit.to_numpy(), "yahoo_pos_rank"] = pd.to_numeric(
+                        ids[hit].map(yahoo_idx["yahoo_pos_rank"]), errors="coerce"
                     ).astype("Int64")
 
     legacy = _load_projections().reset_index() if any(
@@ -1444,18 +1452,22 @@ def render():
         st.caption("Model Proj and Model Gap are the published season-total projection "
                    "for this board. ADP is not a "
                    "model input. Backtested on 2021-2025 and not live-validated. On that "
-                   "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
-                   "scenario overlay is applied.")
+                   "backtest Model Proj beat ADP ordering in 5 of 6 seasons. "
+                   "2026-09-02 availability adjustment: Josh Jacobs 6 games after "
+                   "the commissioner's exempt list, MarShawn Lloyd added to the 180.")
     elif market == DEFAULT_ADP_MARKET:
         st.caption("Model Proj and Model Gap are the published season-total projection "
                    "for this board. ADP is not a "
                    "model input. Backtested on 2021-2025 and not live-validated. On that "
-                   "backtest Model Proj beat ADP ordering in 5 of 6 seasons. No analyst "
-                   "scenario overlay is applied.")
+                   "backtest Model Proj beat ADP ordering in 5 of 6 seasons. "
+                   "2026-09-02 availability adjustment: Josh Jacobs 6 games after "
+                   "the commissioner's exempt list, MarShawn Lloyd added to the 180.")
     else:
         st.caption(f"Model Proj and Model Gap in this view use {market} draft prices. ADP is not a "
                    "model input. The 5-of-6 ADP-ordering backtest is vs Sleeper ADP and does "
-                   f"not apply to {market}. No analyst scenario overlay is applied.")
+                   f"not apply to {market}. 2026-09-02 availability adjustment: Josh Jacobs "
+                   "6 games after the commissioner's exempt list, MarShawn Lloyd added "
+                   "to the 180.")
     st.caption("NFL Talent Score ranks NFL players against NFL players; College Talent Score "
                "ranks 2026 rookies against past drafted prospects — different instruments on "
                "different scales, and neither feeds any other column.")

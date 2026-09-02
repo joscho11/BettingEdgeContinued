@@ -410,6 +410,23 @@ def test_model_draft_rank_toggle_orders_the_board_without_a_column():
     assert _adp_control(at).value == board.MODEL_DRAFT_MARKET
 
 
+def test_jacobs_cel_six_games_lloyd_ranks_above():
+    """2026-09-02: Jacobs 6 games after CEL. Lloyd ranks above him."""
+    import draft_board_2026 as board
+
+    df = board._load_board_2026().set_index("player_id")
+    assert abs(float(df.loc["00-0035700", "model_proj"]) - 87.9) < 0.05
+    assert int(df.loc["00-0035700", "model_proj_pos_rank"]) == 45
+    assert abs(float(df.loc["00-0039811", "model_proj"]) - 132.0) < 0.05
+    assert int(df.loc["00-0039811", "model_proj_pos_rank"]) == 29
+    assert float(df.loc["00-0039811", "model_proj"]) > float(df.loc["00-0035700", "model_proj"])
+    assert "00-0038951" not in df.index
+    outside = board._load_outside_market_players().set_index("player_id")
+    assert float(outside.loc["00-0038685", "model_proj"]) == 48.0
+    assert float(outside.loc["00-0040142", "model_proj"]) == 32.0
+    assert outside.loc["00-0040142", "team"] == "GB"
+
+
 def test_fernando_mendoza_team_override_is_identity_only():
     import draft_board_2026 as board
 

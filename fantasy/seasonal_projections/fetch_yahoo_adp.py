@@ -62,6 +62,8 @@ SKILL = set(SKILL_POSITIONS)
 # him because nmz strips Jr; this alias is a pin, not the join path.
 BOARD_YAHOO_ID_ALIASES = {
     "WAS797326": "42744",
+    "00-0039811": "40971",  # MarShawn Lloyd, no Yahoo ADP
+    "LAN311008": "42702",   # Ja'Kobi Lane
 }
 
 

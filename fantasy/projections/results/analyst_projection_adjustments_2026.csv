@@ -47,3 +47,5 @@ player_id,player,position,team,raw_projection,adjusted_projection,method,as_of,n
 00-0041512,Jadarian Price,RB,,145.1,172.7,rb_player_specific_role_scenario,2026-07-27,Workhorse role scenario with the veteran room depleted by free agency and a recovery absence
 00-0041104,Demond Claiborne,RB,,5.4,21.3,rb_player_specific_role_scenario,2026-07-27,Rotational third running back role scenario limited by pass-protection and ball-security work
 00-0035719,Deebo Samuel Sr.,WR,SF,93.4,120.0,wr_player_specific_role_scenario,2026-08-03,Confirmed signing into a receiver room reduced by a season-ending injury
+00-0038685,Chris Brooks,RB,GB,34.0,48.0,rb_jacobs_cel_room,2026-09-02,Pass-down share in the 8 Jacobs missed games; stays off the 180
+00-0040142,Kaleb Johnson,RB,GB,17.4,32.0,rb_jacobs_cel_room,2026-09-02,Packers trade 2026-08-30; committee insurance behind Lloyd and Brooks
