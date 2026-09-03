@@ -14,6 +14,8 @@ from pathlib import Path
 import requests as req
 import streamlit as st
 
+import email_signup
+
 _HERE = Path(__file__).resolve().parent
 # Hermetic-test switch: when "1" the app attempts NO network (GA off).
 _OFFLINE = os.environ.get("APP_OFFLINE") == "1"
@@ -338,6 +340,7 @@ def render_footer():
     st.divider()
     st.caption("This site publishes checked release artifacts. The website code is public.", text_alignment="center")
     with st.container(horizontal=True, horizontal_alignment="center"):
+        email_signup.render_button(on_click=send_ga_event, type="tertiary")
         st.link_button(
             "View public code",
             _REPO,

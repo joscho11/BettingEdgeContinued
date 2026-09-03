@@ -26,6 +26,7 @@ from live_2026 import (  # noqa: E402
     leftover_to_home_margin,
     row_display_high,
     row_high_dropped,
+    season_high_record,
     sportsbook_to_nflverse,
     tracker_2025_payload,
     tuesday_high,
@@ -138,3 +139,64 @@ def test_leftover_converts_to_site_home_margin():
     assert nflverse == 7.0
     assert abs(home - nflverse) == abs(leftover)
     assert tuesday_high(home, nflverse)
+
+
+def _mk_high_fixture(rows):
+    cols = ["season", "week", "ens_predicted_margin", "tuesday_spread_line",
+            "live_spread_line", "actual_margin", "ens_model_correct"]
+    return pd.DataFrame(rows, columns=cols)
+
+
+def _track_record_high_ref(df, season):
+    """Independent replication of the Track Record page's live HIGH filter, so
+    season_high_record can never silently diverge from what Track Record shows."""
+    sdf = df[(df["season"] == season) & (df["actual_margin"].notna())].copy()
+    if sdf.empty:
+        return 0, 0
+    col = ("ens_model_correct"
+           if ("ens_model_correct" in sdf.columns and sdf["ens_model_correct"].notna().any())
+           else "model_correct")
+    hdf = sdf[sdf.apply(row_display_high, axis=1)]
+    return int(hdf[col].sum()), int(hdf[col].notna().sum())
+
+
+def test_season_high_record_counts_graded_high_only():
+    df = _mk_high_fixture([
+        (2026, 1, 6.0, -2.0, -2.0, 7, 1),                     # HIGH, graded, correct
+        (2026, 1, 1.0, -1.0, -1.0, -3, 0),                    # gap 2.0 -> not HIGH
+        (2026, 2, -5.0, 1.0, 1.0, 2, 0),                      # HIGH, graded, wrong
+        (2026, 2, 9.0, 3.0, 3.0, float("nan"), float("nan")),  # HIGH but UNGRADED
+        (2026, 3, 8.0, 3.0, 3.0, 10, 1),                      # HIGH, graded, correct
+        (2025, 10, 9.0, 0.0, 0.0, 5, 1),                      # other season
+    ])
+    assert season_high_record(df, 2026) == (2, 3, round(2 / 3 * 100, 1))
+
+
+def test_season_high_record_matches_track_record_filter():
+    df = _mk_high_fixture([
+        (2026, 1, 6.0, -2.0, -2.0, 7, 1),
+        (2026, 2, -5.0, 1.0, 1.0, 2, 0),
+        (2026, 3, 8.0, 3.0, 3.0, 10, 1),
+        (2026, 4, 0.5, 0.0, 0.0, 3, 1),                       # not HIGH
+        (2026, 5, 9.0, 3.0, 3.0, float("nan"), float("nan")),  # ungraded
+    ])
+    wins, n, _ = season_high_record(df, 2026)
+    assert (wins, n) == _track_record_high_ref(df, 2026)
+
+
+def test_season_high_record_empty_preseason_and_other_season():
+    assert season_high_record(pd.DataFrame(), 2026) == (0, 0, None)
+    only_ungraded = _mk_high_fixture([(2026, 5, 9.0, 3.0, 3.0, float("nan"), float("nan"))])
+    assert season_high_record(only_ungraded, 2026) == (0, 0, None)
+    only_2025 = _mk_high_fixture([(2025, 10, 9.0, 0.0, 0.0, 5, 1)])
+    assert season_high_record(only_2025, 2026) == (0, 0, None)
+
+
+def test_season_high_record_falls_back_to_model_correct():
+    df = _mk_high_fixture([
+        (2026, 1, 6.0, -2.0, -2.0, 7, 1),
+        (2026, 2, -5.0, 1.0, 1.0, 2, 0),
+        (2026, 3, 8.0, 3.0, 3.0, 10, 1),
+    ]).drop(columns=["ens_model_correct"])
+    df["model_correct"] = [1, 0, 1]
+    assert season_high_record(df, 2026)[:2] == (2, 3)

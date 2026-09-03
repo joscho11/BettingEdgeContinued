@@ -196,3 +196,34 @@ def attach_slate(tracker: pd.DataFrame, base_dir) -> pd.DataFrame:
     if extra.empty:
         return tracker
     return pd.concat([tracker, extra], ignore_index=True, sort=False)
+
+
+def season_high_record(df, season: int = LIVE_SEASON):
+    """Graded HIGH ATS record for a live season, matching the Track Record page.
+
+    Returns ``(wins, n, pct)`` with ``pct`` None when ``n == 0``. Same filter the
+    Track Record live branch uses: rows for ``season`` with a graded
+    ``actual_margin``, HIGH by :func:`row_display_high`, correct by
+    ``ens_model_correct`` (falling back to ``model_correct``). One source of truth
+    so the Home strip and Track Record can never disagree.
+    """
+    if df is None or getattr(df, "empty", True):
+        return 0, 0, None
+    if "season" not in df.columns or "actual_margin" not in df.columns:
+        return 0, 0, None
+    sdf = df[(df["season"] == season) & (df["actual_margin"].notna())]
+    if sdf.empty:
+        return 0, 0, None
+    correct_col = (
+        "ens_model_correct"
+        if ("ens_model_correct" in sdf.columns and sdf["ens_model_correct"].notna().any())
+        else "model_correct"
+    )
+    if correct_col not in sdf.columns:
+        return 0, 0, None
+    mask = sdf.apply(row_display_high, axis=1)
+    hdf = sdf[mask]
+    wins = int(hdf[correct_col].sum())
+    n = int(hdf[correct_col].notna().sum())
+    pct = round(wins / n * 100, 1) if n > 0 else None
+    return wins, n, pct

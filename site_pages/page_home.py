@@ -4,6 +4,9 @@ import streamlit as st
 
 import nav_registry
 from seasonal_config import app_today, board_refresh_season_start
+import dashboard_data
+import email_signup
+import live_2026
 
 
 def _page_link(slug: str, label: str, icon: str) -> None:
@@ -13,6 +16,18 @@ def _page_link(slug: str, label: str, icon: str) -> None:
     else:
         # Standalone AppTest harnesses do not populate the navigation registry.
         st.markdown(f"**{label}**")
+
+
+def _live_record_line() -> str:
+    """Compact 2026 HIGH record for the Track Record card - blends into the card
+    and never claims a figure the tracker does not have. Empty on any load error."""
+    try:
+        wins, n, pct = live_2026.season_high_record(dashboard_data.load_predictions())
+    except Exception:
+        return ""
+    if n > 0 and pct is not None:
+        return f"**{live_2026.LIVE_SEASON} HIGH:** {wins}/{n} ({pct}%)"
+    return f"**{live_2026.LIVE_SEASON} HIGH:** first graded card after Week 1"
 
 
 def render() -> None:
@@ -67,6 +82,10 @@ def render() -> None:
                 )
                 _page_link("anytime-tds", "Open Anytime TDs", ":material/sports_score:")
 
+    _rec = _live_record_line()
+    if _rec:
+        st.markdown(_rec)
+
     season_start = board_refresh_season_start()
     if app_today() < season_start:
         st.info(
@@ -89,6 +108,8 @@ def render() -> None:
         _page_link("season-totals", "Season Totals", ":material/bar_chart:")
         _page_link("league-history", "League History", ":material/history:")
         _page_link("film-room", "Film Room", ":material/movie:")
+
+    email_signup.render_card()
 
     with st.container(border=True):
         st.markdown("**How to read the site**")

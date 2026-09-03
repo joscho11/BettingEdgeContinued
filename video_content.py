@@ -243,4 +243,14 @@ VIDEOS = [
         "video_id": "7680698160385101087",
         "breakdown_file": "chase_brown.md",
     },
+    {
+        "slug": "kenneth-walker",
+        "title": "Kenneth Walker Fantasy Outlook 2026",
+        "subtitle": "2026 · RB, Kansas City Chiefs",
+        "date": "2026-09-02",
+        "section": "player-breakdowns",
+        "tiktok_url": "https://www.tiktok.com/@joschoanalytics/video/7681059090998578462",
+        "video_id": "7681059090998578462",
+        "breakdown_file": "kenneth_walker.md",
+    },
 ]
