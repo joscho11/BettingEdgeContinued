@@ -56,7 +56,7 @@ def test_embed_uses_dark_player_not_white_card():
     assert "embed/v2" not in src
 
 
-def test_catalog_has_nineteen_videos():
+def test_catalog_size_and_expected_slugs():
     assert len(VIDEOS) == 23
     slugs = {item["slug"] for item in VIDEOS}
     assert "brian-thomas-jr" not in slugs
