@@ -88,4 +88,4 @@ Ourlads CIN 2026-08-25: RB1 Brown, RB2 Perine, RB3 Brooks, QB1 Burrow, LWR1 Chas
 
 ---
 
-*TikTok id `7680698160385101087`. This is football analysis, not betting advice.*
+*TikTok id `7681430843541327134`. This is football analysis, not betting advice.*
