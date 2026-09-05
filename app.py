@@ -74,6 +74,8 @@ theme_redesign.inject()  # redesign preview skin (revertible) — remove this li
 # ── Pages — stable Home route plus product pages loaded only when selected ──
 home_pg = st.Page(_lazy_render("page_home"), title="Home", icon=":material/home:",
                   url_path="", default=True)
+tw_pg = st.Page(_lazy_render("page_this_week"), title="This Week", icon=":material/calendar_today:",
+                url_path="this-week")
 board_pg = st.Page(_lazy_render("page_draft_board"), title="Draft Board", icon=":material/list_alt:",
                    url_path="draft-board")
 wp_pg = st.Page(_lazy_render("page_weekly_predictions"), title="Weekly Predictions", icon=":material/query_stats:",
@@ -99,7 +101,7 @@ fut_pg = st.Page(_lazy_render("page_futures"), title="Season Totals", icon=":mat
 
 # cross-link registry (design 4g) — populated before nav.run() so pages can link
 nav_registry.PAGES = {
-    "home": home_pg, "draft-board": board_pg, "weekly-predictions": wp_pg, "anytime-tds": atd_pg,
+    "home": home_pg, "this-week": tw_pg, "draft-board": board_pg, "weekly-predictions": wp_pg, "anytime-tds": atd_pg,
     "weekly-fantasy": wf_pg, "dfs-optimizer": dfs_pg,
     "track-record": tr_pg, "film-room": film_pg, "league-history": lh_pg, "help": help_pg,
     "rookie-board": rb_pg, "season-totals": fut_pg,
@@ -117,7 +119,7 @@ chrome.render_header()
 mobile.inject()
 
 nav = st.navigation(
-    {"": [home_pg],
+    {"": [home_pg, tw_pg],
      "Fantasy": [board_pg, rb_pg, wf_pg, dfs_pg],
      "Betting": [wp_pg, atd_pg, tr_pg, fut_pg],
      "More": [film_pg, lh_pg, help_pg]},

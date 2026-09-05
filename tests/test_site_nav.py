@@ -21,6 +21,7 @@ sys.path.insert(0, str(_HERE))
 ENTRY = str(_HERE / "app.py")   # the multipage entrypoint (post-3e swap)
 PAGE_MODULES = (
     "page_home",
+    "page_this_week",
     "page_weekly_predictions",
     "page_track_record",
     "page_draft_board",
