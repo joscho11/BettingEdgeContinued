@@ -57,7 +57,7 @@ def test_embed_uses_dark_player_not_white_card():
 
 
 def test_catalog_size_and_expected_slugs():
-    assert len(VIDEOS) == 23
+    assert len(VIDEOS) == 26
     slugs = {item["slug"] for item in VIDEOS}
     assert "brian-thomas-jr" not in slugs
     assert "site-walkthrough" in slugs
@@ -71,6 +71,9 @@ def test_catalog_size_and_expected_slugs():
     assert "davante-adams" in slugs
     assert "chase-brown" in slugs
     assert "kenneth-walker" in slugs
+    assert "jadarian-price" in slugs
+    assert "garrett-wilson" in slugs
+    assert "lamar-jackson" in slugs
     assert DEFAULT_VIDEO_SLUG == "league-history-guide"
     assert DEFAULT_VIDEO_SLUG in slugs
 
@@ -81,7 +84,7 @@ def test_default_is_league_history_guide(tmp_path):
     newest = _newest()
     md = _md(at)
     assert default["title"] in md
-    assert newest["slug"] == "chase-brown"
+    assert newest["slug"] == "lamar-jackson"
     assert newest["title"] not in md
     assert "Welcome to JoScho Analytics" not in md
     assert "A walk through the JoScho Analytics site" not in md
@@ -130,6 +133,9 @@ def test_catalog_sections():
         "how-to-leverage-adp-guide",
     ]
     assert grouped["Player breakdowns"] == [
+        "lamar-jackson",
+        "garrett-wilson",
+        "jadarian-price",
         "chase-brown",
         "kenneth-walker",
         "davante-adams",
@@ -145,7 +151,7 @@ def test_catalog_sections():
         "makai-lemon",
     ]
     assert "Archive" not in grouped
-    assert newest_first[0]["slug"] == "chase-brown"
+    assert newest_first[0]["slug"] == "lamar-jackson"
 
 
 def test_every_episode_has_a_known_content_section():
@@ -211,11 +217,11 @@ def test_latest_league_history_guide_constant_still_points_at_the_walkthrough():
     assert item["section"] == "site-walkthroughs"
 
 
-def test_newest_episode_is_chase_brown():
+def test_newest_episode_is_lamar_jackson():
     newest = _newest()
-    assert newest["slug"] == "chase-brown"
-    assert newest["video_id"] == "7681430843541327134"
-    assert newest["date"] == "2026-09-03"
+    assert newest["slug"] == "lamar-jackson"
+    assert newest["video_id"] == "7682196431578582303"
+    assert newest["date"] == "2026-09-06"
 
 
 def test_breakdowns_and_registry_do_not_disclose_sleeper_mix():
