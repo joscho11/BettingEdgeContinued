@@ -1,4 +1,4 @@
-"""Film Room: one TikTok player plus a title list, with click-to-open breakdowns.
+"""Film Room: one TikTok player plus a section/episode picker, with click-to-open breakdowns.
 
 Kept out of app.py so adding a video is a data-only change (see video_content.py).
 
@@ -25,19 +25,17 @@ _INTRO_KEY = "__intro__"
 _PICK_KEY_PREFIX = "fr_pick_"
 _SITE_BG = "#0B0F14"
 
-# Picker buttons read as a list, not a column of centered capsules.
+_SEC_KEY = "film_room_section"
+_EP_KEY_PREFIX = "fr_ep_"
+_SECTION_SHORT = {
+    "site-walkthroughs": "Walkthroughs",
+    "draft-strategy": "Draft",
+    "player-breakdowns": "Players",
+}
+
 # Iframe chrome is painted to the site background so leftover space is not white.
 _PICKER_CSS = f"""
 <style>
-[class*="st-key-jsa-filmroom-picker"] button {{
-  justify-content: flex-start !important;
-  text-align: left !important;
-  white-space: normal !important;
-  height: auto !important;
-  min-height: 2.25rem;
-  padding-top: 0.45rem !important;
-  padding-bottom: 0.45rem !important;
-}}
 [data-testid="stIFrame"] {{
   background: {_SITE_BG} !important;
   display: flex !important;
@@ -105,19 +103,35 @@ def _episodes() -> list:
     return sorted(VIDEOS, key=lambda v: v.get("date") or "", reverse=True)
 
 
-def _sectioned_episodes(episodes: list) -> list[tuple[str, list]]:
-    """Return configured sections, omitting empty ones and preserving episode order."""
+def _grouped_episodes(episodes: list) -> dict[str, list]:
     grouped = {key: [] for key, _label in VIDEO_SECTIONS}
     for item in episodes:
         key = item.get("section")
         if key not in grouped:
             key = "player-breakdowns"
         grouped[key].append(item)
+    return grouped
+
+
+def _sectioned_episodes(episodes: list) -> list[tuple[str, list]]:
+    """Return configured sections, omitting empty ones and preserving episode order."""
+    grouped = _grouped_episodes(episodes)
     return [
         (label, grouped[key])
         for key, label in VIDEO_SECTIONS
         if grouped[key]
     ]
+
+
+def _section_of(slug: str, episodes: list, intro: dict | None) -> str:
+    if intro is not None and slug == _INTRO_KEY:
+        return VIDEO_SECTIONS[0][0]
+    known = {key for key, _label in VIDEO_SECTIONS}
+    for item in episodes:
+        if item.get("slug") == slug:
+            key = item.get("section")
+            return key if key in known else "player-breakdowns"
+    return VIDEO_SECTIONS[0][0]
 
 
 def _item_for(sel: str, intro: dict | None, episodes: list) -> dict | None:
@@ -246,7 +260,6 @@ def render_film_room(*, show_header: bool = True) -> None:
 
     intro = _intro_item()
     episodes = _episodes()
-    sections = _sectioned_episodes(episodes)
     default = (
         DEFAULT_VIDEO_SLUG
         if DEFAULT_VIDEO_SLUG in {item["slug"] for item in episodes}
@@ -262,26 +275,51 @@ def render_film_room(*, show_header: bool = True) -> None:
     if selected not in valid:
         selected = default
         st.session_state[_SEL_KEY] = selected
-    page_common.sync_query_value("video", selected)
     open_breakdown = _make_dialog()
 
-    # Player first so phones (Streamlit stacks columns below 640px) see the video
-    # before the list. Desktop keeps the catalog on the right.
-    player, picker = st.columns([1.45, 1], vertical_alignment="top")
-    with picker:
-        with st.container(key="jsa-filmroom-picker"):
-            if intro is not None:
-                st.caption("Start here")
-                _pick_button(
-                    intro["short_caption"],
-                    _INTRO_KEY,
-                    selected,
-                )
-            for section_label, section_items in sections:
-                st.caption(section_label)
-                for item in section_items:
-                    label = item["title"]
-                    _pick_button(label, item["slug"], selected)
+    # Catalog is two widgets, so it sits above the player. Phones no longer
+    # scroll a title list, and desktop no longer has an empty right column.
+    with st.container(key="jsa-filmroom-picker"):
+        if intro is not None:
+            st.caption("Start here")
+            _pick_button(
+                intro["short_caption"],
+                _INTRO_KEY,
+                selected,
+            )
+        grouped = _grouped_episodes(episodes)
+        if _SEC_KEY not in st.session_state:
+            st.session_state[_SEC_KEY] = _section_of(selected, episodes, intro)
+        if st.session_state[_SEC_KEY] not in grouped or not grouped[st.session_state[_SEC_KEY]]:
+            st.session_state[_SEC_KEY] = _section_of(selected, episodes, intro)
+        section_keys = [key for key, _label in VIDEO_SECTIONS if grouped[key]]
+        sec_col, ep_col = st.columns([1, 1.25], vertical_alignment="bottom")
+        with sec_col:
+            st.segmented_control(
+                "Section",
+                options=section_keys,
+                format_func=lambda key: _SECTION_SHORT.get(key, key),
+                key=_SEC_KEY,
+                required=True,
+                width="stretch",
+            )
+        section = st.session_state[_SEC_KEY]
+        section_items = grouped[section]
+        slugs = [item["slug"] for item in section_items]
+        titles = {item["slug"]: item["title"] for item in section_items}
+        ep_key = f"{_EP_KEY_PREFIX}{section}"
+        if ep_key not in st.session_state or st.session_state[ep_key] not in slugs:
+            st.session_state[ep_key] = selected if selected in slugs else slugs[0]
+        with ep_col:
+            picked = st.selectbox(
+                "Episode",
+                slugs,
+                format_func=lambda slug: titles[slug],
+                key=ep_key,
+                width="stretch",
+            )
+        selected = picked
+        st.session_state[_SEL_KEY] = selected
+        page_common.sync_query_value("video", selected)
 
-    with player:
-        _render_player(_item_for(selected, intro, episodes), open_breakdown)
+    _render_player(_item_for(selected, intro, episodes), open_breakdown)

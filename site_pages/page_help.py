@@ -284,7 +284,7 @@ Collapsed lists of **college players who are not in this year's rookie class** u
 
     with st.expander("What is the Film Room page?"):
         st.markdown("""
-Short analysis videos, the site walkthrough, and the League History walkthrough. Pick a title to load a short. **📖 Full breakdown** opens the context the short couldn't fit.
+Short analysis videos, the site walkthrough, and the League History walkthrough. Choose a section, then an episode. **📖 Full breakdown** opens the context the short couldn't fit.
         """)
 
     with st.expander("What is the League History page?"):

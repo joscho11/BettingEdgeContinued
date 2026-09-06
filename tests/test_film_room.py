@@ -94,20 +94,33 @@ def test_default_is_league_history_guide(tmp_path):
     assert default["video_id"] == "7676271983297940766"
 
 
+def _section_control(at):
+    return next(w for w in at.segmented_control if w.key == "film_room_section")
+
+
+def _episode_box(at):
+    return next(w for w in at.selectbox if w.label == "Episode")
+
+
 def test_picker_lists_every_episode_and_no_retired_intro(tmp_path):
     at = _render(tmp_path)
     labels = [str(b.label) for b in at.button]
     assert not any("Start here" in lbl for lbl in labels)
     assert INTRO_VIDEO is None
+    seen = set()
+    for key, _label in VIDEO_SECTIONS:
+        at = _section_control(at).set_value(key).run()
+        assert not at.exception, at.exception
+        seen.update(_episode_box(at).options)
     for item in VIDEOS:
-        assert item["title"] in labels
+        assert item["title"] in seen
     breakdowns = [b for b in at.button if "Full breakdown" in str(b.label)
                   or "What is this?" in str(b.label)]
     assert len(breakdowns) == 1
     captions = {str(c.value) for c in at.caption}
-    for _key, section_label in VIDEO_SECTIONS:
-        assert section_label in captions
+    assert _section_control(at).options == ["Walkthroughs", "Draft", "Players"]
     assert "Archive" not in captions
+    assert not any(label in captions for _key, label in VIDEO_SECTIONS)
 
 
 def test_catalog_sections():
@@ -165,8 +178,10 @@ def test_switching_episode_swaps_the_embed(tmp_path):
     at = _render(tmp_path)
     default = _default()
     other = next(v for v in VIDEOS if v["slug"] != default["slug"])
-    at.button(f"fr_pick_{other['slug']}").click()
-    at.run()
+    if other["section"] != default["section"]:
+        at = _section_control(at).set_value(other["section"]).run()
+        assert not at.exception, at.exception
+    at = _episode_box(at).set_value(other["slug"]).run()
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
     watch = [link for link in at.get("link_button") if link.label == "Watch on TikTok"]

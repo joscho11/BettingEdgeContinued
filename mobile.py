@@ -157,10 +157,8 @@ details summary{
 .jsa-ff-head span{ font-size:10px !important; letter-spacing:.2px !important; }
 
 /* ── 9b. Film Room ───────────────────────────────────────────────────────
-   The 3-up embed grid is gone. Film Room is one player (left) plus a title
-   list (right). Streamlit already stacks those columns below 640px, player
-   first, so the video is on screen before the list. Picker tap targets and
-   wrapped labels are set in film_room.py (`jsa-filmroom-picker`). */
+   Section pills and an episode select sit above one player. Widget chrome
+   lives in film_room.py (`jsa-filmroom-picker`). */
 
 /* ── 10. Metric tiles ─────────────────────────────────────────────────────
    min-height keeps a tile with a sub-line the same height as one without, so the
